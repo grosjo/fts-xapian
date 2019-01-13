@@ -1,3 +1,6 @@
+/* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
+
+
 #ifndef FTS_XAPIAN_PLUGIN_H
 #define FTS_XAPIAN_PLUGIN_H
 
