@@ -66,7 +66,7 @@ plugin {
 ```
 note: 2 and 20 are the NGram value for headers, this means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
 
-Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., and finally john@doe as searchable keywords.
+Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
 
 Restart Dovecot:
