@@ -6,7 +6,7 @@ What is this?
 
 This project intends to provide a straightforward and simple to configure FTS plugin for [Dovecot](https://github.com/dovecot/).
 
-The effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot code, and the complexity of the Solr plugin un-needed for msot of users.
+This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
 
 
 Installation
@@ -25,12 +25,17 @@ You are going to need the following things to get this going:
 Installing the Dovecot plugins
 ------------------------------
 
-First install the following Ubuntu packages, or equivalent for your operating system. 
+First install the following packages, or equivalent for your operating system. 
 
 ```
-sudo apt-get build-dep dovecot-core
-sudo apt-get install git dovecot-dev
-sudo apt-get install xapian-core
+Ubuntu:
+apt-get build-dep dovecot-core
+apt-get install git dovecot-dev
+apt-get install xapian-core
+
+Archlinux:
+pacman -S dovecot
+pacman -S xapian-core
 ```
 
 Clone this project:
@@ -44,7 +49,7 @@ Compile and install the plugins.
 
 ```
 autoreconf -vi
-./configure --with-dovecot=/path/to/dovecot
+./configure --prefix=/usr --with-dovecot=/path/to/dovecot
 make
 sudo make install
 ```
@@ -70,7 +75,7 @@ plugin {
 (...)
 }
 ```
-note: 2 and 20 are the NGram value for headers, this means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
+note: 2 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
 
 Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
@@ -84,5 +89,6 @@ sudo service dovecot restart
 Debugging/Support
 =================
 
-Please feel free to send your questions, together with the dovecot log file, to jom@grosjo.net
+Please feel free to send your questions, together with the dovecot log file, to jom@grosjo.net or to the dovecot ML dovecot@dovecot.org
 
+Thanks to Aki Tuomi <aki.tuomi@open-xchange.com> and Stephan Bosh <stephan@rename-it.nl>
