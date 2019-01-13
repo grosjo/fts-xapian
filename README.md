@@ -75,4 +75,8 @@ Restart Dovecot:
 sudo service dovecot restart
 ```
 
+Debugging/Support
+=================
+
+Please feel free to send your questions, together with the dovecot log file, to jom@grosjo.net
 
