@@ -49,6 +49,10 @@ sudo make install
 
 Update your dovecot.conf file with something similar to:
 ```
+mail_plugins = fts fts_xapian (...)
+
+(...)
+
 plugin {
 	plugin = fts fts_xapian (...)
 
