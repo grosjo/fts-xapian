@@ -17,8 +17,9 @@ Prerequisites
 
 You are going to need the following things to get this going:
 
-* Dovecot > 2.3.x (untested with previous version)
+* Dovecot above 2.3.x (untested with previous versions)
 * Properly configured [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
+
 
 
 Installing the Dovecot plugins
@@ -63,6 +64,9 @@ plugin {
 (...)
 }
 ```
+note: 2 and 20 are the NGram value for headers, this means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
+
+Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., and finally john@doe as searchable keywords.
 
 
 Restart Dovecot:
