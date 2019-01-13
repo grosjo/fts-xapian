@@ -43,6 +43,8 @@ cd fts-xapian
 Compile and install the plugins. 
 
 ```
+autoreconf -vi
+./configure --with-dovecot=/path/to/dovecot
 make
 sudo make install
 ```
