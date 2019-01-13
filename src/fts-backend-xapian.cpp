@@ -308,7 +308,7 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
     	ctx->tbi_uid=0;
 }
 
-static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const char *data, size_t size)
+static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
@@ -316,6 +316,8 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
                 (struct xapian_fts_backend *) ctx->ctx.backend;
 
 	if(ctx->tbi_uid<1) return 0;
+
+	const char *s = (char *)data;
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
@@ -325,14 +327,14 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
     	if(ctx->tbi_isfield)
     	{
-        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field,data,backend->partial,backend->full))
+        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full))
         	{
             		return -1;
         	}
     	}
     	else
     	{
-        	if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field,data))
+        	if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s))
         	{
             		return -1;
         	}
@@ -461,18 +463,21 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	i_warning("LAUNCHING SEARCH");
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
 
-	i_warning("%d results",r->size);
+	int n=r->size;
+
+	i_warning("%d results",n);
 
 	i_array_init(&(result->definite_uids),r->size);
         i_array_init(&(result->maybe_uids),0);
 	i_array_init(&(result->scores),0);
 
 	uint32_t uid;
-	for(int i=0;i<r->size;i++)
+	for(int i=0;i<n;i++)
 	{
 		try
 		{
 			uid=atol(backend->dbr->get_document(r->data[i]).get_value(1).c_str());
+//			i_warning("Res %d : UID=%d",i,uid);
 			seq_range_array_add(&result->definite_uids, uid);
 		}
 		catch(Xapian::Error e)

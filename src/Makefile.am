@@ -6,8 +6,7 @@ AM_CPPFLAGS = \
 	$(LIBDOVECOT_FTS_INCLUDE)
 
 AM_CXXFLAGS = \
-	$(AM_CPPFLAGS) \
-	-fpermissive
+	$(AM_CPPFLAGS) 
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
 
