@@ -83,7 +83,7 @@ Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., j
 Restart Dovecot:
 
 ```
-sudo service dovecot restart
+sudo servicectl restart dovecot
 ```
 
 Debugging/Support
