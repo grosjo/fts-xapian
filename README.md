@@ -67,7 +67,7 @@ plugin {
 	fts_xapian = partial=2 full=20
 
 	fts_autoindex = yes
-	fts_enforced = no
+	fts_enforced = yes
 	fts_autoindex_exclude = \Junk
   	fts_autoindex_exclude2 = \Trash
 	fts_autoindex_exclude3 = \Drafts
@@ -85,6 +85,10 @@ Restart Dovecot:
 ```
 sudo servicectl restart dovecot
 ```
+
+*The first search will re-index all your emails in the chosen mailbox, therefore will take a while and may, for the first use, raise a timeout.*
+
+
 
 Debugging/Support
 =================
