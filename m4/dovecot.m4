@@ -236,8 +236,8 @@ AC_DEFUN([AC_CC_F_STACK_PROTECTOR],[
 AC_DEFUN([DC_DOVECOT_MODULEDIR],[
 	AC_ARG_WITH(moduledir,
 	[  --with-moduledir=DIR    Base directory for dynamically loadable modules],
-		moduledir="$withval",
-		moduledir=$libdir/dovecot
+		[moduledir="$withval"] ,
+		[moduledir="$dovecot_moduledir"]
 	)
 	AC_SUBST(moduledir)
 ])
