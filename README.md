@@ -93,9 +93,7 @@ sudo servicectl restart dovecot
 If this is not a fresh install of dovecot, you need to re-index your mailboxes
 
 ```
-
 doveadm index -u john@doe -q \*
-
 ```
 
 *The first search will re-index all your emails, therefore may take a while.*
