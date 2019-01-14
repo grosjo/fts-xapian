@@ -4,7 +4,7 @@ FTS Xapian plugin for Dovecot
 What is this?
 -------------
 
-This project intends to provide a straightforward and simple to configure FTS plugin for [Dovecot](https://github.com/dovecot/), leveraging the efforts by the [Xapian.org](https://xapian.org/) team.
+This project intends to provide a straightforward and simple way to configure FTS plugin for [Dovecot](https://github.com/dovecot/), leveraging the efforts by the [Xapian.org](https://xapian.org/) team.
 
 This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
 
@@ -49,9 +49,12 @@ Compile and install the plugins.
 
 ```
 autoreconf -vi
-./configure --prefix=/usr --with-dovecot=/path/to/dovecot
+PANDOC=false ./configure --prefix=/usr --with-dovecot=/path/to/dovecot
 make
 sudo make install
+
+Replace /path/to/dovecot by the actual path to the dovecot source (i.e. on ArchLinux , it is /usr/lib/dovecot )
+
 ```
 
 Update your dovecot.conf file with something similar to:
