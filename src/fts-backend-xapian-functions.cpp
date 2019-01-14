@@ -87,8 +87,7 @@ class XQuerySet
 		if((p>='0')&&(p<='9')) return true;
 		if((p>='a')&&(p<='z')) return true;
 		if(p=='@') return true;
-		if(p=='.') return true;
-		if(p=='-') return true;
+		if(p=='_') return true;
 		if((p>='#')&&(p<='/')) return true;
 		return false;
 	}
@@ -353,7 +352,7 @@ class XHeaderTerm
 		char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
 		while(i<strlen(s))
 		{
-			if((s[i]=='"') || (s[i]=='<') || (s[i]=='>'))
+			if((s[i]=='"') || (s[i]=='<') || (s[i]=='>') || (s[i]=='\''))
 			{
 				s2[i]=' ';
 			}
@@ -369,44 +368,55 @@ class XHeaderTerm
 
 	char * clean(const char *s)
         {
-        	int i=0;
-                char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+        	int i=0,j=0;
                 while((s[i]<=' ') && (s[i]>0))
                 {
                 	i++;
                 }
-                strcpy(s2, s+i);
+		const char * s2=s+i;
+		j=strlen(s2);
+		while((j>0)&&(s2[j-1]<=' '))
+		{
+			j--;
+		}
+		char * s3 = (char *)malloc(sizeof(char)*(j+1));
+                strncpy(s3, s+i,j);
+		s3[j]=0;
   
-                while((strlen(s2)>0) && (s2[strlen(s2)-1]<=' '))
+                for(i=0;i<j;i++)
                 {
-                	s2[strlen(s2)-1]=0;
+                        s3[i]=tolower(s3[i]);
                 }
-                for(int i=0;i<strlen(s2);i++)
-                {
-                        s2[i]=tolower(s2[i]);
-                }
-                return s2;
+                return s3;
+        }
+
+        bool is_ok_stem(const char s)
+        {
+                if((s>='0')&&(s<='9')) return true;
+                if((s>='a')&&(s<='z')) return true;
+                if(s=='@') return true;
+                if(s=='_') return true;
+                if((s>='#')&&(s<='/')) return true;
+                return false;
         }
 
 	char * clean_stem(const char *s)
 	{
-                int i=0;
-                char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+                int i=0,j;
                 while(((s[i]<'a') || (s[i]>'z')) && (s[i]>0))
                 {
                         i++;
                 }
-                strcpy(s2, s+i);
-
-                while((strlen(s2)>0) && ((s2[strlen(s2)-1]<'a')||(s2[strlen(s2)-1]>'z')))
-                {
-                        s2[strlen(s2)-1]=0;
-                }
-                for(int i=0;i<strlen(s2);i++)
-                {
-                        s2[i]=tolower(s2[i]);
-                }
-                return s2;
+		const char * s2=s+i;
+		j=strlen(s2);
+		while((j>0) && (!is_ok_stem(s2[j-1])))
+		{
+			j--;
+		}
+		char * s3 = (char *)malloc(sizeof(char)*(j+1));
+		strncpy(s3, s+i,j);
+                s3[j]=0;
+                return s3;
         }
 
 	void add(const char * s)

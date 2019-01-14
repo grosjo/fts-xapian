@@ -236,7 +236,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		return FALSE;
 	}
 
-	int i=0;
+	int i=0,j;
 	const char * field=key->hdr_name;
 
 	if(field==NULL)
@@ -245,25 +245,27 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		return true;
 	}
 
-        char * f2 = (char *)malloc(sizeof(char)*(strlen(field)+1));
         while((field[i]<=' ') && (field[i]>0))
         {
         	i++;
         }
-        strcpy(f2, field+i);
-
-        while((strlen(f2)>0) && (f2[strlen(f2)-1]<=' '))
+	field=field+i;
+	j=strlen(field);
+	while((j>0) &&(field[j-1]<=' '))
+	{
+		j--;
+	}	
+        
+	char * f2 = (char *)malloc(sizeof(char)*(j+1));
+        for(int i=0;i<=j;i++)
         {
-                f2[strlen(f2)-1]=0;
-        }
-        for(int i=0;i<strlen(f2);i++)
-        {
-                f2[i]=tolower(f2[i]);
+                f2[i]=tolower(field[i]);
         }
 
 	if(!fts_backend_xapian_check_write(backend))
         {
                 i_error("FTS Xapian: BuildKey: Can not open db");
+		free(f2);
                 return false;
         }
 
