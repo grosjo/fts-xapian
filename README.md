@@ -22,8 +22,8 @@ You are going to need the following things to get this going:
 
 
 
-Installing the Dovecot plugins
-------------------------------
+Installing the Dovecot plugin
+-----------------------------
 
 First install the following packages, or equivalent for your operating system. 
 
@@ -45,7 +45,7 @@ git clone https://github.com/grosjo/fts-xapian
 cd fts-xapian
 ```
 
-Compile and install the plugins. 
+Compile and install the plugin. 
 
 ```
 autoreconf -vi
