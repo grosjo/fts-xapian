@@ -8,6 +8,7 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
+#define XAPIAN_COMMIT_LIMIT 100
 
 struct xapian_fts_backend 
 {
@@ -21,6 +22,7 @@ struct xapian_fts_backend
 	Xapian::Database * dbr;
         unsigned int partial,full;
 	uint32_t last_uid_indexed;
+	int nb_updates;
 } ;
 
 struct xapian_fts_backend_update_context
@@ -298,6 +300,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		    	i_unreached();
 	}
 	free(f2);
+	
 	return TRUE;
 }
 
@@ -342,6 +345,8 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
             		return -1;
         	}
     	}
+	backend->nb_updates++;
+	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) { backend->dbw->commit(); }
     	return 0;
 }
 

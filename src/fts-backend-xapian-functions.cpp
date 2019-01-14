@@ -533,6 +533,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	sprintf(backend->db,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
+	backend->nb_updates=0;
 	return 0;
 }
 
