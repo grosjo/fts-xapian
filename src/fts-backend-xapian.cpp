@@ -346,7 +346,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         	}
     	}
 	backend->nb_updates++;
-	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) { backend->dbw->commit(); }
+	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) { backend->dbw->commit(); backend->nb_updates=0; }
     	return 0;
 }
 
