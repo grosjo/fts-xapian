@@ -7,6 +7,7 @@ extern "C" {
 #include <ftw.h>
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
+#define XAPIAN_TERM_SIZELIMIT 245
 
 struct xapian_fts_backend 
 {

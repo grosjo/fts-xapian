@@ -438,7 +438,7 @@ class XHeaderTerm
 				add_stem(stem);
 			}
 		}
-		add_stem(s3);
+		if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
 		free(s3);
 	}
 	
