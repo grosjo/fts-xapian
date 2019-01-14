@@ -53,7 +53,7 @@ PANDOC=false ./configure --prefix=/usr --with-dovecot=/path/to/dovecot
 make
 sudo make install
 
-Replace /path/to/dovecot by the actual path to the dovecot source (i.e. on ArchLinux , it is /usr/lib/dovecot. Generally speaking, this is the location of "dovecot-config" (type 'locate dovecot-config' in a shell )
+Replace /path/to/dovecot by the actual path to 'dovecot-config'. (type 'locate dovecot-config' in a shell to figure this out). On ArchLinux , it is /usr/lib/dovecot. 
 
 ```
 
