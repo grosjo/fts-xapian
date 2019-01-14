@@ -340,10 +340,16 @@ class XQuerySet
 class XHeaderTerm
 {
 	public:
-		int size,partial,full;
+		int size,partial,full,maxlength;
 		char ** data;
   
-        XHeaderTerm(int p, int f) { partial=p; full=f; size=0; data=NULL; }
+        XHeaderTerm(int p, int f) 
+	{ 
+		partial=p; full=f; 
+		size=0; 
+		maxlength=0;
+		data=NULL; 
+	}
         ~XHeaderTerm() { if (size>0) { for(int i=0;i<size;i++) { free(data[i]); } free(data); } }
 
 	char * strip(const char *s)
@@ -455,7 +461,10 @@ class XHeaderTerm
 	void add_stem(const char *s)
 	{
 		char * s2 = clean_stem(s);
-		if(strlen(s2)<partial) return;
+		int l = strlen(s2);
+
+		if(l<partial) return;
+
                 if(data==NULL)
                 {
                 	data=(char **)malloc(sizeof(char*));
@@ -475,6 +484,7 @@ class XHeaderTerm
 			if(existing) return;
                 	data=(char **)realloc(data,(size+1)*sizeof(char*));
                 }
+		if(l>maxlength) { maxlength=l; }
                 data[size]=s2;
                 size++;
 	}
@@ -629,7 +639,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 	try
 	{
 		XQuerySet xq(false);
-        	char u[1000]; sprintf(u,"%d",uid);
+        	char u[20]; sprintf(u,"%d",uid);
         	xq.add("uid",u);
         	XResultSet *result=fts_backend_xapian_query(dbx,&xq,1);
 
@@ -664,11 +674,15 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 
 		XHeaderTerm xhs(p,f);
                 xhs.add(data);
+
+		i_warning("Index %s : %d terms, maxlength: %d",field,xhs.size,xhs.maxlength);
+		
+		char *t = (char*)malloc(sizeof(char)*(xhs.maxlength+6));
 	
 		for(int i=0;i<xhs.size;i++)
 		{
-			sprintf(u,"%s%s",h,xhs.data[i]);		
-			doc.add_term(u);
+			sprintf(t,"%s%s",h,xhs.data[i]);		
+			doc.add_term(t);
 		}
 
 		dbx->replace_document(docid,doc);
