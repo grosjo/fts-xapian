@@ -103,6 +103,6 @@ doveadm index -u john@doe -q \*
 Debugging/Support
 =================
 
-Please feel free to send your questions, together with the dovecot log file, to jom@grosjo.net or to the dovecot ML dovecot@dovecot.org
+Please submit requests/bugs via the [GitHub issue tracker](https://github.com/grosjo/fts-xapian/issues).
 
 Thanks to Aki Tuomi <aki.tuomi@open-xchange.com> and Stephan Bosh <stephan@rename-it.nl>
