@@ -89,7 +89,16 @@ Restart Dovecot:
 sudo servicectl restart dovecot
 ```
 
-*The first search will re-index all your emails in the chosen mailbox, therefore will take a while and may, for the first use, raise a timeout.*
+
+If this is not a fresh install of dovecot, you need to re-index your mailboxes
+
+```
+
+doveadm index -u john@doe -q \*
+
+```
+
+*The first search will re-index all your emails, therefore may take a while.*
 
 
 
