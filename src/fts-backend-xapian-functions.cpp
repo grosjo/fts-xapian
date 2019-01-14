@@ -683,7 +683,14 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 		for(int i=0;i<xhs.size;i++)
 		{
 			sprintf(t,"%s%s",h,xhs.data[i]);		
-			doc.add_term(t);
+			try
+			{
+				doc.add_term(t);
+			}
+			catch(Xapian::Error e)
+			{
+				i_error(e.get_msg().c_str());
+			}
 		}
 
 		dbx->replace_document(docid,doc);
@@ -702,7 +709,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, char
 	try
         {
         	XQuerySet xq(false);
-                char u[1000]; sprintf(u,"%i",uid);
+                char u[20]; sprintf(u,"%d",uid);
                 xq.add("uid",u);
                 XResultSet * result=fts_backend_xapian_query(dbx,&xq,1);
   
