@@ -676,7 +676,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 		XHeaderTerm xhs(p,f);
                 xhs.add(data);
 
-		i_warning("Index UID=%d '%s' : %d terms, maxlength: %d",uid,field,xhs.size,xhs.maxlength);
+		//i_warning("Index UID=%d '%s' : %d terms, maxlength: %d",uid,field,xhs.size,xhs.maxlength);
 		
 		char *t = (char*)malloc(sizeof(char)*(xhs.maxlength+6));
 	
