@@ -59,6 +59,9 @@ Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is
 
 Update your dovecot.conf file with something similar to:
 ```
+
+default_vsz_limit = 2GB // or above
+
 mail_plugins = fts fts_xapian (...)
 
 (...)
