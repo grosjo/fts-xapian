@@ -583,6 +583,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
                 i_error("XapianError:%s",e.get_msg().c_str());
                 return false;
         }
+	i_warning(" fts_backend_xapian_check_write done");
 	return true;	
 }
 

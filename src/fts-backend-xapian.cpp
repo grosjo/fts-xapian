@@ -8,7 +8,7 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
-#define XAPIAN_COMMIT_LIMIT 1000
+#define XAPIAN_COMMIT_LIMIT 500
 
 struct xapian_fts_backend 
 {
@@ -314,6 +314,28 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
     	ctx->tbi_uid=0;
 }
 
+static int fts_backend_xapian_refresh(struct fts_backend * _backend)
+{
+
+        struct xapian_fts_backend *backend =
+                (struct xapian_fts_backend *) _backend;
+
+        if(backend->dbw !=NULL)
+        {
+                backend->dbw->commit();
+                free(backend->dbw);
+                backend->dbw=NULL;
+                backend->nb_updates=0;
+        }
+        if(backend->dbr !=NULL)
+        {
+                free(backend->dbr);
+                backend->dbr = NULL;
+        }
+
+        return 0;
+}
+
 static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
 	struct xapian_fts_backend_update_context *ctx =
@@ -346,29 +368,11 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         	}
     	}
 	backend->nb_updates++;
-	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) { backend->dbw->commit(); backend->nb_updates=0; }
+	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) 
+	{ 
+		fts_backend_xapian_refresh( ctx->ctx.backend);
+	}
     	return 0;
-}
-
-static int fts_backend_xapian_refresh(struct fts_backend * _backend)
-{
-
-	struct xapian_fts_backend *backend =
-                (struct xapian_fts_backend *) _backend;
-
-        if(backend->dbw !=NULL)
-        {
-                backend->dbw->commit();
-                free(backend->dbw);
-                backend->dbw=NULL;
-        }
-        if(backend->dbr !=NULL)
-        {
-                free(backend->dbr);
-                backend->dbr = NULL;
-        }
-	
-        return 0;
 }
 
 
