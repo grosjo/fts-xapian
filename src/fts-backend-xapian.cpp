@@ -37,7 +37,6 @@ struct xapian_fts_backend_update_context
 
 static struct fts_backend *fts_backend_xapian_alloc(void)
 {
-	i_warning("fts_backend_xapian_alloc");
         struct xapian_fts_backend *backend;
 
         backend = i_new(struct xapian_fts_backend, 1);
@@ -47,7 +46,6 @@ static struct fts_backend *fts_backend_xapian_alloc(void)
 
 static int fts_backend_xapian_init(struct fts_backend *_backend, const char **error_r)
 {
-	i_warning("fts_backend_xapian_init");
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 	const char *const *tmp, *env;
@@ -475,7 +473,6 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		try
 		{
 			uid=atol(backend->dbr->get_document(r->data[i]).get_value(1).c_str());
-//			i_warning("Res %d : UID=%d",i,uid);
 			seq_range_array_add(&result->definite_uids, uid);
 		}
 		catch(Xapian::Error e)

@@ -342,13 +342,15 @@ class XHeaderTerm
 	public:
 		int size,partial,full,maxlength;
 		char ** data;
+		bool onlyone;
   
-        XHeaderTerm(int p, int f) 
+        XHeaderTerm(int p, int f, bool o) 
 	{ 
 		partial=p; full=f; 
 		size=0; 
 		maxlength=0;
 		data=NULL; 
+		onlyone=o;
 	}
         ~XHeaderTerm() { if (size>0) { for(int i=0;i<size;i++) { free(data[i]); } free(data); } }
 
@@ -434,9 +436,22 @@ class XHeaderTerm
 		free(s2);
 		
                 if(strlen(s3)<1) { free(s3); return; }
- 
-                char * blank=strstr(s3," ");
-                if(blank!=NULL)
+
+		char * blank=strstr(s3," ");
+
+		if(onlyone)
+		{
+			while(blank!=NULL)
+			{
+				strcpy(blank,blank+1);
+				blank=strstr(s3," ");
+			}
+			add_stem(s3);
+			free(s3);
+			return;
+		}
+                
+		if(blank!=NULL)
                 {
                 	blank[0]=0;
                         add(blank+1);
@@ -569,16 +584,16 @@ static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_back
 	if(backend->dbw != NULL) return true;
 	try
 	{
-		i_info("Opening RW (%s) MB=%s %s",calling,backend->box->name,backend->db);
+//		i_info("Opening RW (%s) MB=%s %s",calling,backend->box->name,backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN);
 	}
 	catch(Xapian::Error e)
         {
-		i_error("FTS Xapian: Can not open RW index for %s (%s)",backend->box->name,backend->db);
+		i_error("FTS Xapian: Can't open RW %s for %s (%s)",backend->db,backend->box->name,calling);
                 i_error("XapianError:%s",e.get_msg().c_str());
                 return false;
         }
-	i_warning(" fts_backend_xapian_check_write done");
+//	i_warning(" fts_backend_xapian_check_write done");
 	return true;	
 }
 
@@ -669,7 +684,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 			return true;
 		}
 
-		XHeaderTerm xhs(p,f);
+		XHeaderTerm xhs(p,f,strcmp(h,"XMID")==0);
                 xhs.add(data);
 
 		//i_warning("Index UID=%d '%s' : %d terms, maxlength: %d",uid,field,xhs.size,xhs.maxlength);
