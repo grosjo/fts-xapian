@@ -8,7 +8,7 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
-#define XAPIAN_COMMIT_LIMIT 100
+#define XAPIAN_COMMIT_LIMIT 1000
 
 struct xapian_fts_backend 
 {
