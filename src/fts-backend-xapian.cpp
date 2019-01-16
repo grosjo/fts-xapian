@@ -162,7 +162,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("XapianError:%s",e.get_msg().c_str());
 		return -1;
 	}
-	i_info("FTS Xapian : Mailbox %s : Last UID=%d",backend->box->name, *last_uid_r);
+//	i_info("FTS Xapian : Mailbox %s : Last UID=%d",backend->box->name, *last_uid_r);
         return 0;
 }
 
