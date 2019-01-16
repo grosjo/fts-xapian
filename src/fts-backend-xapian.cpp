@@ -8,7 +8,7 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
-#define XAPIAN_COMMIT_LIMIT 500
+#define XAPIAN_COMMIT_LIMIT 1000
 
 struct xapian_fts_backend 
 {
@@ -21,7 +21,6 @@ struct xapian_fts_backend
 	Xapian::WritableDatabase * dbw;
 	Xapian::Database * dbr;
         unsigned int partial,full;
-	uint32_t last_uid_indexed;
 	int nb_updates;
 } ;
 
@@ -38,6 +37,7 @@ struct xapian_fts_backend_update_context
 
 static struct fts_backend *fts_backend_xapian_alloc(void)
 {
+	i_warning("fts_backend_xapian_alloc");
         struct xapian_fts_backend *backend;
 
         backend = i_new(struct xapian_fts_backend, 1);
@@ -47,6 +47,7 @@ static struct fts_backend *fts_backend_xapian_alloc(void)
 
 static int fts_backend_xapian_init(struct fts_backend *_backend, const char **error_r)
 {
+	i_warning("fts_backend_xapian_init");
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 	const char *const *tmp, *env;
@@ -110,7 +111,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->dbr = NULL;
 	backend->db[0]=0;
 	backend->box=NULL;
-	backend->last_uid_indexed=0;
 	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path); 
 	return 0;
 }
@@ -175,7 +175,6 @@ static struct fts_backend_update_context * fts_backend_xapian_update_init(struct
 
 	ctx = i_new(struct xapian_fts_backend_update_context, 1);
 	ctx->ctx.backend = _backend;
-    	// ctx->failed=false;
 	return &ctx->ctx;
 }
 
@@ -207,7 +206,8 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(!fts_backend_xapian_check_write(backend))
+	char s[1000]; sprintf(s,"expunge UID=%d",uid);
+	if(!fts_backend_xapian_check_write(s,backend))
 	{
 		i_error("FTS Xapian: Expunge: Can not open db");
 		return ;
@@ -264,21 +264,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                 f2[i]=tolower(field[i]);
         }
 
-	if(!fts_backend_xapian_check_write(backend))
-        {
-                i_error("FTS Xapian: BuildKey: Can not open db");
-		free(f2);
-                return false;
-        }
-
-        if(key->uid != backend->last_uid_indexed)
-        {
-//		i_info("FTS Xapian: Committing changes %s",backend->box->name);
-//		i_warning("BACK=%d, KEY=%d",backend->last_uid_indexed, key->uid);
-//                backend->dbw->commit();
-                backend->last_uid_indexed=key->uid;
-        }
-
 	switch (key->type) 
     	{
     		case FTS_BACKEND_BUILD_KEY_HDR:
@@ -323,6 +308,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
         if(backend->dbw !=NULL)
         {
                 backend->dbw->commit();
+		backend->dbw->close();
                 free(backend->dbw);
                 backend->dbw=NULL;
                 backend->nb_updates=0;
@@ -332,7 +318,6 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
                 free(backend->dbr);
                 backend->dbr = NULL;
         }
-
         return 0;
 }
 
@@ -347,7 +332,8 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	const char *s = (char *)data;
 
-	if(!fts_backend_xapian_check_write(backend))
+	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field);
+	if(!fts_backend_xapian_check_write(l,backend))
 	{
 		i_error("FTS Xapian: Buildmore: Can not open db");
 		return -1;

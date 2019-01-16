@@ -492,13 +492,8 @@ class XHeaderTerm
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
-	if(backend->box!=NULL)
-	{
-//		i_info("FTS Xapian: Committing/Refresh changes %s",backend->box->name);
-	}
 	backend->box = NULL;
 	backend->db[0] = 0;
-	backend->last_uid_indexed=0;
 	if(backend->dbw !=NULL)
 	{
 		backend->dbw->commit();
@@ -563,7 +558,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
         return true;
 }
 
-static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
+static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_backend *backend)
 {
 	if(strlen(backend->db)<1) 
 	{
@@ -574,8 +569,8 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 	if(backend->dbw != NULL) return true;
 	try
 	{
-		i_info("Opening RW %s",backend->db);
-		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK );
+		i_info("Opening RW (%s) MB=%s %s",calling,backend->box->name,backend->db);
+		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN);
 	}
 	catch(Xapian::Error e)
         {
