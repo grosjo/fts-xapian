@@ -508,7 +508,9 @@ class XHeaderTerm
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	backend->box = NULL;
-	backend->db[0] = 0;
+	if(backend->db != NULL) free(backend->db);
+	backend->db = NULL;
+
 	if(backend->dbw !=NULL)
 	{
 		backend->dbw->commit();
@@ -540,6 +542,9 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	}
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
+
+	int l=strlen(backend->path)+strlen(mb)+1;
+	backend->db = (char *)malloc((l+1)*sizeof(char));
 	sprintf(backend->db,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
@@ -549,7 +554,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 {
-	if(strlen(backend->db)<1) return false;
+	if((backend->db == NULL) || (strlen(backend->db)<1)) return false;
 
         if(backend->dbr != NULL) return true;
 
@@ -575,7 +580,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 
 static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_backend *backend)
 {
-	if(strlen(backend->db)<1) 
+	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
 		i_warning("FTS Xapian: check_write : no DB name");
 		return false;
@@ -585,7 +590,7 @@ static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_back
 	try
 	{
 //		i_info("Opening RW (%s) MB=%s %s",calling,backend->box->name,backend->db);
-		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN);
+		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
         {

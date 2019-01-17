@@ -13,11 +13,11 @@ extern "C" {
 struct xapian_fts_backend 
 {
         struct fts_backend backend;
-        char path[1000];
+        char * path;
 
         struct mailbox *box;
 
-        char db[1000];
+        char * db;
 	Xapian::WritableDatabase * dbw;
 	Xapian::Database * dbr;
         unsigned int partial,full;
@@ -50,6 +50,12 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		(struct xapian_fts_backend *)_backend;
 	const char *const *tmp, *env;
 	unsigned int len;
+
+        backend->dbw = NULL;
+        backend->dbr = NULL;
+        backend->db = NULL;
+        backend->box = NULL;
+	backend->path = NULL;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)
@@ -93,6 +99,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
     	}
 
 	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_DIR);
+	int l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+1;
+	backend->path = (char *)malloc((l+1)*sizeof(char));
 	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
 	struct stat sb;
@@ -107,8 +115,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	backend->dbw = NULL;
 	backend->dbr = NULL;
-	backend->db[0]=0;
-	backend->box=NULL;
+	backend->db = NULL;
+	backend->box = NULL;
 	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path); 
 	return 0;
 }
@@ -118,6 +126,8 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 	fts_backend_xapian_unset_box(backend);
+	if(backend->path != NULL) free(backend->path);
+	if(backend->db != NULL) free(backend->db);
 	i_free(backend);
 }
 
