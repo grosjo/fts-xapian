@@ -589,7 +589,6 @@ static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_back
 	if(backend->dbw != NULL) return true;
 	try
 	{
-//		i_info("Opening RW (%s) MB=%s %s",calling,backend->box->name,backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
@@ -598,7 +597,6 @@ static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_back
                 i_error("XapianError:%s",e.get_msg().c_str());
                 return false;
         }
-//	i_warning(" fts_backend_xapian_check_write done");
 	return true;	
 }
 

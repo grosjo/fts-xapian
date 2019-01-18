@@ -22,7 +22,7 @@ struct xapian_fts_backend
 	Xapian::Database * dbr;
         unsigned int partial,full;
 	int nb_updates;
-} ;
+};
 
 struct xapian_fts_backend_update_context
 {
@@ -208,7 +208,7 @@ static void fts_backend_xapian_update_set_mailbox(struct fts_backend_update_cont
 
 static void fts_backend_xapian_update_expunge(struct fts_backend_update_context *_ctx, uint32_t uid)
 {
-	i_warning("fts_backend_xapian_update_expunge UID=%d",uid);
+//	i_warning("fts_backend_xapian_update_expunge UID=%d",uid);
 
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
@@ -229,7 +229,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("XapianError:%s",e.get_msg().c_str());
+		// i_error("XapianError:%s",e.get_msg().c_str());
 	}
 }
 
