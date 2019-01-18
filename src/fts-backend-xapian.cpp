@@ -103,6 +103,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = (char *)malloc((l+1)*sizeof(char));
 	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
+	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
+
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
 	{
@@ -117,7 +119,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->dbr = NULL;
 	backend->db = NULL;
 	backend->box = NULL;
-	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path); 
 	return 0;
 }
 

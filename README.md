@@ -98,6 +98,7 @@ If this is not a fresh install of dovecot, you need to re-index your mailboxes
 ```
 doveadm index -u john@doe -q \*
 ```
+Replace "john@doe"  by the user of the mailbox you wish to re-index.
 
 *The first search will re-index all your emails, therefore may take a while.*
 
