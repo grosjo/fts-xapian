@@ -9,8 +9,6 @@ This project intends to provide a straightforward and simple way to configure FT
 This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
 
 
-Installation
-============
 
 Prerequisites
 -------------
@@ -101,7 +99,7 @@ Replace "john@doe"  by the user of the mailbox you wish to re-index.
 
 
 Debugging/Support
-=================
+-----------------
 
 Please submit requests/bugs via the [GitHub issue tracker](https://github.com/grosjo/fts-xapian/issues).
 
