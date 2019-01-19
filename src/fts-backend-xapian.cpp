@@ -149,7 +149,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
 	if(!fts_backend_xapian_check_read("fts_backend_xapian_get_last_uid",backend))
 	{
-		i_error("FTX Xapian : get_last_uid: can not open DB %s"),backend->db;
+		i_error("FTX Xapian : get_last_uid: can not open DB %s",backend->db);
 		return -1;
 	}
 
