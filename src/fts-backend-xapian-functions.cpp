@@ -600,7 +600,15 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 	}
 
 	if(backend->dbw != NULL) return true;
-	
+
+	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name) != 0))
+	{
+		if(backend->oldbox != NULL) free(backend->oldbox);
+		int l=strlen(backend->box->name);
+		backend->oldbox = (char *)malloc((l+1)*sizeof(char));
+		strcpy(backend->oldbox,backend->box->name);
+		i_info("Updating %s (%s)",backend->box->name,backend->db);
+	}
 	// i_info("Opening RW %s %s (%s)",backend->box->name,backend->db,calling);
 	try
 	{

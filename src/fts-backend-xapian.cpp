@@ -16,6 +16,7 @@ struct xapian_fts_backend
         char * path;
 
         struct mailbox *box;
+	char * oldbox;
 
         char * db;
 	Xapian::WritableDatabase * dbw;
@@ -56,6 +57,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         backend->db = NULL;
         backend->box = NULL;
 	backend->path = NULL;
+	backend->oldbox = NULL;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)
@@ -129,6 +131,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	fts_backend_xapian_unset_box(backend);
 	if(backend->path != NULL) free(backend->path);
 	if(backend->db != NULL) free(backend->db);
+	if(backend->oldbox != NULL) free(backend->oldbox);
 	i_free(backend);
 }
 
