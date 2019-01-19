@@ -564,13 +564,20 @@ static bool fts_backend_xapian_check_read(const char * calling,struct xapian_fts
 
 	struct stat sb;
 
-        try
-        {
-		if(!(stat(backend->db, &sb) == 0 && S_ISDIR(sb.st_mode)))
+	if(!((stat(backend->db, &sb) == 0) && S_ISDIR(sb.st_mode)))
+	{
+		try
 		{
 			Xapian::WritableDatabase db(backend->db,Xapian::DB_CREATE_OR_OPEN);
-                        db.close();
+                       	db.close();
 		}
+		catch(Xapian::Error e)
+		{
+			i_info("FTS Xapian: Tried to create (%s) an existing db '%s'",calling,backend->db);
+		}
+	}
+	try
+	{
                 backend->dbr = new Xapian::Database(backend->db); 
 	}
         catch(Xapian::Error e)
