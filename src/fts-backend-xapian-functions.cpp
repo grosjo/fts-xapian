@@ -520,6 +520,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	}
 	if(backend->dbr !=NULL)
         {
+		backend->dbr->close();
                 free(backend->dbr);
 		backend->dbr = NULL;
 	}

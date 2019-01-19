@@ -128,7 +128,9 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
+
 	fts_backend_xapian_unset_box(backend);
+
 	if(backend->path != NULL) free(backend->path);
 	if(backend->db != NULL) free(backend->db);
 	if(backend->oldbox != NULL) free(backend->oldbox);
@@ -326,6 +328,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
         }
         if(backend->dbr !=NULL)
         {
+		backend->dbr->close();
                 free(backend->dbr);
                 backend->dbr = NULL;
         }
