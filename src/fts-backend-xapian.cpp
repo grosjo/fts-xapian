@@ -98,7 +98,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         	return -1;
     	}
 
-	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_DIR);
+	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
 	int l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+1;
 	backend->path = (char *)malloc((l+1)*sizeof(char));
 	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
