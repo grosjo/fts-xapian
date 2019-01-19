@@ -441,12 +441,12 @@ class XHeaderTerm
 
 		if(onlyone)
 		{
-			while(blank!=NULL)
+			if(blank!=NULL)
 			{
-				strcpy(blank,blank+1);
-				blank=strstr(s3," ");
+				blank[0]=0;
+				add(blank+1);
 			}
-			add_stem(s3);
+			if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
 			free(s3);
 			return;
 		}
@@ -562,6 +562,8 @@ static bool fts_backend_xapian_check_read(const char * calling,struct xapian_fts
 
         if(backend->dbr != NULL) return true;
 
+	//i_info("Opening RO %s %s (%s)",backend->box->name,backend->db,calling);
+
 	struct stat sb;
 
 	if(!((stat(backend->db, &sb) == 0) && S_ISDIR(sb.st_mode)))
@@ -598,6 +600,8 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 	}
 
 	if(backend->dbw != NULL) return true;
+	
+	// i_info("Opening RW %s %s (%s)",backend->box->name,backend->db,calling);
 	try
 	{
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
