@@ -147,7 +147,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		return -1;
 	}
 
-	if(!fts_backend_xapian_check_read(backend))
+	if(!fts_backend_xapian_check_read("fts_backend_xapian_get_last_uid",backend))
 	{
 		i_error("FTX Xapian : get_last_uid: can not open DB");
 		return -1;
@@ -395,7 +395,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	if(fts_backend_xapian_set_box(backend, box)<0)
 		return -1;
 
-	if(!fts_backend_xapian_check_read(backend))
+	if(!fts_backend_xapian_check_read("fts_backend_xapian_lookup",backend))
         {
                 i_error("FTS Xapian: Lookup: Can not open db RO");
                 return -1;

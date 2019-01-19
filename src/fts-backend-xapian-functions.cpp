@@ -552,9 +552,13 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	return 0;
 }
 
-static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
+static bool fts_backend_xapian_check_read(const char * calling,struct xapian_fts_backend *backend)
 {
-	if((backend->db == NULL) || (strlen(backend->db)<1)) return false;
+	if((backend->db == NULL) || (strlen(backend->db)<1)) 
+	{
+		i_warning("FTS Xapian: check_read(%s) : no DB name",calling);
+		return false;
+	}
 
         if(backend->dbr != NULL) return true;
 
@@ -571,18 +575,18 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	}
         catch(Xapian::Error e)
         {
-                i_error("FTS Xapian: Can not open RO index for %s (%s)",backend->box->name,backend->db);
+                i_error("FTS Xapian: Can not open RO (%s) index for %s (%s)",calling,backend->box->name,backend->db);
 		i_error("XapianError:%s",e.get_msg().c_str());
                 return false;
         }
         return true;
 }
 
-static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_backend *backend)
+static bool fts_backend_xapian_check_write(const char * calling,struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		i_warning("FTS Xapian: check_write : no DB name");
+		i_warning("FTS Xapian: check_write (%s) : no DB name",calling);
 		return false;
 	}
 
@@ -593,7 +597,7 @@ static bool fts_backend_xapian_check_write(char * calling,struct xapian_fts_back
 	}
 	catch(Xapian::Error e)
         {
-		i_error("FTS Xapian: Can't open RW %s for %s (%s)",backend->db,backend->box->name,calling);
+		i_error("FTS Xapian: Can't open RW (%s) index for %s (%s)",calling,backend->box->name,backend->db);
                 i_error("XapianError:%s",e.get_msg().c_str());
                 return false;
         }
