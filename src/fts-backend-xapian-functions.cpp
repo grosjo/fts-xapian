@@ -149,7 +149,7 @@ class XQuerySet
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
                 }
 		hsize++;
-                char * s2 = strdup(s);
+                char * s2 = i_strdup(s);
                 for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
