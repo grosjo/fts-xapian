@@ -150,7 +150,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		return -1;
 	}
 
-	if(!fts_backend_xapian_check_read("fts_backend_xapian_get_last_uid",backend))
+	if(!fts_backend_xapian_check_read(backend))
 	{
 		i_error("FTX Xapian : get_last_uid: can not open DB %s",backend->db);
 		return -1;
@@ -217,8 +217,8 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	char s[1000]; sprintf(s,"expunge UID=%d",uid);
-	if(!fts_backend_xapian_check_write(s,backend))
+//	char s[1000]; sprintf(s,"expunge UID=%d",uid);
+	if(!fts_backend_xapian_check_write(backend))
 	{
 		i_error("FTS Xapian: Expunge: Can not open db");
 		return ;
@@ -226,6 +226,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
     	try
 	{
+		char s[100];
 		sprintf(s,"Q%d",uid);
         	backend->dbw->delete_document(s);
 	}
@@ -344,8 +345,8 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	const char *s = (char *)data;
 
-	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field.c_str());
-	if(!fts_backend_xapian_check_write(l,backend))
+//	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field.c_str());
+	if(!fts_backend_xapian_check_write(backend))
 	{
 		i_error("FTS Xapian: Buildmore: Can not open db");
 		return -1;
@@ -398,7 +399,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	if(fts_backend_xapian_set_box(backend, box)<0)
 		return -1;
 
-	if(!fts_backend_xapian_check_read("fts_backend_xapian_lookup",backend))
+	if(!fts_backend_xapian_check_read(backend))
         {
                 i_error("FTS Xapian: Lookup: Can not open db RO");
                 return -1;
