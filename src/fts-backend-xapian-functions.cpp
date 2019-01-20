@@ -525,8 +525,6 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	backend->box = NULL;
 	if(backend->db != NULL) i_free(backend->db);
 	backend->db = NULL;
-	if(backend->oldbox != NULL) i_free(backend->oldbox);
-	backend->oldbox = NULL;
 
 	if(backend->dbw !=NULL)
 	{

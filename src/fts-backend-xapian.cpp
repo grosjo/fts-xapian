@@ -131,6 +131,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	fts_backend_xapian_unset_box(backend);
 
+	if(backend->oldbox != NULL) i_free(backend->oldbox);
 	if(backend->path != NULL) i_free(backend->path);
 	if(backend->db != NULL) i_free(backend->db);
 	i_free(backend);
