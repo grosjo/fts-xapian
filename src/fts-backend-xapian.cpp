@@ -470,11 +470,9 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	i_info("LOOKUP : %s",q);
 	i_free(q);
 
-	//i_warning("LAUNCHING SEARCH");
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
 
 	int n=r->size;
-
 	i_info("LOOKUP: %d results",n);
 
 	i_array_init(&(result->definite_uids),r->size);
@@ -491,11 +489,10 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 		catch(Xapian::Error e)
 		{
-			i_error(e.get_msg().c_str());
+			i_error("%s",e.get_msg().c_str());
 		}
 	}
-		
-	i_free(r);
+	delete(r);
 	
 	return 0;
 }
