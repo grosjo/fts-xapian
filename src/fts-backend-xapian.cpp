@@ -16,7 +16,7 @@ struct xapian_fts_backend
         char * path;
 
         struct mailbox *box;
-	std::string oldbox;
+	char * oldbox;
 
         char * db;
 	Xapian::WritableDatabase * dbw;
@@ -57,7 +57,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         backend->db = NULL;
         backend->box = NULL;
 	backend->path = NULL;
-	backend->oldbox = "";
+	backend->oldbox = NULL;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)

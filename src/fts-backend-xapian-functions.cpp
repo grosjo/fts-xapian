@@ -309,13 +309,13 @@ class XQuerySet
                        	n=n+strlen(data[i])+strlen(header[i])+15;
                 }
 		s = (char *)i_malloc(sizeof(char)*(n+1));
-		std::string prefix=header[0];
+		std::string prefix(header[0]);
 		strcpy(s,"( "); n=2;
 		for(i=0;i<size;i++)
 		{
 			if(i>0)
 			{
-				if(is_and || (prefix==header[i]))
+				if(is_and || (prefix.compare(header[i])==0))
 				{
 					strcpy(s+n," AND ");
                                         n+=5;
@@ -525,7 +525,8 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	backend->box = NULL;
 	if(backend->db != NULL) i_free(backend->db);
 	backend->db = NULL;
-	backend->oldbox = "";
+	if(backend->oldbox != NULL) i_free(backend->oldbox);
+	backend->oldbox = NULL;
 
 	if(backend->dbw !=NULL)
 	{
@@ -618,9 +619,10 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 
 	if(backend->dbw != NULL) return true;
 
-	if(backend->oldbox != backend->box->name)
+	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)==0))
 	{
-		backend->oldbox = backend->box->name;
+		if(backend->oldbox != NULL) i_free(backend->oldbox);
+		backend->oldbox = i_strdup(backend->box->name);
 		i_info("Indexing %s (%s)",backend->box->name,backend->db);
 	}
 
