@@ -559,8 +559,8 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	int l=strlen(backend->path)+strlen(mb)+5; // add /db_ and \0
-	backend->db = (char *)i_malloc((l)*sizeof(char));
+	int l=strlen(backend->path)+strlen(mb)+5; 
+	backend->db = (char *)i_malloc(l*sizeof(char));
 	sprintf(backend->db,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
