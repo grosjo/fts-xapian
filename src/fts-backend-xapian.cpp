@@ -117,10 +117,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
-	backend->dbw = NULL;
-	backend->dbr = NULL;
-	backend->db = NULL;
-	backend->box = NULL;
 	return 0;
 }
 
@@ -197,6 +193,8 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
+	
+	ctx->ctx.backend = NULL;
 
 	i_free(ctx);
 	return 0;
