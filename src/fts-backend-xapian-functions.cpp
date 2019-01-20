@@ -309,13 +309,13 @@ class XQuerySet
                        	n=n+strlen(data[i])+strlen(header[i])+15;
                 }
 		s = (char *)i_malloc(sizeof(char)*(n+1));
-		char pref[200]; strcpy(pref,header[0]);
+		std::string prefix=header[0];
 		strcpy(s,"( "); n=2;
 		for(i=0;i<size;i++)
 		{
 			if(i>0)
 			{
-				if(is_and || (strcmp(header[i],pref)==0))
+				if(is_and || (strcmp(header[i],prefix.c_str())==0))
 				{
 					strcpy(s+n," AND ");
                                         n+=5;
@@ -324,7 +324,7 @@ class XQuerySet
 				{
 					strcpy(s+n," ) OR ( ");
 					n+=8;
-					strcpy(pref,header[i]);
+					prefix=header[i];
 				}
 			}
 			sprintf(s+n,"%s:%s",header[i],data[i]);
@@ -688,7 +688,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
     	return set;
 }
 
-bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char* field, const char* data,int p, int f)
+bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, const char* data,int p, int f)
 {
 	try
 	{
@@ -756,7 +756,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 	return false;
 }
 
-bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, char * field, const char * data)
+bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, const char * data)
 {
 	try
         {

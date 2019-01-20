@@ -28,7 +28,7 @@ struct xapian_fts_backend
 struct xapian_fts_backend_update_context
 {
         struct fts_backend_update_context ctx;
-        char tbi_field[100];
+        std::string tbi_field;
         bool tbi_isfield;
         uint32_t tbi_uid;
 };
@@ -286,11 +286,11 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
             		{
                 		ctx->tbi_isfield=false;
             		}
-            		strcpy(ctx->tbi_field,f2);
+            		ctx->tbi_field=f2;
             		ctx->tbi_uid=key->uid;
             		break;
         	case FTS_BACKEND_BUILD_KEY_BODY_PART:
-            		strcpy(ctx->tbi_field,"BODY");
+            		ctx->tbi_field="BODY";
             		ctx->tbi_isfield=false;
             		ctx->tbi_uid=key->uid;
             		break;
@@ -355,14 +355,14 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
     	if(ctx->tbi_isfield)
     	{
-        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full))
+        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s, backend->partial,backend->full))
         	{
             		return -1;
         	}
     	}
     	else
     	{
-        	if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s))
+        	if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s))
         	{
             		return -1;
         	}
