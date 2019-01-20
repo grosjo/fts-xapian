@@ -102,7 +102,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
 	int l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+1;
-	backend->path = (char *)malloc((l+1)*sizeof(char));
+	backend->path = (char *)i_malloc((l+1)*sizeof(char));
 	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
 	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
@@ -131,9 +131,9 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	fts_backend_xapian_unset_box(backend);
 
-	if(backend->path != NULL) free(backend->path);
-	if(backend->db != NULL) free(backend->db);
-	if(backend->oldbox != NULL) free(backend->oldbox);
+	if(backend->path != NULL) i_free(backend->path);
+	if(backend->db != NULL) i_free(backend->db);
+	if(backend->oldbox != NULL) i_free(backend->oldbox);
 	i_free(backend);
 }
 
@@ -271,7 +271,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		j--;
 	}	
         
-	char * f2 = (char *)malloc(sizeof(char)*(j+1));
+	char * f2 = (char *)i_malloc(sizeof(char)*(j+1));
         for(int i=0;i<=j;i++)
         {
                 f2[i]=tolower(field[i]);
@@ -297,7 +297,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	    	case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
 		    	i_unreached();
 	}
-	free(f2);
+	i_free(f2);
 	
 	return TRUE;
 }
@@ -322,14 +322,14 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
         {
                 backend->dbw->commit();
 		backend->dbw->close();
-                free(backend->dbw);
+                delete(backend->dbw);
                 backend->dbw=NULL;
                 backend->nb_updates=0;
         }
         if(backend->dbr !=NULL)
         {
 		backend->dbr->close();
-                free(backend->dbr);
+                delete(backend->dbr);
                 backend->dbr = NULL;
         }
         return 0;
@@ -470,7 +470,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	char * q = qs.get_query();
 	i_warning("LOOKUP : %s",q);
-	free(q);
+	i_free(q);
 
 	i_warning("LAUNCHING SEARCH");
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
@@ -497,7 +497,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 	}
 		
-	free(r);
+	i_free(r);
 	
 	return 0;
 }

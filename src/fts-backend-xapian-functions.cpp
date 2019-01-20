@@ -7,17 +7,17 @@ class XResultSet
     	Xapian::docid * data;
 
     XResultSet() { size=0; data=NULL; }
-    ~XResultSet() { if (size>0) { free(data); } }
+    ~XResultSet() { if (size>0) { i_free(data); } }
 
     void add(Xapian::docid did)
     {
         if(data==NULL)
         {
-            data=(Xapian::docid *)malloc(sizeof(Xapian::docid));
+            data=(Xapian::docid *)i_malloc(sizeof(Xapian::docid));
         }
         else
         {
-            data=(Xapian::docid *)realloc(data,(size+1)*sizeof(Xapian::docid));
+            data=(Xapian::docid *)i_realloc(data,size*sizeof(Xapian::docid),(size+1)*sizeof(Xapian::docid));
         }
         data[size]=did;
         size++;
@@ -55,24 +55,24 @@ class XQuerySet
 		int j;
 		for(j=0;j<size;j++) 
 		{ 
-			free(data[j]); 
-			free(header[j]);
+			i_free(data[j]); 
+			i_free(header[j]);
 		}
 		if(size>0)
 		{
-			free(data); 
-			free(header);
+			i_free(data); 
+			i_free(header);
 		}
 		for(j=0;j<tsize;j++)
 		{
-			free(terms[j]);
+			i_free(terms[j]);
 		}
-		if(tsize>0) free(terms);
+		if(tsize>0) i_free(terms);
 		for(j=0;j<hsize;j++)
                 {
-                        free(hdrs[j]);
+                        i_free(hdrs[j]);
                 }
-                if(hsize>0) free(hdrs);
+                if(hsize>0) i_free(hdrs);
 	}
 
 	void set_global()
@@ -97,13 +97,13 @@ class XQuerySet
 		char * s2;
 		if(s==NULL)
 		{
-			s2=(char *)malloc(sizeof(char));
+			s2=(char *)i_malloc(sizeof(char));
 			s2[0]=0;
 			return s2;
 		}	
 		
 		int i=0,j=0;
-        	s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+        	s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
 		while((s[i]>0) && (!is_ok(s[i])))
 		{
 			i++;
@@ -140,16 +140,16 @@ class XQuerySet
                         return;
                 }
                 pos=i;
-                hsize++;
                 if(hdrs == NULL)
                 {
-                        hdrs =(char **)malloc(sizeof(char*));
+                        hdrs =(char **)i_malloc(sizeof(char*));
                 }
                 else
                 {
-                        hdrs =(char**)realloc(hdrs,sizeof(char*)*hsize);
+                        hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
                 }
-                char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+		hsize++;
+                char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
                 strcpy(s2,s);
                 for(i=hsize-1;i>pos;i--)
                 {
@@ -174,13 +174,13 @@ class XQuerySet
 		tsize++;
 		if(terms == NULL) 
 		{
-			terms =(char **)malloc(sizeof(char*));
+			terms =(char **)i_malloc(sizeof(char*));
 		}
 		else
 		{
-			terms =(char**)realloc(terms,sizeof(char*)*tsize);
+			terms =(char**)i_realloc(terms,sizeof(char*)*tsize,sizeof(char*)*(tsize+1));
 		}
-		char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+		char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
 		strcpy(s2,s);
 		for(i=tsize-1;i>pos;i--)
 		{
@@ -195,8 +195,8 @@ class XQuerySet
 		char *s2=clean(s);
         	if((strlen(s2)<limit) || (strcmp(s2,"and")==0) || (strcmp(s2,"or")==0) || (strlen(t2)<1))
 		{ 
-			free(s2); 
-			free(t2);
+			i_free(s2); 
+			i_free(t2);
 			return; 
 		}
 
@@ -209,9 +209,9 @@ class XQuerySet
 
         	if(size==0)
         	{
-            		data=(char **)malloc(sizeof(char*));
+            		data=(char **)i_malloc(sizeof(char*));
 			data[0]=s2;
-			header=(char **)malloc(sizeof(char*));
+			header=(char **)i_malloc(sizeof(char*));
 			header[0]=t2;
 			size=1;
         	}
@@ -234,12 +234,14 @@ class XQuerySet
 				}
 				if((i<size)&&(strcmp(header[i],t2)==0)&&(strcmp(data[i],s2)==0))
 				{
-					free(s2); free(t2); return;
+					i_free(s2); 
+					i_free(t2); 
+					return;
 				}
 				pos=i;
 			}
-			data=(char **)realloc(data,(size+1)*sizeof(char*));
-			header=(char **)realloc(header,(size+1)*sizeof(char*));
+			data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
+			header=(char **)i_realloc(header,size*sizeof(char*),(size+1)*sizeof(char*));
 			
 			for(i=size;i>pos;i--)
 			{
@@ -262,7 +264,7 @@ class XQuerySet
 
 		if(size<1) 
 		{ 
-			s = (char *)malloc(sizeof(char)); 
+			s = (char *)i_malloc(sizeof(char)); 
 			s[0]=0; 
 			return s; 
 		}
@@ -277,7 +279,7 @@ class XQuerySet
                 		}
 				n+=10;
 			}
-			s = (char *)malloc(sizeof(char)*(n+1));
+			s = (char *)i_malloc(sizeof(char)*(n+1));
 			strcpy(s,"( ");
 			n=2;
 			for(i=0;i<tsize;i++)
@@ -308,7 +310,7 @@ class XQuerySet
                 {
                        	n=n+strlen(data[i])+strlen(header[i])+15;
                 }
-		s = (char *)malloc(sizeof(char)*(n+1));
+		s = (char *)i_malloc(sizeof(char)*(n+1));
 		char pref[100]; strcpy(pref,header[0]);
 		strcpy(s,"( "); n=2;
 		for(i=0;i<size;i++)
@@ -352,12 +354,23 @@ class XHeaderTerm
 		data=NULL; 
 		onlyone=o;
 	}
-        ~XHeaderTerm() { if (size>0) { for(int i=0;i<size;i++) { free(data[i]); } free(data); } }
+
+        ~XHeaderTerm() 
+	{ 
+		if (size>0) 
+		{ 
+			for(int i=0;i<size;i++) 
+			{ 
+				i_free(data[i]); 
+			} 
+			i_free(data); 
+		} 
+	}
 
 	char * strip(const char *s)
 	{
 		int i=0;
-		char * s2 = (char *)malloc(sizeof(char)*(strlen(s)+1));
+		char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
 		while(i<strlen(s))
 		{
 			if((s[i]=='"') || (s[i]=='<') || (s[i]=='>') || (s[i]=='\''))
@@ -387,7 +400,7 @@ class XHeaderTerm
 		{
 			j--;
 		}
-		char * s3 = (char *)malloc(sizeof(char)*(j+1));
+		char * s3 = (char *)i_malloc(sizeof(char)*(j+1));
                 strncpy(s3, s+i,j);
 		s3[j]=0;
   
@@ -421,7 +434,7 @@ class XHeaderTerm
 		{
 			j--;
 		}
-		char * s3 = (char *)malloc(sizeof(char)*(j+1));
+		char * s3 = (char *)i_malloc(sizeof(char)*(j+1));
 		strncpy(s3, s+i,j);
                 s3[j]=0;
                 return s3;
@@ -433,9 +446,13 @@ class XHeaderTerm
  
                 char * s2=strip(s);
 		char * s3=clean(s2);
-		free(s2);
+		i_free(s2);
 		
-                if(strlen(s3)<1) { free(s3); return; }
+                if(strlen(s3)<1) 
+		{ 
+			i_free(s3); 
+			return; 
+		}
 
 		char * blank=strstr(s3," ");
 
@@ -447,7 +464,7 @@ class XHeaderTerm
 				add(blank+1);
 			}
 			if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
-			free(s3);
+			i_free(s3);
 			return;
 		}
                 
@@ -459,7 +476,7 @@ class XHeaderTerm
 
 		int i,j,k=strlen(s3);
 
-		char *stem = (char *)malloc(sizeof(char)*(full+1)); 
+		char *stem = (char *)i_malloc(sizeof(char)*(full+1)); 
 		for(i=0;i<=k-partial;i++)
 		{
 			for(j=partial;(j+i<=k)&&(j<=full);j++)
@@ -470,7 +487,7 @@ class XHeaderTerm
 			}
 		}
 		if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
-		free(s3);
+		i_free(s3);
 	}
 	
 	void add_stem(const char *s)
@@ -482,7 +499,7 @@ class XHeaderTerm
 
                 if(data==NULL)
                 {
-                	data=(char **)malloc(sizeof(char*));
+                	data=(char **)i_malloc(sizeof(char*));
                 }
                 else
                 {
@@ -497,7 +514,7 @@ class XHeaderTerm
 				i++;
 			}
 			if(existing) return;
-                	data=(char **)realloc(data,(size+1)*sizeof(char*));
+                	data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
                 }
 		if(l>maxlength) { maxlength=l; }
                 data[size]=s2;
@@ -508,20 +525,20 @@ class XHeaderTerm
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	backend->box = NULL;
-	if(backend->db != NULL) free(backend->db);
+	if(backend->db != NULL) i_free(backend->db);
 	backend->db = NULL;
 
 	if(backend->dbw !=NULL)
 	{
 		backend->dbw->commit();
 		backend->dbw->close();
-		free(backend->dbw);
+		delete(backend->dbw);
 		backend->dbw=NULL;
 	}
 	if(backend->dbr !=NULL)
         {
 		backend->dbr->close();
-                free(backend->dbr);
+                delete(backend->dbr);
 		backend->dbr = NULL;
 	}
 	return 0;
@@ -545,7 +562,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	fts_mailbox_get_guid(box, &mb );
 
 	int l=strlen(backend->path)+strlen(mb)+1;
-	backend->db = (char *)malloc((l+1)*sizeof(char));
+	backend->db = (char *)i_malloc((l+1)*sizeof(char));
 	sprintf(backend->db,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
@@ -604,9 +621,9 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 
 	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name) != 0))
 	{
-		if(backend->oldbox != NULL) free(backend->oldbox);
+		if(backend->oldbox != NULL) i_free(backend->oldbox);
 		int l=strlen(backend->box->name);
-		backend->oldbox = (char *)malloc((l+1)*sizeof(char));
+		backend->oldbox = (char *)i_malloc((l+1)*sizeof(char));
 		strcpy(backend->oldbox,backend->box->name);
 		i_info("Updating %s (%s)",backend->box->name,backend->db);
 	}
@@ -631,7 +648,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
    
     	try
     	{
-        	Xapian::QueryParser * qp = new Xapian::QueryParser;
+        	Xapian::QueryParser * qp = new Xapian::QueryParser();
         	qp->add_prefix("uid", "Q");
         	qp->add_prefix("subject", "S");
         	qp->add_prefix("from", "A");
@@ -647,7 +664,8 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 		Xapian::Enquire enquire(*dbx);
         	Xapian::Query q = qp->parse_query(query_string);
 		enquire.set_query(q);
-        	free(query_string);
+        	i_free(query_string);
+		delete(qp);
 
         	long offset=0;
         	long pagesize=100; if(limit>0) { pagesize=std::min(pagesize,limit); }
@@ -696,7 +714,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 			docid=result->data[0];
 			doc = dbx->get_document(docid);
 		}
-		free(result);
+		delete(result);
 	
 		const char *h;
 		if(strlen(field)<1) { return true; }
@@ -714,9 +732,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 		XHeaderTerm xhs(p,f,strcmp(h,"XMID")==0);
                 xhs.add(data);
 
-		//i_warning("Index UID=%d '%s' : %d terms, maxlength: %d",uid,field,xhs.size,xhs.maxlength);
-		
-		char *t = (char*)malloc(sizeof(char)*(xhs.maxlength+6));
+		char *t = (char*)i_malloc(sizeof(char)*(xhs.maxlength+6));
 	
 		for(int i=0;i<xhs.size;i++)
 		{
@@ -730,6 +746,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, char
 				i_error(e.get_msg().c_str());
 			}
 		}
+		i_free(t);
 
 		dbx->replace_document(docid,doc);
 	    	return true;
@@ -765,13 +782,13 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, char
 			docid=result->data[0];
                         doc = dbx->get_document(docid);
                 }
-		free(result);
+		delete(result);
 
 		Xapian::TermGenerator termgenerator;
 		termgenerator.set_stemmer(Xapian::Stem("en"));
 		termgenerator.set_document(doc);
 	
-		std::string h;
+		const char * h;
                 if(strcmp(field,"subject")==0) 
 		{
 			h="S";
