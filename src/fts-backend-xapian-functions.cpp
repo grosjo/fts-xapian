@@ -578,8 +578,6 @@ static bool fts_backend_xapian_check_read(const char * calling,struct xapian_fts
 
         if(backend->dbr != NULL) return true;
 
-	//i_info("Opening RO %s %s (%s)",backend->box->name,backend->db,calling);
-
 	struct stat sb;
 
 	if(!((stat(backend->db, &sb) == 0) && S_ISDIR(sb.st_mode)))

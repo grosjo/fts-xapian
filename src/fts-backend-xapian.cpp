@@ -212,8 +212,6 @@ static void fts_backend_xapian_update_set_mailbox(struct fts_backend_update_cont
 
 static void fts_backend_xapian_update_expunge(struct fts_backend_update_context *_ctx, uint32_t uid)
 {
-//	i_warning("fts_backend_xapian_update_expunge UID=%d",uid);
-
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend =
@@ -416,12 +414,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if((flags & FTS_LOOKUP_FLAG_AND_ARGS) != 0)
 	{
-		i_warning("FLAG=AND");
+		i_info("LOOKUP: FLAG=AND");
 		is_and=true;
 	}
 	else
 	{
-		i_warning("FLAG=OR");
+		i_info("LOOKUP: FLAG=OR");
 	}
 
 	XQuerySet qs(is_and,backend->partial);
@@ -444,22 +442,22 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			struct mail_search_arg *a = args->value.subargs;
 			while(a !=NULL)
 			{
-				i_warning("adding (SUB) %s -> %s",hdr,a->value.str);
+				//i_warning("adding (SUB) %s -> %s",hdr,a->value.str);
 				qs.add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
-			i_warning("adding %s -> %s",hdr,args->value.str);
+			//i_warning("adding %s -> %s",hdr,args->value.str);
 			qs.add(hdr,args->value.str);
 		}
-		i_warning("FIELD SEARCH '%s'",hdr);
+		//i_warning("FIELD SEARCH '%s'",hdr);
 		args = args->next;
 	}
 	if((qs.hsize==1) && (strcmp(qs.hdrs[0],"body")==0))
 	{
-		i_warning("set GLOBAL");
+		i_info("LOOKUP: set GLOBAL");
 		qs.add_hdr("to");
 		qs.add_hdr("cc");
 		qs.add_hdr("from");
@@ -469,15 +467,15 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	}
 
 	char * q = qs.get_query();
-	i_warning("LOOKUP : %s",q);
+	i_info("LOOKUP : %s",q);
 	i_free(q);
 
-	i_warning("LAUNCHING SEARCH");
+	//i_warning("LAUNCHING SEARCH");
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
 
 	int n=r->size;
 
-	i_warning("%d results",n);
+	i_info("LOOKUP: %d results",n);
 
 	i_array_init(&(result->definite_uids),r->size);
         i_array_init(&(result->maybe_uids),0);
@@ -493,7 +491,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 		catch(Xapian::Error e)
 		{
-			i_warning(e.get_msg().c_str());
+			i_error(e.get_msg().c_str());
 		}
 	}
 		
