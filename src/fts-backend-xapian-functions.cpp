@@ -620,7 +620,6 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name) != 0))
 	{
 		if(backend->oldbox != NULL) i_free(backend->oldbox);
-		int l=strlen(backend->box->name);
 		backend->oldbox = i_strdup(backend->box->name);
 		i_info("Indexing %s (%s)",backend->box->name,backend->db);
 	}
