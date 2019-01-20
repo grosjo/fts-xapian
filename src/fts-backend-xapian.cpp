@@ -105,7 +105,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = (char *)i_malloc((l+1)*sizeof(char));
 	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
-	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
+//	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
 
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
@@ -226,8 +226,8 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
     	try
 	{
-		char u[1000]; sprintf(u,"Q%d",uid);
-        	backend->dbw->delete_document(u);
+		sprintf(s,"Q%d",uid);
+        	backend->dbw->delete_document(s);
 	}
 	catch(Xapian::Error e)
 	{
@@ -344,7 +344,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	const char *s = (char *)data;
 
-	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field);
+	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field.c_str());
 	if(!fts_backend_xapian_check_write(l,backend))
 	{
 		i_error("FTS Xapian: Buildmore: Can not open db");
