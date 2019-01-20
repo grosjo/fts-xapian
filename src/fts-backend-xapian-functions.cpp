@@ -315,7 +315,7 @@ class XQuerySet
 		{
 			if(i>0)
 			{
-				if(is_and || (strcmp(header[i],prefix.c_str())==0))
+				if(is_and || (prefix==header[i]))
 				{
 					strcpy(s+n," AND ");
                                         n+=5;
@@ -525,8 +525,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	backend->box = NULL;
 	if(backend->db != NULL) i_free(backend->db);
 	backend->db = NULL;
-	if(backend->oldbox != NULL) i_free(backend->oldbox);
-	backend->oldbox = NULL;
+	backend->oldbox = "";
 
 	if(backend->dbw !=NULL)
 	{
@@ -619,10 +618,9 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 
 	if(backend->dbw != NULL) return true;
 
-	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name) != 0))
+	if(backend->oldbox != backend->box->name)
 	{
-		if(backend->oldbox != NULL) i_free(backend->oldbox);
-		backend->oldbox = i_strdup(backend->box->name);
+		backend->oldbox = backend->box->name;
 		i_info("Indexing %s (%s)",backend->box->name,backend->db);
 	}
 
