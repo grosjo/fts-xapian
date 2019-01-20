@@ -149,8 +149,7 @@ class XQuerySet
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
                 }
 		hsize++;
-                char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
-                strcpy(s2,s);
+                char * s2 = strdup(s);
                 for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
@@ -180,8 +179,7 @@ class XQuerySet
 		{
 			terms =(char**)i_realloc(terms,sizeof(char*)*tsize,sizeof(char*)*(tsize+1));
 		}
-		char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
-		strcpy(s2,s);
+		char * s2 = i_strdup(s);
 		for(i=tsize-1;i>pos;i--)
 		{
 			terms[i]=terms[i-1];
@@ -311,7 +309,7 @@ class XQuerySet
                        	n=n+strlen(data[i])+strlen(header[i])+15;
                 }
 		s = (char *)i_malloc(sizeof(char)*(n+1));
-		char pref[100]; strcpy(pref,header[0]);
+		char pref[200]; strcpy(pref,header[0]);
 		strcpy(s,"( "); n=2;
 		for(i=0;i<size;i++)
 		{
@@ -623,10 +621,10 @@ static bool fts_backend_xapian_check_write(const char * calling,struct xapian_ft
 	{
 		if(backend->oldbox != NULL) i_free(backend->oldbox);
 		int l=strlen(backend->box->name);
-		backend->oldbox = (char *)i_malloc((l+1)*sizeof(char));
-		strcpy(backend->oldbox,backend->box->name);
-		i_info("Updating %s (%s)",backend->box->name,backend->db);
+		backend->oldbox = i_strdup(backend->box->name);
+		i_info("Indexing %s (%s)",backend->box->name,backend->db);
 	}
+
 	// i_info("Opening RW %s %s (%s)",backend->box->name,backend->db,calling);
 	try
 	{
