@@ -109,9 +109,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
     	}
 
 	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
-	long l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+1;
-	backend->path = (char *)i_malloc((l+1)*sizeof(char));
-	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
+	long l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+2;
+	backend->path = (char *)i_malloc(l*sizeof(char));
+	snprintf(backend->path,l,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
 //	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
 
@@ -225,7 +225,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
     	try
 	{
 		char s[30];
-		sprintf(s,"Q%d",uid);	
+		snprintf(s,30,"Q%d",uid);	
         	backend->dbw->delete_document(s);
 	}
 	catch(Xapian::Error e)
@@ -287,10 +287,12 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
     		case FTS_BACKEND_BUILD_KEY_HDR:
 	    	case FTS_BACKEND_BUILD_KEY_MIME_HDR:
             		ctx->tbi_isfield=true;
+/*
             		if(strcmp(f2,"subject")==0)
             		{
                 		ctx->tbi_isfield=false;
             		}
+*/
             		ctx->tbi_field=f2;
             		ctx->tbi_uid=key->uid;
             		break;

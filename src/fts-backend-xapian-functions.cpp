@@ -598,7 +598,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	long l=strlen(backend->path)+strlen(mb)+5; 
 	backend->db = (char *)i_malloc(l*sizeof(char));
-	sprintf(backend->db,"%s/db_%s",backend->path,mb);
+	snprintf(backend->db,l,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
 	backend->nb_updates=0;
@@ -719,8 +719,9 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	try
 	{
 		XQuerySet xq(false);
-        	char u[30]; sprintf(u,"%d",uid);
+        	char u[30]; snprintf(u,30,"%d",uid);
         	xq.add("uid",u);
+
         	XResultSet *result=fts_backend_xapian_query(dbx,&xq,1);
 
 		Xapian::docid docid;
@@ -728,7 +729,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		if(result->size<1)
         	{
 			doc.add_value(1,Xapian::sortable_serialise(uid));
-			sprintf(u,"Q%d",uid);
+			snprintf(u,30,"Q%d",uid);
 			doc.add_term(u);
 			docid=dbx->add_document(doc);
         	}
@@ -755,7 +756,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	
 		for(i=0;i<xhs.size;i++)
 		{
-			sprintf(t,"%s%s",h,xhs.data[i]);		
+			snprintf(t,xhs.maxlength+6,"%s%s",h,xhs.data[i]);		
 			try
 			{
 				doc.add_term(t);
@@ -783,7 +784,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 	try
         {
         	XQuerySet xq(false);
-                char u[30]; sprintf(u,"%d",uid);
+                char u[30]; snprintf(u,30,"%d",uid);
                 xq.add("uid",u);
                 XResultSet * result=fts_backend_xapian_query(dbx,&xq,1);
   
@@ -792,7 +793,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
                 if(result->size<1)
                 {
 			doc.add_value(1,Xapian::sortable_serialise(uid));
-                        sprintf(u,"Q%d",uid);
+                        snprintf(u,30,"Q%d",uid);
                         doc.add_term(u);
                         docid=dbx->add_document(doc);
                 }
