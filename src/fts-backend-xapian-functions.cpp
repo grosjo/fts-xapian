@@ -622,6 +622,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		try
 		{
 			Xapian::WritableDatabase db(backend->db,Xapian::DB_CREATE_OR_OPEN);
+			db.commit();	
                        	db.close();
 		}
 		catch(Xapian::Error e)
@@ -734,7 +735,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		Xapian::Document doc;
 		if(result->size<1)
         	{
-			doc.add_value(1,u);
+			doc.add_value(1,Xapian::sortable_serialise(uid));
 			sprintf(u,"Q%d",uid);
 			doc.add_term(u);
 			docid=dbx->add_document(doc);
@@ -802,7 +803,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
                 Xapian::Document doc;
                 if(result->size<1)
                 {
-                	doc.add_value(1,u);
+			doc.add_value(1,Xapian::sortable_serialise(uid));
                         sprintf(u,"Q%d",uid);
                         doc.add_term(u);
                         docid=dbx->add_document(doc);

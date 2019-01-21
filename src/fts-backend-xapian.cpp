@@ -162,14 +162,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
     	try
 	{
-                XQuerySet qs(false);
-                XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs,1);
-                if(r->size>0)
-                {
-			Xapian::Document doc = backend->dbr->get_document( r->data[0]);
-			*last_uid_r = atol(doc.get_value(1).c_str());
-                }
-                delete(r);
+		*last_uid_r = Xapian::sortable_unserialise(backend->dbr->get_value_upper_bound(1));
 	}
 	catch(Xapian::Error e)
 	{
@@ -400,7 +393,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 	struct stat sb;
         if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
         {
-		i_error("FTS Xapian:  Index folder inexistent");
+		i_error("FTS Xapian: Index folder inexistent");
 		return -1;
 	}
 
@@ -498,7 +491,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	{
 		try
 		{
-			uid=atol(backend->dbr->get_document(r->data[i]).get_value(1).c_str());
+			uid=Xapian::sortable_unserialise(backend->dbr->get_document(r->data[i]).get_value(1));
 			seq_range_array_add(&result->definite_uids, uid);
 		}
 		catch(Xapian::Error e)
