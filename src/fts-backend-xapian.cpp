@@ -105,9 +105,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
     	}
 
 	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
-	int l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+1;
-	backend->path = (char *)i_malloc((l+1)*sizeof(char));
-	sprintf(backend->path,"%s/%s",path,XAPIAN_FILE_PREFIX);
+	int l=strlen(path)+strlen(XAPIAN_FILE_PREFIX)+2;
+	backend->path = (char *)i_malloc(l);
+	snprintf(backend->path,l,"%s/%s",path,XAPIAN_FILE_PREFIX);
 
 //	i_info("FTS Xapian: Partial=%d, Full=%d DB_PATH=%s",backend->partial,backend->full,backend->path);
 
@@ -131,10 +131,8 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	fts_backend_xapian_unset_box(backend);
 
-	if(backend->oldbox != NULL) i_free(backend->oldbox);
-	backend->oldbox = NULL;
-	if(backend->path != NULL) i_free(backend->path);
-	backend->path = NULL;
+	if(backend->oldbox != NULL) i_free_and_null(backend->oldbox);
+	if(backend->path != NULL) i_free_and_null(backend->path);
 
 	i_free(backend);
 }
@@ -221,7 +219,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
     	try
 	{
 		char s[20];
-		sprintf(s,"Q%d",uid);	
+		snprintf(s,20,"Q%d",uid);	
         	backend->dbw->delete_document(s);
 	}
 	catch(Xapian::Error e)

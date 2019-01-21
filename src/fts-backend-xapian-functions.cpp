@@ -537,8 +537,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
         	/* End Performance calculator*/
 	
                 i_info("Done indexing '%s' (%d msgs in %d ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
-                i_free(backend->oldbox);
-                backend->oldbox=NULL;
+                i_free_and_null(backend->oldbox);
         }
 }
 
@@ -550,8 +549,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	if(backend->db != NULL) 
 	{
-		i_free(backend->db);
-		backend->db = NULL;
+		i_free_and_null(backend->db);
 	}
 
 	if(backend->dbw !=NULL)
@@ -588,8 +586,8 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	fts_mailbox_get_guid(box, &mb );
 
 	int l=strlen(backend->path)+strlen(mb)+5; 
-	backend->db = (char *)i_malloc(l*sizeof(char));
-	sprintf(backend->db,"%s/db_%s",backend->path,mb);
+	backend->db = (char *)i_malloc(l);
+	snprintf(backend->db,l,"%s/db_%s",backend->path,mb);
 
 	backend->box = box;
 	backend->nb_updates=0;
@@ -727,7 +725,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	try
 	{
 		XQuerySet xq(false);
-        	char u[20]; sprintf(u,"%d",uid);
+        	char u[20]; snprintf(u,20,"%d",uid);
         	xq.add("uid",u);
         	XResultSet *result=fts_backend_xapian_query(dbx,&xq,1);
 
@@ -736,7 +734,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		if(result->size<1)
         	{
 			doc.add_value(1,Xapian::sortable_serialise(uid));
-			sprintf(u,"Q%d",uid);
+			snprintf(u,20,"Q%d",uid);
 			doc.add_term(u);
 			docid=dbx->add_document(doc);
         	}
@@ -763,11 +761,12 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		XHeaderTerm xhs(p,f,strcmp(h,"XMID")==0);
                 xhs.add(data);
 
-		char *t = (char*)i_malloc(sizeof(char)*(xhs.maxlength+6));
+		int l=xhs.maxlength+6;
+		char *t = (char*)i_malloc(l);
 	
 		for(int i=0;i<xhs.size;i++)
 		{
-			sprintf(t,"%s%s",h,xhs.data[i]);		
+			snprintf(t,l,"%s%s",h,xhs.data[i]);		
 			try
 			{
 				doc.add_term(t);
@@ -795,7 +794,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 	try
         {
         	XQuerySet xq(false);
-                char u[20]; sprintf(u,"%d",uid);
+                char u[20]; snprintf(u,20,"%d",uid);
                 xq.add("uid",u);
                 XResultSet * result=fts_backend_xapian_query(dbx,&xq,1);
   
@@ -804,7 +803,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
                 if(result->size<1)
                 {
 			doc.add_value(1,Xapian::sortable_serialise(uid));
-                        sprintf(u,"Q%d",uid);
+                        snprintf(u,20,"Q%d",uid);
                         doc.add_term(u);
                         docid=dbx->add_document(doc);
                 }
