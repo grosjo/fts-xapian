@@ -166,7 +166,8 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
                 XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs,1);
                 if(r->size>0)
                 {
-			*last_uid_r = r->data[0];
+			Xapian::Document doc = backend->dbr->get_document( r->data[0]);
+			*last_uid_r = atol(doc.get_value(1).c_str());
                 }
                 delete(r);
 	}
@@ -176,6 +177,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("XapianError:%s",e.get_msg().c_str());
 		return -1;
 	}
+	i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
         return 0;
 }
 
