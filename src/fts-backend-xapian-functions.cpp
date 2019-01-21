@@ -524,7 +524,19 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
         if(backend->oldbox != NULL)
         {
-                i_info("Done indexing '%s'",backend->oldbox);
+		/* Performance calculator*/
+        	struct timeval tp;
+        	gettimeofday(&tp, NULL);
+        	int dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+		double r=0;
+		if(dt>0)
+		{
+			r=backend->perf_nb*1000.0;
+			r=r/dt;
+		}
+        	/* End Performance calculator*/
+	
+                i_info("Done indexing '%s' (%d msgs in %d ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
                 i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
@@ -581,6 +593,15 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	backend->box = box;
 	backend->nb_updates=0;
+
+	 /* Performance calculator*/
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        backend->perf_dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	backend->perf_uid=0;
+	backend->perf_nb=0;
+	/* End Performance calculator*/
+
 	return 0;
 }
 

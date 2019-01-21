@@ -23,6 +23,10 @@ struct xapian_fts_backend
 	Xapian::Database * dbr;
         unsigned int partial,full;
 	int nb_updates;
+
+	int perf_nb;
+	int perf_uid;
+	int perf_dt;
 };
 
 struct xapian_fts_backend_update_context
@@ -258,6 +262,14 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		ctx->tbi_uid=0;	
 		return true;
 	}
+
+	/* Performance calculator*/
+	if( backend->perf_uid != key->uid ) 
+	{
+		backend->perf_nb++;
+		backend->perf_uid = key->uid;
+	}
+	/* End Performance calculator*/
 
         while((field[i]<=' ') && (field[i]>0))
         {
