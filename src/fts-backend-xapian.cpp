@@ -162,17 +162,13 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
     	try
 	{
-		Xapian::docid did = backend->dbr->get_lastdocid();
-		Xapian::Document doc = backend->dbr->get_document(did);
-		*last_uid_r = atol(doc.get_value(1).c_str());
-	}
-	catch(Xapian::DocNotFoundError no)
-	{
-		*last_uid_r = 0;
-	}
-	catch(Xapian::InvalidArgumentError iae)
-	{
-		*last_uid_r = 0;
+                XQuerySet qs(false);
+                XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs,1);
+                if(r->size>0)
+                {
+			*last_uid_r = r->data[0];
+                }
+                delete(r);
 	}
 	catch(Xapian::Error e)
 	{
@@ -221,22 +217,21 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-//	char s[1000]; sprintf(s,"expunge UID=%d",uid);
 	if(!fts_backend_xapian_check_write(backend))
 	{
-		i_error("FTS Xapian: Expunge: Can not open db");
+		i_error("FTS Xapian: Expunge UID=%d: Can not open db",uid);
 		return ;
 	}
 
     	try
 	{
-		char s[100];
-		sprintf(s,"Q%d",uid);
+		char s[20];
+		sprintf(s,"Q%d",uid);	
         	backend->dbw->delete_document(s);
 	}
 	catch(Xapian::Error e)
 	{
-		// i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError:%s",e.get_msg().c_str());
 	}
 }
 
@@ -457,23 +452,19 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		{
 			hdr=args->hdr_field_name;
 		}
-		//i_warning("HEADER SEARCH: '%s' vs '%s'",args->hdr_field_name,hdr);
 		if((args->value.str == NULL) || (strlen(args->value.str)<1))
 		{
 			struct mail_search_arg *a = args->value.subargs;
 			while(a !=NULL)
 			{
-				//i_warning("adding (SUB) %s -> %s",hdr,a->value.str);
 				qs.add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
-			//i_warning("adding %s -> %s",hdr,args->value.str);
 			qs.add(hdr,args->value.str);
 		}
-		//i_warning("FIELD SEARCH '%s'",hdr);
 		args = args->next;
 	}
 	if((qs.hsize==1) && (strcmp(qs.hdrs[0],"body")==0))

@@ -672,24 +672,30 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
    
     	try
     	{
-        	Xapian::QueryParser * qp = new Xapian::QueryParser();
-        	qp->add_prefix("uid", "Q");
-        	qp->add_prefix("subject", "S");
-        	qp->add_prefix("from", "A");
-        	qp->add_prefix("to", "XTO");
-        	qp->add_prefix("cc", "XCC");
-        	qp->add_prefix("bcc", "XBCC");
-		qp->add_prefix("body", "XBDY");
-		qp->add_prefix("message-id", "XMID");
-        	qp->add_prefix("", "XBDY");
-        	qp->set_database(*dbx);
-    
-        	char *query_string=query->get_query();
+		Xapian::Query q = Xapian::Query::MatchAll;
 		Xapian::Enquire enquire(*dbx);
-        	Xapian::Query q = qp->parse_query(query_string);
+
+		if(query->size>0)
+		{
+        		Xapian::QueryParser * qp = new Xapian::QueryParser();
+        		qp->add_prefix("uid", "Q");
+        		qp->add_prefix("subject", "S");
+        		qp->add_prefix("from", "A");
+        		qp->add_prefix("to", "XTO");
+        		qp->add_prefix("cc", "XCC");
+        		qp->add_prefix("bcc", "XBCC");
+			qp->add_prefix("body", "XBDY");
+			qp->add_prefix("message-id", "XMID");
+        		qp->add_prefix("", "XBDY");
+        		qp->set_database(*dbx);
+    	
+    		    	char *query_string=query->get_query();
+        		q = qp->parse_query(query_string);
+			i_free(query_string);
+			delete(qp);
+		}
 		enquire.set_query(q);
-        	i_free(query_string);
-		delete(qp);
+		enquire.set_docid_order(Xapian::Enquire::DESCENDING);
 
         	long offset=0;
         	long pagesize=100; if(limit>0) { pagesize=std::min(pagesize,limit); }
