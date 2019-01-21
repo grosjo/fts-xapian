@@ -628,6 +628,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 			i_info("FTS Xapian: Tried to create an existing db '%s'",backend->db);
 		}
 	}
+
 	try
 	{
                 backend->dbr = new Xapian::Database(backend->db); 
@@ -635,9 +636,10 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
         catch(Xapian::Error e)
         {
                 i_error("FTS Xapian: Can not open RO index (%s) %s",backend->box->name,backend->db);
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError: %s",e.get_msg().c_str());
                 return false;
         }
+
         return true;
 }
 
@@ -658,7 +660,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 	catch(Xapian::Error e)
         {
 		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
-                i_error("XapianError:%s",e.get_msg().c_str());
+                i_error("XapianError: %s",e.get_msg().c_str());
                 return false;
         }
 	return true;	
@@ -715,7 +717,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
     	}
     	catch(Xapian::Error e)
     	{
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError: %s",e.get_msg().c_str());
     	}
     	return set;
 }
@@ -784,7 +786,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	catch(Xapian::Error e)
 	{
 		i_error("fts_backend_xapian_index_hdr (%s) -> %s",field,data);
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError: %s",e.get_msg().c_str());
 	}
 	return false;
 }
@@ -836,7 +838,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
           catch(Xapian::Error e)
           {
 		i_error("fts_backend_xapian_index_text");
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError: %s",e.get_msg().c_str());
           }
           return false;
 }
@@ -873,7 +875,7 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
                 }
                 catch(Xapian::Error e)
                 {
-                        i_error("XapianError:%s",e.get_msg().c_str());
+                        i_error("XapianError: %s",e.get_msg().c_str());
                 }
         }
         return 0;

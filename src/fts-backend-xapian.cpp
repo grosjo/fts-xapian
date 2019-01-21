@@ -79,28 +79,28 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
         	else 
 		{
-            		i_error("fts_xapian: Invalid setting: %s", *tmp);
+            		i_error("FTS Xapian: Invalid setting: %s", *tmp);
             		return -1;
         	}
     	}
     	if(backend->partial<2) 
     	{
-        	i_error("fts_xapian: 'partial' can not be null (try partial=2)");
+        	i_error("FTS Xapian: 'partial' can not be null (try partial=2)");
         	return -1;
     	}
     	if(backend->full<1) 
     	{
-        	i_error("fts_xapian: 'full' can not be null (try full=20)");
+        	i_error("FTS Xapian: 'full' can not be null (try full=20)");
         	return -1;
     	}
     	if(backend->partial > backend->full) 
     	{
-        	i_error("fts_xapian: 'full' must be equal or greater than 'partial'");
+        	i_error("FTS Xapian: 'full' must be equal or greater than 'partial'");
         	return -1;
     	}
     	if(backend->full > 50) 
     	{
-        	i_error("fts_xapian: 'full' above 50 is not realistic");
+        	i_error("FTS Xapian: 'full' above 50 is not realistic");
         	return -1;
     	}
 
@@ -116,7 +116,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	{
 		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
 		{
-			i_error("fts_xapian: can not create '%s'",backend->path);
+			i_error("FTS Xapian: can not create '%s'",backend->path);
                 	return -1;
 		}
 	}
@@ -154,7 +154,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
 	if(!fts_backend_xapian_check_read(backend))
 	{
-		i_error("FTX Xapian : get_last_uid: can not open DB %s",backend->db);
+		i_error("FTS Xapian: get_last_uid: can not open DB %s",backend->db);
 		return -1;
 	}
 
@@ -165,7 +165,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 	catch(Xapian::Error e)
 	{
 		i_error("fts_backend_xapian_get_last_uid %s",backend->box->name);
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("XapianError: %s",e.get_msg().c_str());
 		return -1;
 	}
 	i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
