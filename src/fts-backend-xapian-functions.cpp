@@ -520,14 +520,19 @@ class XHeaderTerm
 	}
 };
 
-static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
+static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-	if(backend->oldbox != NULL)
+        if(backend->oldbox != NULL)
         {
-		i_info("Done indexing '%s'",backend->oldbox);
-        	i_free(backend->oldbox);
+                i_info("Done indexing '%s'",backend->oldbox);
+                i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
+}
+
+static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
+{
+	fts_backend_xapian_oldbox(backend);
 
 	backend->box = NULL;
 
@@ -626,14 +631,6 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 
 	if(backend->dbw != NULL) return true;
 
-	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
-	{
-		if(backend->oldbox != NULL) i_free(backend->oldbox);
-		backend->oldbox = i_strdup(backend->box->name);
-		i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
-	}
-
-	// i_info("Opening RW %s %s (%s)",backend->box->name,backend->db,calling);
 	try
 	{
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);

@@ -334,6 +334,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
         return 0;
 }
 
+
 static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
 	struct xapian_fts_backend_update_context *ctx =
@@ -345,7 +346,6 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	const char *s = (char *)data;
 
-//	char l[1000]; sprintf(l,"build_more UID=%d F=%s",ctx->tbi_uid,ctx->tbi_field.c_str());
 	if(!fts_backend_xapian_check_write(backend))
 	{
 		i_error("FTS Xapian: Buildmore: Can not open db");
@@ -366,6 +366,14 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
             		return -1;
         	}
     	}
+
+        if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
+        {
+                fts_backend_xapian_oldbox(backend);
+                backend->oldbox = i_strdup(backend->box->name);
+                i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
+        }
+
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) 
 	{ 
