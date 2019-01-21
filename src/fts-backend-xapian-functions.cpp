@@ -3,7 +3,7 @@
 class XResultSet
 {
     public:
-	int size;
+	long size;
     	Xapian::docid * data;
 
     XResultSet() { size=0; data=NULL; }
@@ -27,15 +27,14 @@ class XResultSet
 class XQuerySet
 {
     	public:
-		int size,tsize,hsize;
+		long size,tsize,hsize,limit;
     		char ** data;
 		char ** header;
 		char ** terms;
 		char ** hdrs;
-    		bool is_and, is_global;
-		int limit;
+    		bool is_and, is_global, display;
 
-    	XQuerySet(bool op,int l=0) 
+    	XQuerySet(bool op,long l=0, bool d=false) 
 	{ 
 		is_and=op;
 		size=0; 
@@ -48,11 +47,12 @@ class XQuerySet
 		header=NULL;
 		terms=NULL;
 		hdrs=NULL;
+		display=d;
 	}
     	
 	~XQuerySet() 
 	{ 
-		int j;
+		long j;
 		for(j=0;j<size;j++) 
 		{ 
 			i_free(data[j]); 
@@ -102,7 +102,7 @@ class XQuerySet
 			return s2;
 		}	
 		
-		int i=0,j=0;
+		long i=0,j=0;
         	s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
 		while((s[i]>0) && (!is_ok(s[i])))
 		{
@@ -130,7 +130,9 @@ class XQuerySet
 
 	void add_hdr(const char *s)
 	{
-                int i=0,pos;
+		if(strlen(s)<1) return;
+
+                long i=0,pos;
                 while((i<hsize)&&(strcmp(hdrs[i],s)<0))
                 {
                         i++;
@@ -159,7 +161,7 @@ class XQuerySet
 	
 	void add_term(const char *s)
 	{
-		int i=0,pos;
+		long i=0,pos;
 
                 while((i<tsize)&&(strcmp(terms[i],s)<0))
                 {
@@ -215,7 +217,7 @@ class XQuerySet
         	}
         	else
         	{
-			int i=0,pos;
+			long i=0,pos;
 			while((i<size)&&(strcmp(header[i],t2)<0))
 			{
 				i++;
@@ -254,19 +256,19 @@ class XQuerySet
 		add_term(s2);
     	}
 
-    	char * get_query()
+    	Xapian::Query * get_query(Xapian::Database * db)
     	{
-		long n=0;
-                int i,j;
+		if(size<1)
+		{
+			return new Xapian::Query(Xapian::Query::MatchAll);
+		}
+		
+		long i,j,n=0;
 		char *s;
 
-		if(size<1) 
-		{ 
-			s = (char *)i_malloc(sizeof(char)); 
-			s[0]=0; 
-			return s; 
-		}
-
+		Xapian::QueryParser * qp = new Xapian::QueryParser();
+		for(i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
+                
 		if(is_global)
 		{
 			for(j=0;j<hsize;j++)
@@ -301,50 +303,57 @@ class XQuerySet
 			strcpy(s+n," )");
 			n+=2;
 			s[n]=0;
-			return s;
 		}
-	
-		for(i=0;i<size;i++)
-                {
-                       	n=n+strlen(data[i])+strlen(header[i])+15;
-                }
-		s = (char *)i_malloc(sizeof(char)*(n+1));
-		std::string prefix(header[0]);
-		strcpy(s,"( "); n=2;
-		for(i=0;i<size;i++)
-		{
-			if(i>0)
+		else
+		{	
+			for(i=0;i<size;i++)
+                	{
+                	       	n=n+strlen(data[i])+strlen(header[i])+15;
+                	}
+			s = (char *)i_malloc(sizeof(char)*(n+1));
+			std::string prefix(header[0]);
+			strcpy(s,"( "); n=2;
+			for(i=0;i<size;i++)
 			{
-				if(is_and || (prefix.compare(header[i])==0))
+				if(i>0)
 				{
-					strcpy(s+n," AND ");
-                                        n+=5;
-                                }
-				else
-				{
-					strcpy(s+n," ) OR ( ");
-					n+=8;
-					prefix=header[i];
+					if(is_and || (prefix.compare(header[i])==0))
+					{
+						strcpy(s+n," AND ");
+                	                        n+=5;
+                	                }
+					else
+					{
+						strcpy(s+n," ) OR ( ");
+						n+=8;
+						prefix=header[i];
+					}
 				}
+				sprintf(s+n,"%s:%s",header[i],data[i]);
+				n+=strlen(data[i])+strlen(header[i])+1;
 			}
-			sprintf(s+n,"%s:%s",header[i],data[i]);
-			n+=strlen(data[i])+strlen(header[i])+1;
-		}
-		strcpy(s+n," )");
-		n+=2;
-		s[n]=0;
-        	return s;
+			strcpy(s+n," )");
+			n+=2;
+			s[n]=0;
+        	}
+	        qp->set_database(*db);
+
+                Xapian::Query * q = new Xapian::Query(qp->parse_query(s));
+		if(display) i_info("Query : %s",s); 
+                i_free(s);
+                delete(qp);
+		return q;
     	}
 };
 
 class XHeaderTerm
 {
 	public:
-		int size,partial,full,maxlength;
+		long size,partial,full,maxlength;
 		char ** data;
 		bool onlyone;
   
-        XHeaderTerm(int p, int f, bool o) 
+        XHeaderTerm(long p, long f, bool o) 
 	{ 
 		partial=p; full=f; 
 		size=0; 
@@ -357,7 +366,7 @@ class XHeaderTerm
 	{ 
 		if (size>0) 
 		{ 
-			for(int i=0;i<size;i++) 
+			for(long i=0;i<size;i++) 
 			{ 
 				i_free(data[i]); 
 			} 
@@ -367,7 +376,7 @@ class XHeaderTerm
 
 	char * strip(const char *s)
 	{
-		int i=0;
+		long i=0;
 		char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
 		while(i<strlen(s))
 		{
@@ -387,7 +396,7 @@ class XHeaderTerm
 
 	char * clean(const char *s)
         {
-        	int i=0,j=0;
+        	long i=0,j=0;
                 while((s[i]<=' ') && (s[i]>0))
                 {
                 	i++;
@@ -421,7 +430,7 @@ class XHeaderTerm
 
 	char * clean_stem(const char *s)
 	{
-                int i=0,j;
+                long i=0,j;
                 while(((s[i]<'a') || (s[i]>'z')) && (s[i]>0))
                 {
                         i++;
@@ -472,7 +481,7 @@ class XHeaderTerm
                         add(blank+1);
                 }
 
-		int i,j,k=strlen(s3);
+		long i,j,k=strlen(s3);
 
 		char *stem = (char *)i_malloc(sizeof(char)*(full+1)); 
 		for(i=0;i<=k-partial;i++)
@@ -491,7 +500,7 @@ class XHeaderTerm
 	void add_stem(const char *s)
 	{
 		char * s2 = clean_stem(s);
-		int l = strlen(s2);
+		long l = strlen(s2);
 
 		if(l<partial) return;
 
@@ -502,7 +511,7 @@ class XHeaderTerm
                 else
                 {
 			bool existing=false;
-			int i=0;
+			long i=0;
 			while((!existing) && (i<size))
                 	{
 				if(strcmp(data[i],s2)==0)
@@ -527,7 +536,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		/* Performance calculator*/
         	struct timeval tp;
         	gettimeofday(&tp, NULL);
-        	int dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+        	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
 		double r=0;
 		if(dt>0)
 		{
@@ -587,7 +596,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	int l=strlen(backend->path)+strlen(mb)+5; 
+	long l=strlen(backend->path)+strlen(mb)+5; 
 	backend->db = (char *)i_malloc(l*sizeof(char));
 	sprintf(backend->db,"%s/db_%s",backend->path,mb);
 
@@ -622,7 +631,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		try
 		{
 			Xapian::WritableDatabase db(backend->db,Xapian::DB_CREATE_OR_OPEN);
-			db.commit();	
+			db.commit();
                        	db.close();
 		}
 		catch(Xapian::Error e)
@@ -636,8 +645,8 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	}
         catch(Xapian::Error e)
         {
-                i_error("FTS Xapian: Can not open RO index (%s) %s",backend->box->name,backend->db);
-		i_error("XapianError:%s",e.get_msg().c_str());
+                i_error("Xapian: Can not open RO index (%s) %s",backend->box->name,backend->db);
+		i_error("Xapian: %s",e.get_msg().c_str());
                 return false;
         }
         return true;
@@ -659,8 +668,8 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
         {
-		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
-                i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
+                i_error("Xapian: %s",e.get_msg().c_str());
                 return false;
         }
 	return true;	
@@ -673,30 +682,13 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
    
     	try
     	{
-		Xapian::Query q = Xapian::Query::MatchAll;
 		Xapian::Enquire enquire(*dbx);
 
-		if(query->size>0)
-		{
-        		Xapian::QueryParser * qp = new Xapian::QueryParser();
-        		qp->add_prefix("uid", "Q");
-        		qp->add_prefix("subject", "S");
-        		qp->add_prefix("from", "A");
-        		qp->add_prefix("to", "XTO");
-        		qp->add_prefix("cc", "XCC");
-        		qp->add_prefix("bcc", "XBCC");
-			qp->add_prefix("body", "XBDY");
-			qp->add_prefix("message-id", "XMID");
-        		qp->add_prefix("", "XBDY");
-        		qp->set_database(*dbx);
-    	
-    		    	char *query_string=query->get_query();
-        		q = qp->parse_query(query_string);
-			i_free(query_string);
-			delete(qp);
-		}
-		enquire.set_query(q);
+		Xapian::Query * q = query->get_query(dbx);
+		
+		enquire.set_query(*q);
 		enquire.set_docid_order(Xapian::Enquire::DESCENDING);
+		delete(q);
 
         	long offset=0;
         	long pagesize=100; if(limit>0) { pagesize=std::min(pagesize,limit); }
@@ -717,17 +709,17 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
     	}
     	catch(Xapian::Error e)
     	{
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("Xapian: %s",e.get_msg().c_str());
     	}
     	return set;
 }
 
-bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, const char* data,int p, int f)
+bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, const char* data,long p, long f)
 {
 	try
 	{
 		XQuerySet xq(false);
-        	char u[20]; sprintf(u,"%d",uid);
+        	char u[30]; sprintf(u,"%d",uid);
         	xq.add("uid",u);
         	XResultSet *result=fts_backend_xapian_query(dbx,&xq,1);
 
@@ -747,25 +739,21 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		}
 		delete(result);
 	
-		const char *h;
 		if(strlen(field)<1) { return true; }
-		else if(strcmp(field,"uid")==0) { h="Q"; }
-		else if(strcmp(field,"from")==0) { h="A"; }
-		else if(strcmp(field,"to")==0) { h="XTO"; }
-		else if(strcmp(field,"cc")==0) { h="XCC"; }
-		else if(strcmp(field,"bcc")==0) { h="XBCC"; }
-		else if(strcmp(field,"message-id")==0) { h="XMID"; }
-		else 
+		long i=0;
+		while((i<HDRS_NB) && (strcmp(field,hdrs_emails[i])!=0))
 		{
-			return true;
+			i++;
 		}
+		if(i>=HDRS_NB) return true;
+		const char * h=hdrs_xapian[i];
 
 		XHeaderTerm xhs(p,f,strcmp(h,"XMID")==0);
                 xhs.add(data);
 
 		char *t = (char*)i_malloc(sizeof(char)*(xhs.maxlength+6));
 	
-		for(int i=0;i<xhs.size;i++)
+		for(i=0;i<xhs.size;i++)
 		{
 			sprintf(t,"%s%s",h,xhs.data[i]);		
 			try
@@ -774,7 +762,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 			}
 			catch(Xapian::Error e)
 			{
-				i_error(e.get_msg().c_str());
+				i_error("Xapian: %s",e.get_msg().c_str());
 			}
 		}
 		i_free(t);
@@ -784,8 +772,8 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("fts_backend_xapian_index_hdr (%s) -> %s",field,data);
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("Xapian: fts_backend_xapian_index_hdr (%s) -> %s",field,data);
+		i_error("Xapian: %s",e.get_msg().c_str());
 	}
 	return false;
 }
@@ -795,7 +783,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 	try
         {
         	XQuerySet xq(false);
-                char u[20]; sprintf(u,"%d",uid);
+                char u[30]; sprintf(u,"%d",uid);
                 xq.add("uid",u);
                 XResultSet * result=fts_backend_xapian_query(dbx,&xq,1);
   
@@ -836,8 +824,8 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
           }
           catch(Xapian::Error e)
           {
-		i_error("fts_backend_xapian_index_text");
-		i_error("XapianError:%s",e.get_msg().c_str());
+		i_error("Xapian: fts_backend_xapian_index_text");
+		i_error("Xapian: %s",e.get_msg().c_str());
           }
           return false;
 }
@@ -874,7 +862,7 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
                 }
                 catch(Xapian::Error e)
                 {
-                        i_error("XapianError:%s",e.get_msg().c_str());
+                        i_error("Xapian: %s",e.get_msg().c_str());
                 }
         }
         return 0;
