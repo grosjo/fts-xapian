@@ -183,12 +183,15 @@ class XQuerySet
 		s->findAndReplace(">"," ");
                 s->trim();
 
-                long l = s->length();
+		t->toLower();
+		t->trim();
+		long l = t->length();
+		if(l<1) return;
 
+                l = s->length();
                 if(l<limit) return;
 
                 long i = s->indexOf(" ");
-
                 if(i>0)
                 {
                         icu::UnicodeString * r = new icu::UnicodeString(*s,i+1);
@@ -197,11 +200,12 @@ class XQuerySet
                         s->truncate(i);
 		}
 
-		std::string tmp;
-                t->toUTF8String(tmp);
-		char * t2 = i_strdup(tmp.c_str());
-		s->toUTF8String(tmp);
-		char * s2 = i_strdup(tmp.c_str());
+		std::string tmp1;
+                t->toUTF8String(tmp1);
+		char * t2 = i_strdup(tmp1.c_str());
+		std::string tmp2;
+		s->toUTF8String(tmp2);
+		char * s2 = i_strdup(tmp2.c_str());
 
         	if(size==0)
         	{
