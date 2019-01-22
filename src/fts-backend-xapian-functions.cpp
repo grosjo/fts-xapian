@@ -81,35 +81,31 @@ class XQuerySet
 		is_global=true;
 	}
 
-	void add_hdr(const char * s)
-	{
-		icu::StringPiece sp(s);
-                icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
-		add_hdr(&t);
-	}
-
 	void add_hdr(icu::UnicodeString *d)
         {
                 std::string s;
                 d->toUTF8String(s);
+		add_hdr(s.c_str());
+	}
 
-                long l = s.length();
+	void add_hdr(const char * s)
+	{
+                long l = strlen(s);
 		if(l<1) return;
 
-                char * s2 = i_strdup(s.c_str());
-
                 long i=0,pos;
-                while((i<hsize)&&(strcmp(hdrs[i],s2)<0))
+                while((i<hsize)&&(strcmp(hdrs[i],s)<0))
                 {
                         i++;
                 }
-                if((i<hsize) && (strcmp(hdrs[i],s2)==0))
+                if((i<hsize) && (strcmp(hdrs[i],s)==0))
                 {
-			i_free(s2);
                         return;
                 }
-                pos=i;
-                if(hdrs == NULL)
+                
+		pos=i;
+                
+		if(hdrs == NULL)
                 {
                         hdrs =(char **)i_malloc(sizeof(char*));
                 }
@@ -117,36 +113,34 @@ class XQuerySet
                 {
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
                 }
+		
 		hsize++;
                 for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
                 }
-                hdrs[pos]=s2;
+		
+                hdrs[pos] = i_strdup(s);
         }
 	
-	void add_term(icu::UnicodeString *d)
+	void add_term(const char * s)
         {
-                std::string s;
-                d->toUTF8String(s);
-
-                long l = s.length();
+                long l = strlen(s);
                 if(l<1) return;
-
-                char * s2 = i_strdup(s.c_str());
 
 		long i=0,pos;
 
-                while((i<tsize)&&(strcmp(terms[i],s2)<0))
+                while((i<tsize)&&(strcmp(terms[i],s)<0))
                 {
                 	i++;
                 }
-		if((i<tsize) && (strcmp(terms[i],s2)==0))
+		if((i<tsize) && (strcmp(terms[i],s)==0))
 		{
-			i_free(s2);
 			return;
 		}
+
 		pos=i;
+
 		tsize++;
 		if(terms == NULL) 
 		{
@@ -160,7 +154,8 @@ class XQuerySet
 		{
 			terms[i]=terms[i-1];
 		}
-		terms[pos]=s2;
+		
+		terms[pos] = i_strdup(s);
 	}
 
 	void add(const char * type,const char * s)
@@ -253,8 +248,8 @@ class XQuerySet
 			header[pos]=t2;
         		size++;
 		}
-		add_hdr(t);
-		add_term(s);
+		add_hdr(t2);
+		add_term(s2);
     	}
 
     	Xapian::Query * get_query(Xapian::Database * db)
