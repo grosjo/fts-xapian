@@ -81,64 +81,31 @@ class XQuerySet
 		is_global=true;
 	}
 
-	bool is_ok(char s)
+	void add_hdr(const char * s)
 	{
-		char p=tolower(s);
-		if((p>='0')&&(p<='9')) return true;
-		if((p>='a')&&(p<='z')) return true;
-		if(p=='@') return true;
-		if(p=='_') return true;
-		if((p>='#')&&(p<='/')) return true;
-		return false;
+		icu::StringPiece sp(s);
+                icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
+		add_hdr(&t);
 	}
- 
-	char * clean(const char *s)
-  	{
-		char * s2;
-		if(s==NULL)
-		{
-			s2=(char *)i_malloc(sizeof(char));
-			s2[0]=0;
-			return s2;
-		}	
-		
-		long i=0,j=0;
-        	s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
-		while((s[i]>0) && (!is_ok(s[i])))
-		{
-			i++;
-		}
-		
-          	while(s[i]>0)
-          	{
-			if(is_ok(s[i]) || (s[i]==' '))
-			{
-				s2[j]=tolower(s[i]);
-				j++;
-			}
-			i++;
-		}
-		
-		while((j>0)&&(!is_ok(s2[j-1])))
-		{
-			j--;
-		}
-		s2[j]=0;
 
-          	return s2;
-  	}
+	void add_hdr(icu::UnicodeString *d)
+        {
+                std::string s;
+                d->toUTF8String(s);
 
-	void add_hdr(const char *s)
-	{
-		if(strlen(s)<1) return;
+                long l = s.length();
+		if(l<1) return;
+
+                char * s2 = i_strdup(s.c_str());
 
                 long i=0,pos;
-                while((i<hsize)&&(strcmp(hdrs[i],s)<0))
+                while((i<hsize)&&(strcmp(hdrs[i],s2)<0))
                 {
                         i++;
                 }
-                if((i<hsize) && (strcmp(hdrs[i],s)==0))
+                if((i<hsize) && (strcmp(hdrs[i],s2)==0))
                 {
+			i_free(s2);
                         return;
                 }
                 pos=i;
@@ -151,7 +118,6 @@ class XQuerySet
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
                 }
 		hsize++;
-                char * s2 = i_strdup(s);
                 for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
@@ -159,16 +125,25 @@ class XQuerySet
                 hdrs[pos]=s2;
         }
 	
-	void add_term(const char *s)
-	{
+	void add_term(icu::UnicodeString *d)
+        {
+                std::string s;
+                d->toUTF8String(s);
+
+                long l = s.length();
+                if(l<1) return;
+
+                char * s2 = i_strdup(s.c_str());
+
 		long i=0,pos;
 
-                while((i<tsize)&&(strcmp(terms[i],s)<0))
+                while((i<tsize)&&(strcmp(terms[i],s2)<0))
                 {
                 	i++;
                 }
-		if((i<tsize) && (strcmp(terms[i],s)==0))
+		if((i<tsize) && (strcmp(terms[i],s2)==0))
 		{
+			i_free(s2);
 			return;
 		}
 		pos=i;
@@ -181,7 +156,6 @@ class XQuerySet
 		{
 			terms =(char**)i_realloc(terms,sizeof(char*)*tsize,sizeof(char*)*(tsize+1));
 		}
-		char * s2 = i_strdup(s);
 		for(i=tsize-1;i>pos;i--)
 		{
 			terms[i]=terms[i-1];
@@ -189,23 +163,50 @@ class XQuerySet
 		terms[pos]=s2;
 	}
 
-    	void add(const char * type,const char * s)
-    	{
-		char *t2=clean(type);
-		char *s2=clean(s);
-        	if((strlen(s2)<limit) || (strcmp(s2,"and")==0) || (strcmp(s2,"or")==0) || (strlen(t2)<1))
-		{ 
-			i_free(s2); 
-			i_free(t2);
-			return; 
+	void add(const char * type,const char * s)
+        {
+                if(s==NULL) return;
+		if(type==NULL) return;
+
+                icu::StringPiece sp(type);
+                icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
+
+		icu::StringPiece sp2(s);
+                icu::UnicodeString s2 = icu::UnicodeString::fromUTF8(sp2);
+		
+                add(&t,&s2);
+        }
+
+        void add(icu::UnicodeString *t, icu::UnicodeString *s)
+        {
+                s->toLower();
+                s->findAndReplace("'"," ");
+                s->findAndReplace(":"," ");
+                s->findAndReplace(";"," ");
+                s->findAndReplace("\""," ");
+                s->findAndReplace("<"," ");
+		s->findAndReplace(">"," ");
+                s->trim();
+
+                long l = s->length();
+
+                if(l<limit) return;
+
+                long i = s->indexOf(" ");
+
+                if(i>0)
+                {
+                        icu::UnicodeString * r = new icu::UnicodeString(*s,i+1);
+                        add(t,r);
+                        delete(r);
+                        s->truncate(i);
 		}
 
-        	char * blank=strstr(s2," ");
-        	if(blank!=NULL)
-        	{
-            		blank[0]=0;
-            		add(t2,blank+1);
-        	}
+		std::string tmp;
+                t->toUTF8String(tmp);
+		char * t2 = i_strdup(tmp.c_str());
+		s->toUTF8String(tmp);
+		char * s2 = i_strdup(tmp.c_str());
 
         	if(size==0)
         	{
@@ -252,8 +253,8 @@ class XQuerySet
 			header[pos]=t2;
         		size++;
 		}
-		add_hdr(t2);
-		add_term(s2);
+		add_hdr(t);
+		add_term(s);
     	}
 
     	Xapian::Query * get_query(Xapian::Database * db)
@@ -374,136 +375,70 @@ class XHeaderTerm
 		} 
 	}
 
-	char * strip(const char *s)
-	{
-		long i=0;
-		char * s2 = (char *)i_malloc(sizeof(char)*(strlen(s)+1));
-		while(i<strlen(s))
-		{
-			if((s[i]=='"') || (s[i]=='<') || (s[i]=='>') || (s[i]=='\''))
-			{
-				s2[i]=' ';
-			}
-			else
-			{
-				s2[i]=s[i];
-			}
-			i++;
-		}
-		s2[i]=0;
-		return s2;
-	}
-
-	char * clean(const char *s)
-        {
-        	long i=0,j=0;
-                while((s[i]<=' ') && (s[i]>0))
-                {
-                	i++;
-                }
-		const char * s2=s+i;
-		j=strlen(s2);
-		while((j>0)&&(s2[j-1]<=' '))
-		{
-			j--;
-		}
-		char * s3 = (char *)i_malloc(sizeof(char)*(j+1));
-                strncpy(s3, s+i,j);
-		s3[j]=0;
-  
-                for(i=0;i<j;i++)
-                {
-                        s3[i]=tolower(s3[i]);
-                }
-                return s3;
-        }
-
-        bool is_ok_stem(const char s)
-        {
-                if((s>='0')&&(s<='9')) return true;
-                if((s>='a')&&(s<='z')) return true;
-                if(s=='@') return true;
-                if(s=='_') return true;
-                if((s>='#')&&(s<='/')) return true;
-                return false;
-        }
-
-	char * clean_stem(const char *s)
-	{
-                long i=0,j;
-                while(((s[i]<'a') || (s[i]>'z')) && (s[i]>0))
-                {
-                        i++;
-                }
-		const char * s2=s+i;
-		j=strlen(s2);
-		while((j>0) && (!is_ok_stem(s2[j-1])))
-		{
-			j--;
-		}
-		char * s3 = (char *)i_malloc(sizeof(char)*(j+1));
-		strncpy(s3, s+i,j);
-                s3[j]=0;
-                return s3;
-        }
-
 	void add(const char * s)
         {
         	if(s==NULL) return;
- 
-                char * s2=strip(s);
-		char * s3=clean(s2);
-		i_free(s2);
 		
-                if(strlen(s3)<1) 
-		{ 
-			i_free(s3); 
-			return; 
-		}
-
-		char * blank=strstr(s3," ");
-
-		if(onlyone)
-		{
-			if(blank!=NULL)
-			{
-				blank[0]=0;
-				add(blank+1);
-			}
-			if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
-			i_free(s3);
-			return;
-		}
-                
-		if(blank!=NULL)
-                {
-                	blank[0]=0;
-                        add(blank+1);
-                }
-
-		long i,j,k=strlen(s3);
-
-		char *stem = (char *)i_malloc(sizeof(char)*(full+1)); 
-		for(i=0;i<=k-partial;i++)
-		{
-			for(j=partial;(j+i<=k)&&(j<=full);j++)
-			{
-				strncpy(stem,s3+i,j);
-				stem[j]=0;
-				add_stem(stem);
-			}
-		}
-		if(strlen(s3)<XAPIAN_TERM_SIZELIMIT) add_stem(s3);
-		i_free(s3);
+		icu::StringPiece sp(s);
+		icu::UnicodeString d = icu::UnicodeString::fromUTF8(sp);
+		add(&d);
 	}
-	
-	void add_stem(const char *s)
+
+	void add(icu::UnicodeString *d)
 	{
-		char * s2 = clean_stem(s);
-		long l = strlen(s2);
+		icu::UnicodeString * r;
+
+		d->toLower();
+		d->findAndReplace("'"," ");
+		d->findAndReplace(":"," ");
+		d->findAndReplace(";"," ");
+		d->findAndReplace("\""," ");
+		d->findAndReplace("<"," ");
+		d->findAndReplace(">"," ");
+		d->trim();
+	
+		long l = d->length();
 
 		if(l<partial) return;
 
+                if(onlyone)
+                {
+                        add_stem(d);
+                        return;
+                }
+
+		long i = d->indexOf(" ");
+
+		if(i>0)
+		{
+			r = new icu::UnicodeString(*d,i+1);
+			add(r);
+			delete(r);
+			d->truncate(i);
+		}
+	
+		for(i=0;i<=l-partial;i++)
+		{
+			for(long j=partial;(j+i<=l)&&(j<=full);j++)
+			{
+				r = new icu::UnicodeString(*d,i,j);
+				add_stem(r);
+				delete(r);
+			}
+		}
+		if(l>full) add_stem(d);
+	}
+	
+	void add_stem(icu::UnicodeString *d)
+	{
+		std::string s;
+		d->toUTF8String(s);
+		
+		long l = s.length();
+		if(l>XAPIAN_TERM_SIZELIMIT) return;
+
+		char * s2 = i_strdup(s.c_str());
+ 
                 if(data==NULL)
                 {
                 	data=(char **)i_malloc(sizeof(char*));
@@ -520,7 +455,7 @@ class XHeaderTerm
 				}
 				i++;
 			}
-			if(existing) return;
+			if(existing) { i_free(s2); return; }
                 	data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
                 }
 		if(l>maxlength) { maxlength=l; }
@@ -528,6 +463,7 @@ class XHeaderTerm
                 size++;
 	}
 };
+
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
@@ -746,6 +682,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		{
 			i++;
 		}
+
 		if(i>=HDRS_NB) return true;
 		const char * h=hdrs_xapian[i];
 
@@ -756,7 +693,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	
 		for(i=0;i<xhs.size;i++)
 		{
-			snprintf(t,xhs.maxlength+6,"%s%s",h,xhs.data[i]);		
+			snprintf(t,xhs.maxlength+6,"%s%s",h,xhs.data[i]);
 			try
 			{
 				doc.add_term(t);
@@ -821,14 +758,14 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 		termgenerator.index_text(d, 1, h);
 		
                 dbx->replace_document(docid,doc);
-                return true;
           }
           catch(Xapian::Error e)
           {
 		i_error("Xapian: fts_backend_xapian_index_text");
 		i_error("Xapian: %s",e.get_msg().c_str());
+		return false;
           }
-          return false;
+          return true;
 }
 
 static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct stat *sb, int typeflag)

@@ -5,6 +5,7 @@ extern "C" {
 #include "fts-xapian-plugin.h"
 }
 #include <ftw.h>
+#include <unicode/unistr.h>
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
@@ -253,8 +254,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(field==NULL)
 	{
-		ctx->tbi_uid=0;	
-		return true;
+		field="body";
 	}
 
 	/* Performance calculator*/
@@ -287,17 +287,11 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
     		case FTS_BACKEND_BUILD_KEY_HDR:
 	    	case FTS_BACKEND_BUILD_KEY_MIME_HDR:
             		ctx->tbi_isfield=true;
-/*
-            		if(strcmp(f2,"subject")==0)
-            		{
-                		ctx->tbi_isfield=false;
-            		}
-*/
             		ctx->tbi_field=f2;
             		ctx->tbi_uid=key->uid;
             		break;
         	case FTS_BACKEND_BUILD_KEY_BODY_PART:
-            		ctx->tbi_field="BODY";
+            		ctx->tbi_field=f2;
             		ctx->tbi_isfield=false;
             		ctx->tbi_uid=key->uid;
             		break;
@@ -352,7 +346,12 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if(ctx->tbi_uid<1) return 0;
 
-	const char *s = (char *)data;
+	if(data == NULL) return 0;
+
+	char * s = (char*)i_malloc(sizeof(char)*(size+1));
+	strncpy(s,(char *)data,size);
+	s[size]=0;
+
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
@@ -369,7 +368,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
     	}
     	else
     	{
-        	if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s))
+		if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s))
         	{
             		return -1;
         	}
