@@ -30,10 +30,12 @@ Ubuntu:
 apt-get build-dep dovecot-core
 apt-get install git dovecot-dev
 apt-get install xapian-core
+apt-get install libicu-dev
 
 Archlinux:
 pacman -S dovecot
 pacman -S xapian-core
+pacman -S icu
 ```
 
 Clone this project:
