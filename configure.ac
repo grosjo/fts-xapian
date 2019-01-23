@@ -33,7 +33,7 @@ BINARY_LDFLAGS="$PIE_LDFLAGS $RELRO_LDFLAGS"
 BINARY_CFLAGS="$PIE_CFLAGS"
 AC_SUBST(LIBDOVECOT_INCLUDE)
 
-PKG_CHECK_MODULES(XAPIAN, xapian-core,, [XAPIAN_LIBS="-lxapian -licuuc -licudata"])
+PKG_CHECK_MODULES(XAPIAN, xapian-core,, [XAPIAN_LIBS="-lxapian"])
 
 if test "$DOVECOT_INSTALLED" != "yes"; then
 	DOVECOT_FTS_PLUGIN="$abs_dovecotdir/src/plugins/fts/lib20_fts_plugin.la"
