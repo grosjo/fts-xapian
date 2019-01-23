@@ -169,15 +169,15 @@ class XQuerySet
 		icu::StringPiece sp2(s);
                 icu::UnicodeString s2 = icu::UnicodeString::fromUTF8(sp2);
 	
-		s2->findAndReplace("'"," ");
-                s2->findAndReplace(":"," ");
-                s2->findAndReplace(";"," ");
-                s2->findAndReplace("\""," ");
-                s2->findAndReplace("<"," ");
-                s2->findAndReplace(">"," ");
+		s2.findAndReplace("'"," ");
+                s2.findAndReplace(":"," ");
+                s2.findAndReplace(";"," ");
+                s2.findAndReplace("\""," ");
+                s2.findAndReplace("<"," ");
+                s2.findAndReplace(">"," ");
 
-		s2->toLower();
-		t2->toLower();
+		s2.toLower();
+		t.toLower();
 	
                 add(&t,&s2);
         }
