@@ -347,6 +347,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(ctx->tbi_uid<1) return 0;
 
 	if(data == NULL) return 0;
+	if(size<1) return 0;
 
 	char * s = (char*)i_malloc(sizeof(char)*(size+1));
 	strncpy(s,(char *)data,size);

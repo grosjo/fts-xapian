@@ -168,28 +168,26 @@ class XQuerySet
 
 		icu::StringPiece sp2(s);
                 icu::UnicodeString s2 = icu::UnicodeString::fromUTF8(sp2);
-		
+	
+		s2->findAndReplace("'"," ");
+                s2->findAndReplace(":"," ");
+                s2->findAndReplace(";"," ");
+                s2->findAndReplace("\""," ");
+                s2->findAndReplace("<"," ");
+                s2->findAndReplace(">"," ");
+
+		s2->toLower();
+		t2->toLower();
+	
                 add(&t,&s2);
         }
 
         void add(icu::UnicodeString *t, icu::UnicodeString *s)
         {
-                s->toLower();
-                s->findAndReplace("'"," ");
-                s->findAndReplace(":"," ");
-                s->findAndReplace(";"," ");
-                s->findAndReplace("\""," ");
-                s->findAndReplace("<"," ");
-		s->findAndReplace(">"," ");
                 s->trim();
-
-		t->toLower();
 		t->trim();
-		long l = t->length();
-		if(l<1) return;
 
-                l = s->length();
-                if(l<limit) return;
+		if((t->length()<1) || (t->length()<1)) return;
 
                 long i = s->indexOf(" ");
                 if(i>0)
