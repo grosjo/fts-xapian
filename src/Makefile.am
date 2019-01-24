@@ -12,7 +12,7 @@ lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
 
 module_LTLIBRARIES = lib21_fts_xapian_plugin.la
 
-lib21_fts_xapian_plugin_la_LIBADD = $(XAPIAN_LIBS)
+lib21_fts_xapian_plugin_la_LIBADD = $(XAPIAN_LIBS) $(ICU_LIBS)
 
 lib21_fts_xapian_plugin_la_SOURCES = \
 	fts-xapian-plugin.c \
