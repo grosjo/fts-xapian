@@ -1,6 +1,7 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
 #include <xapian.h>
+#include <cstdio>
 extern "C" {
 #include "fts-xapian-plugin.h"
 }
@@ -307,8 +308,8 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
-	struct xapian_fts_backend *backend =
-                (struct xapian_fts_backend *) ctx->ctx.backend;
+	//struct xapian_fts_backend *backend =
+        //        (struct xapian_fts_backend *) ctx->ctx.backend;
 
     	ctx->tbi_uid=0;
 }
@@ -484,7 +485,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
 
 	long n=r->size;
-	i_info("Query: %d results",n);
+	//i_info("Query: %d results",n);
 
 	i_array_init(&(result->definite_uids),r->size);
         i_array_init(&(result->maybe_uids),0);

@@ -478,7 +478,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
         	/* End Performance calculator*/
 	
-                i_info("Done indexing '%s' (%d msgs in %d ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
+                i_info("Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
                 i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
