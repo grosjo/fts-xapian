@@ -53,12 +53,14 @@ Compile and install the plugin.
 
 ```
 autoreconf -vi
-PANDOC=false ./configure --prefix=/usr --with-dovecot=/path/to/dovecot
+PANDOC=false ./configure --with-dovecot=/path/to/dovecot
 make
 sudo make install
 
 Replace /path/to/dovecot by the actual path to 'dovecot-config'.
 Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is /usr/lib/dovecot. 
+
+The module will be placed into the module directory of your dovecot configuration
 ```
 
 Update your dovecot.conf file with something similar to:
