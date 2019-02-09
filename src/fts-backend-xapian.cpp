@@ -422,6 +422,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
                 return -1;
         }
 
+	/* Performance calc */
+	struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+
 	if(backend->dbw !=NULL)
         {
 		//i_info("FTS Xapian: Committing changes %s",backend->box->name);
@@ -485,7 +491,6 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
 
 	long n=r->size;
-	//i_info("Query: %d results",n);
 
 	i_array_init(&(result->definite_uids),r->size);
         i_array_init(&(result->maybe_uids),0);
@@ -505,7 +510,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 	}
 	delete(r);
-	
+
+	/* Performance calc */
+        gettimeofday(&tp, NULL);
+        dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
+	i_info("Query: %ld results in %ld ms",n,dt);	
+
 	return 0;
 }
 
