@@ -7,10 +7,12 @@ extern "C" {
 }
 #include <ftw.h>
 #include <unicode/unistr.h>
+#include <sys/time.h>
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_LIMIT 10000
+
 #define HDRS_NB 9
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "message-id", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",       "XBDY", "XBDY" }; 
