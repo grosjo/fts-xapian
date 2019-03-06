@@ -465,8 +465,11 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		if((args->value.str == NULL) || (strlen(args->value.str)<1))
 		{
 			struct mail_search_arg *a = args->value.subargs;
+			long c=0;
 			while(a !=NULL)
 			{
+				c++;
+				i_info("Query(%d): add term(%s) : %s",c,hdr,a->value.str);
 				qs.add(hdr,a->value.str);
 				a=a->next;
 			}
