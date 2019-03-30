@@ -187,7 +187,7 @@ class XQuerySet
                 s->trim();
 		t->trim();
 
-		if((t->length()<1) || (t->length()<1)) return;
+		if((s->length()<1) || (t->length()<1)) return;
 
                 long i = s->indexOf(" ");
                 if(i>0)
