@@ -64,6 +64,7 @@ class XQuerySet
 			i_free(header);
 		}
 		size=0;
+		data=NULL; header=NULL;
 
 		for(j=0;j<tsize;j++)
 		{
@@ -71,6 +72,7 @@ class XQuerySet
 		}
 		if(tsize>0) i_free(terms);
 		tsize=0;
+		terms=NULL;
 
 		for(j=0;j<hsize;j++)
                 {
@@ -78,6 +80,7 @@ class XQuerySet
                 }
                 if(hsize>0) i_free(hdrs);
 		hsize=0;
+		hdrs=NULL;
 	}
 
 	void set_global()
@@ -147,8 +150,6 @@ class XQuerySet
 		pos=i;
 
 		tsize++;
-		i_info("Query : new term %d : %s",tsize,s);
-
 		if(terms == NULL) 
 		{
 			terms =(char **)i_malloc(sizeof(char*));
