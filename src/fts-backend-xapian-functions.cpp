@@ -63,16 +63,24 @@ class XQuerySet
 			i_free(data); 
 			i_free(header);
 		}
+		size=0;
+		data=NULL; header=NULL;
+
 		for(j=0;j<tsize;j++)
 		{
 			i_free(terms[j]);
 		}
 		if(tsize>0) i_free(terms);
+		tsize=0;
+		terms=NULL;
+
 		for(j=0;j<hsize;j++)
                 {
                         i_free(hdrs[j]);
                 }
                 if(hsize>0) i_free(hdrs);
+		hsize=0;
+		hdrs=NULL;
 	}
 
 	void set_global()
