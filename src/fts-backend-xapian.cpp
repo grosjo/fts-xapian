@@ -448,7 +448,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		i_info("Query: FLAG=OR");
 	}
 
-	XQuerySet qs = new XQuerySet(is_and,backend->partial,true);
+	XQuerySet * qs = new XQuerySet(is_and,backend->partial,true);
 
 	const char * hdr;
 
