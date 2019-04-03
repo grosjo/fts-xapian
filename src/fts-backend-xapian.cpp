@@ -469,7 +469,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			while(a !=NULL)
 			{
 				c++;
-				i_info("Query(%d): add term(%s) : %s",c,hdr,a->value.str);
+				i_info("Query(%ld): add term(%s) : %s",c,hdr,a->value.str);
 				qs.add(hdr,a->value.str);
 				a=a->next;
 			}
