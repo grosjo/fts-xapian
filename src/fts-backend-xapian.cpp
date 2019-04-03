@@ -448,7 +448,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		i_info("Query: FLAG=OR");
 	}
 
-	XQuerySet qs(is_and,backend->partial,true);
+	XQuerySet qs = new XQuerySet(is_and,backend->partial,true);
 
 	const char * hdr;
 
@@ -472,31 +472,31 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			{
 				c++;
 				i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
-				qs.add(hdr,a->value.str);
+				qs->add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
 			i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
-			qs.add(hdr,args->value.str);
+			qs->add(hdr,args->value.str);
 		}
 		args = args->next;
 	}
 
 	long i;
 
-	if((qs.hsize==1) && (strcmp(qs.hdrs[0],"body")==0))
+	if((qs->hsize==1) && (strcmp(qs->hdrs[0],"body")==0))
 	{
 		i_info("Query: set GLOBAL");
 		for(i=0;i<HDRS_NB;i++)
 		{
-			qs.add_hdr(hdrs_emails[i]);
+			qs->add_hdr(hdrs_emails[i]);
 		}
-		qs.set_global();
+		qs->set_global();
 	}
 
-	XResultSet * r=fts_backend_xapian_query(backend->dbr,&qs);
+	XResultSet * r=fts_backend_xapian_query(backend->dbr,qs);
 
 	long n=r->size;
 
@@ -518,6 +518,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 	}
 	delete(r);
+	delete(qs);
 
 	/* Performance calc */
         gettimeofday(&tp, NULL);
