@@ -452,6 +452,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	const char * hdr;
 
+	long c2=0;
 	while(args != NULL)
 	{
 		if((args->hdr_field_name == NULL)||(strlen(args->hdr_field_name)<1))
@@ -462,6 +463,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		{
 			hdr=args->hdr_field_name;
 		}
+		c2++;
 		if((args->value.str == NULL) || (strlen(args->value.str)<1))
 		{
 			struct mail_search_arg *a = args->value.subargs;
@@ -469,13 +471,14 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			while(a !=NULL)
 			{
 				c++;
-				i_info("Query(%ld): add term(%s) : %s",c,hdr,a->value.str);
+				i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
 				qs.add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
+			i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
 			qs.add(hdr,args->value.str);
 		}
 		args = args->next;
