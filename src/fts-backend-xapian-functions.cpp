@@ -698,7 +698,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		
 			for(i=0;i<xhs->size;i++)
 			{
-				snprintf(t,xhs->maxlength+6,"%s%s",h,xhs.data[i]);
+				snprintf(t,xhs->maxlength+6,"%s%s",h,xhs->data[i]);
 				try
 				{
 					doc.add_term(t);
