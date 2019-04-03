@@ -690,26 +690,27 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 
 		if(i>=HDRS_NB) return true;
 		const char * h=hdrs_xapian[i];
-
-		XHeaderTerm xhs(p,f,strcmp(h,"XMID")==0);
-                xhs.add(data);
-
-		char *t = (char*)i_malloc(sizeof(char)*(xhs.maxlength+6));
-	
-		for(i=0;i<xhs.size;i++)
 		{
-			snprintf(t,xhs.maxlength+6,"%s%s",h,xhs.data[i]);
-			try
+			XHeaderTerm * xhs = new XHeaderTerm(p,f,strcmp(h,"XMID")==0);
+	                xhs->add(data);
+	
+			char *t = (char*)i_malloc(sizeof(char)*(xhs->maxlength+6));
+		
+			for(i=0;i<xhs->size;i++)
 			{
-				doc.add_term(t);
+				snprintf(t,xhs->maxlength+6,"%s%s",h,xhs.data[i]);
+				try
+				{
+					doc.add_term(t);
+				}
+				catch(Xapian::Error e)
+				{
+					i_error("Xapian: %s",e.get_msg().c_str());
+				}
 			}
-			catch(Xapian::Error e)
-			{
-				i_error("Xapian: %s",e.get_msg().c_str());
-			}
+			i_free(t);
+			delete(xhs);
 		}
-		i_free(t);
-
 		dbx->replace_document(docid,doc);
 	    	return true;
 	}
