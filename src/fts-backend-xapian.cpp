@@ -472,28 +472,29 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			while(a !=NULL)
 			{
 				c++;
-				//i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
+				i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
 				qs->add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
-			//i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
+			i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
 			qs->add(hdr,args->value.str);
 		}
 		args = args->next;
 	}
 
+	i_info("Testing if wildcard");	
 	long i=qs->has_hdr(XAPIAN_WILCARD);
 	if(i>=0)
 	{
 		i_info("Query: set GLOBAL (no specified header)");
 
 		i_free(qs->hdrs[i]);
-		qs->hdrs[i]=i_strdup(hdrs_emails[0]);
+		qs->hdrs[i]=i_strdup(hdrs_emails[1]);
 		
-		for(i=0;i<HDRS_NB;i++)
+		for(i=1;i<HDRS_NB;i++)
 		{
 			qs->add_hdr(hdrs_emails[i]);
 		}

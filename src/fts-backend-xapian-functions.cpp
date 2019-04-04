@@ -97,10 +97,10 @@ class XQuerySet
 
 	long has_hdr(const char * s)
 	{
-		long i=0,pos;
+		long i=0;
                 while((i<hsize)&&(strcmp(hdrs[i],s)<0))
                 {
-                        i++;
+			i++;
                 }
                 if((i<hsize) && (strcmp(hdrs[i],s)==0))
                 {
@@ -114,26 +114,35 @@ class XQuerySet
                 long l = strlen(s);
 		if(l<1) return;
 
-		long pos= has_hdr(s);
-		if(pos<0) return;
-                
+		long i=0,pos=0;
+
 		if(hsize<1)
                 {
                         hdrs =(char **)i_malloc(sizeof(char*));
-			hsize=0;
+			hsize=1;
                 }
                 else
                 {
+                	while((i<hsize)&&(strcmp(hdrs[i],s)<0))
+                	{
+                	        i++; 
+                	}
+                	if((i<hsize) && (strcmp(hdrs[i],s)==0))
+                	{
+                	        return;
+                	}
+			pos=i;
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
 			hsize++;
 		}
 
-                for(long i=hsize-1;i>pos;i--)
+                for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
                 }
 		
                 hdrs[pos] = i_strdup(s);
+		i_info("HDRS[%ld]=%s",pos,hdrs[pos]);
         }
 	
 	void add_term(const char * s)
