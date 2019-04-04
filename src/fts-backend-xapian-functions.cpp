@@ -128,7 +128,7 @@ class XQuerySet
 			hsize++;
 		}
 
-                for(i=hsize-1;i>pos;i--)
+                for(long i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
                 }
