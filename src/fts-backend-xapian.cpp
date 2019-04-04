@@ -12,6 +12,7 @@ extern "C" {
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_LIMIT 10000
+#define XAPIAN_WILCARD "wilcard"
 
 #define HDRS_NB 9
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "message-id", "body", ""  };
@@ -457,7 +458,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	{
 		if((args->hdr_field_name == NULL)||(strlen(args->hdr_field_name)<1))
 		{
-			hdr="body";
+			hdr=XAPIAN_WILCARD;
 		}
 		else
 		{
@@ -471,24 +472,27 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 			while(a !=NULL)
 			{
 				c++;
-				i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
+				//i_info("Query(%ld/%ld): add term(%s) : %s",c,c2,hdr,a->value.str);
 				qs->add(hdr,a->value.str);
 				a=a->next;
 			}
 		}
 		else
 		{
-			i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
+			//i_info("Query(%ld): add term(%s) : %s",c2,hdr,args->value.str);
 			qs->add(hdr,args->value.str);
 		}
 		args = args->next;
 	}
 
-	long i;
-
-	if((qs->hsize==1) && (strcmp(qs->hdrs[0],"body")==0))
+	long i=qs->has_hdr(XAPIAN_WILCARD);
+	if(i>=0)
 	{
-		i_info("Query: set GLOBAL");
+		i_info("Query: set GLOBAL (no specified header)");
+
+		i_free(qs->hdrs[i]);
+		qs->hdrs[i]=i_strdup(hdrs_emails[0]);
+		
 		for(i=0;i<HDRS_NB;i++)
 		{
 			qs->add_hdr(hdrs_emails[i]);

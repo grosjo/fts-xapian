@@ -85,7 +85,6 @@ class XQuerySet
 
 	void set_global()
 	{
-		i_info("global ON");
 		is_global=true;
 	}
 
@@ -96,33 +95,39 @@ class XQuerySet
 		add_hdr(s.c_str());
 	}
 
-	void add_hdr(const char * s)
+	long has_hdr(const char * s)
 	{
-                long l = strlen(s);
-		if(l<1) return;
-
-                long i=0,pos;
+		long i=0,pos;
                 while((i<hsize)&&(strcmp(hdrs[i],s)<0))
                 {
                         i++;
                 }
                 if((i<hsize) && (strcmp(hdrs[i],s)==0))
                 {
-                        return;
+                        return i;
                 }
+		return -1;
+	}
+				
+	void add_hdr(const char * s)
+	{
+                long l = strlen(s);
+		if(l<1) return;
+
+		long pos= has_hdr(s);
+		if(pos<0) return;
                 
-		pos=i;
-                
-		if(hdrs == NULL)
+		if(hsize<1)
                 {
                         hdrs =(char **)i_malloc(sizeof(char*));
+			hsize=0;
                 }
                 else
                 {
                         hdrs =(char**)i_realloc(hdrs,sizeof(char*)*hsize,sizeof(char*)*(hsize+1));
-                }
-		
-		hsize++;
+			hsize++;
+		}
+
                 for(i=hsize-1;i>pos;i--)
                 {
                         hdrs[i]=hdrs[i-1];
@@ -149,15 +154,17 @@ class XQuerySet
 
 		pos=i;
 
-		tsize++;
-		if(terms == NULL) 
+		if(tsize<1)
 		{
 			terms =(char **)i_malloc(sizeof(char*));
+			tsize=1;
 		}
 		else
 		{
 			terms =(char**)i_realloc(terms,sizeof(char*)*tsize,sizeof(char*)*(tsize+1));
+			tsize++;
 		}
+
 		for(i=tsize-1;i>pos;i--)
 		{
 			terms[i]=terms[i-1];
@@ -213,7 +220,7 @@ class XQuerySet
 		s->toUTF8String(tmp2);
 		char * s2 = i_strdup(tmp2.c_str());
 
-        	if(size==0)
+        	if(size<1)
         	{
             		data=(char **)i_malloc(sizeof(char*));
 			data[0]=s2;
@@ -377,7 +384,8 @@ class XHeaderTerm
 				i_free(data[i]); 
 			} 
 			i_free(data); 
-		} 
+		}
+		data=NULL;
 	}
 
 	void add(const char * s)
@@ -444,9 +452,10 @@ class XHeaderTerm
 
 		char * s2 = i_strdup(s.c_str());
  
-                if(data==NULL)
+                if(size<1)
                 {
                 	data=(char **)i_malloc(sizeof(char*));
+			size=0;
                 }
                 else
                 {
