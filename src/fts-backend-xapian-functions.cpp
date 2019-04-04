@@ -142,7 +142,6 @@ class XQuerySet
                 }
 		
                 hdrs[pos] = i_strdup(s);
-		i_info("HDRS[%ld]=%s",pos,hdrs[pos]);
         }
 	
 	void add_term(const char * s)
