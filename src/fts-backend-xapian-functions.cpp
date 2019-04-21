@@ -30,8 +30,9 @@ class XQuerySet
 	char * header;
 	char * text;
 	XQuerySet ** qs;
-	bool set_and; // global
-	bool set_neg; // for the term
+	bool global_and; // global
+	bool global_neg; // global
+	bool item_neg; // for the term
 	long qsize;
 	long limit;
 	bool display;
@@ -40,22 +41,22 @@ class XQuerySet
 	{
 		qsize=0; qs=NULL;
                 limit=1;
-		set_and=true;
+		global_and=true;
 		header=NULL;
                 text=NULL;
-		set_neg=false;
+		global_neg=false;
 		display=false;
 	}
 
-	XQuerySet(bool is_and, long l)
+	XQuerySet(bool is_and, bool is_neg, long l)
 	{
 		qsize=0; qs=NULL;
 		limit=1;
 		if(l>1) { limit=l; }
 		header=NULL;
 		text=NULL;
-		set_and=is_and;
-		set_neg=false;
+		global_and=is_and;
+		global_neg=is_neg;
 		display=true;
 	}
 
@@ -101,20 +102,33 @@ class XQuerySet
                 t->findAndReplace("<"," ");
                 t->findAndReplace(">"," ");
 
+		h->trim();
+		t->trim();
                 h->toLower();
                 t->toLower();
 
 		if(h->length()<1) return;
 		if(t->length()<limit) return;
 
-                long i = t->indexOf(" ");
+                long i = t->lastIndexOf(" "),j;
                 if(i>0)
                 {
-                        icu::UnicodeString * r = new icu::UnicodeString(*t,i+1);
-                        add(h,r,is_neg);
-                        delete(r);
-                        t->truncate(i);
-                }
+			XQuerySet * q2 = new XQuerySet(true,is_neg,limit);
+			while(i>0)
+			{
+				j = t->length();
+				icu::UnicodeString * r = new icu::UnicodeString(*t,i+1,j-i-1);
+				q2->add(h,r,false);
+				delete(r);
+				t->truncate(i);
+				i = t->lastIndexOf(" ");
+			}
+			if(t->length()>0)
+				q2->add(h,t,false);
+			if(q2->count()>0) add(q2);
+			else delete(q2);
+			return;
+		}
 
                 std::string tmp1;
                 h->toUTF8String(tmp1);
@@ -125,7 +139,7 @@ class XQuerySet
 
 		if(strcmp(h2,XAPIAN_WILDCARD)==0)
 		{
-			XQuerySet * q2 = new XQuerySet(is_neg,limit);
+			XQuerySet * q2 = new XQuerySet(false,is_neg,limit);
 			for(i=1;i<HDRS_NB;i++)
 			{
 				q2->add(hdrs_emails[i],t2,is_neg);
@@ -154,12 +168,12 @@ class XQuerySet
                 {
                         text=t2;
                         header=h2;
-			set_neg=is_neg;
+			item_neg=is_neg;
 			return;
                 }
 
-		XQuerySet * q2 = new XQuerySet(set_and,limit);
-		q2->add(h,t,is_neg);
+		XQuerySet * q2 = new XQuerySet(global_and,is_neg,limit);
+		q2->add(h,t,false);
 		add(q2);
 	}
 
@@ -201,28 +215,45 @@ class XQuerySet
 	std::string get_string()
 	{
 		std::string s;
+
+		if(count()<1) return s;
+
 		if(text!=NULL)
 		{
-			if(set_neg) s.append("NOT(");
+			if(item_neg) s.append("NOT(");
 			s.append(header); 
 			s.append(":");
 			s.append(text);
-			if(set_neg) s.append(")");
+			if(item_neg) s.append(")");
 		}
 
 		const char * op=" OR ";
-		if(set_and) op=" AND ";
+		if(global_and) op=" AND ";
 
 		for (int i=0;i<qsize;i++)
 		{
+			int c=qs[i]->count();
+			if(c<1) continue;
+
 			if(s.length()>0) s.append(op);
 
-			switch(qs[i]->count())
+			if(qs[i]->global_neg)
 			{
-				case 0 : break;
-				case 1 : s.append(qs[i]->get_string()); break;
-				default: s.append("( "); s.append(qs[i]->get_string()); s.append(" )"); break;
+				s.append("NOT(");
+				s.append(qs[i]->get_string());
+				s.append(")");
 			}
+			else if(c>1)
+			{
+				s.append("(");
+				s.append(qs[i]->get_string());
+                                s.append(")");
+			}
+			else s.append(qs[i]->get_string());
+		}
+		if(global_neg) 
+		{
+			s="NOT("+s+")";
 		}
 		return s;
 	}
@@ -231,7 +262,8 @@ class XQuerySet
         {
                 if(count()<1)
                 {
-                        return new Xapian::Query(Xapian::Query::MatchAll);
+//                        return new Xapian::Query(Xapian::Query::MatchAll);
+			return new Xapian::Query(Xapian::Query::MatchNothing);
                 }
 		
 		Xapian::QueryParser * qp = new Xapian::QueryParser();
@@ -523,10 +555,19 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 {
         const char * hdr;
 
-        long c2=0;
         while(a != NULL)
         {
-                if((a->hdr_field_name == NULL)||(strlen(a->hdr_field_name)<1))
+		switch (a->type) 
+		{
+        		case SEARCH_TEXT: 
+        		case SEARCH_BODY: 
+        		case SEARCH_HEADER:
+        		case SEARCH_HEADER_ADDRESS:
+        		case SEARCH_HEADER_COMPRESS_LWSP: break;
+        		default: a = a->next; continue;
+        	}
+		
+		if((a->hdr_field_name == NULL)||(strlen(a->hdr_field_name)<1))
                 {
                         if(a->type == SEARCH_BODY)
                         {
@@ -541,12 +582,9 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
                 {
                         hdr=a->hdr_field_name;
                 }
-                c2++;
                 if((a->value.str == NULL) || (strlen(a->value.str)<1))
                 {
-                        bool b = qs->set_and;
-                        if(a->type == SEARCH_OR) b=false;
-                        XQuerySet * q2 = new XQuerySet(b,qs->limit);
+                        XQuerySet * q2 = new XQuerySet(false,a->match_not,qs->limit);
                         fts_backend_xapian_build_qs(q2,a->value.subargs);
                         if(q2->count()>0)
                         {
@@ -562,7 +600,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
                         qs->add(hdr,a->value.str,a->match_not);
                 }
                 a->match_always=true;
-                a = a->next;
+		a = a->next;
         }
 }
 
