@@ -220,12 +220,13 @@ class XQuerySet
 
 		if(text!=NULL)
 		{
-			if(item_neg) s.append("NOT(");
+			if(item_neg) s.append("NOT( ");
 			s.append(header); 
+			//s.append(":");
 			s.append(":\"");
 			s.append(text);
 			s.append("\"");
-			if(item_neg) s.append(")");
+			if(item_neg) s.append(" )");
 		}
 
 		const char * op=" OR ";

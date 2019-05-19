@@ -309,8 +309,6 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
-	//struct xapian_fts_backend *backend =
-        //        (struct xapian_fts_backend *) ctx->ctx.backend;
 
     	ctx->tbi_uid=0;
 }
