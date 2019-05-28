@@ -11,7 +11,7 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
-#define XAPIAN_COMMIT_LIMIT 10000
+#define XAPIAN_COMMIT_LIMIT 1000
 #define XAPIAN_WILDCARD "wldcrd"
 
 #define HDRS_NB 9
@@ -33,6 +33,7 @@ struct xapian_fts_backend
         long partial,full;
 	long nb_updates;
 
+	long perf_pt;
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
@@ -265,6 +266,20 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		backend->perf_nb++;
 		backend->perf_uid = key->uid;
 	}
+	if((backend->perf_nb - backend->perf_pt)>200)
+	{
+		backend->perf_pt = backend->perf_nb;
+                struct timeval tp;
+                gettimeofday(&tp, NULL);
+                long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+                double r=0;
+                if(dt>0)
+                {
+                        r=backend->perf_nb*1000.0;
+                        r=r/dt;
+                }
+		i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
+	}
 	/* End Performance calculator*/
 
         while((field[i]<=' ') && (field[i]>0))
@@ -384,7 +399,8 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) 
-	{ 
+	{
+		i_info("refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
     	return 0;

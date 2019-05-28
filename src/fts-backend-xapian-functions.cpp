@@ -485,6 +485,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
         backend->perf_dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	backend->perf_uid=0;
 	backend->perf_nb=0;
+	backend->perf_pt=0;
 	/* End Performance calculator*/
 
 	return 0;
@@ -517,6 +518,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	}
 	try
 	{
+		i_info("Opening DB (RO) %s",backend->db);
                 backend->dbr = new Xapian::Database(backend->db); 
 	}
         catch(Xapian::Error e)
@@ -540,6 +542,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 
 	try
 	{
+		i_info("Opening DB (RW) %s",backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
