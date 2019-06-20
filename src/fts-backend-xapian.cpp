@@ -266,7 +266,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		backend->perf_nb++;
 		backend->perf_uid = key->uid;
 	}
-	if((backend->perf_nb - backend->perf_pt)>200)
+	if((backend->perf_nb - backend->perf_pt)>=200)
 	{
 		backend->perf_pt = backend->perf_nb;
                 struct timeval tp;
