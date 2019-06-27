@@ -80,6 +80,9 @@ plugin {
 
 	fts_autoindex = yes
 	fts_enforced = yes
+	
+	fts_autoindex_exclude = \Junk
+	fts_autoindex_exclude2 = \Trash
 (...)
 }
 ```
