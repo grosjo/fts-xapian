@@ -252,7 +252,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		return FALSE;
 	}
 
-	long i=0,j;
+	long i=0,j,k;
 	const char * field=key->hdr_name;
 
 	if(field==NULL)
@@ -282,22 +282,19 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	/* End Performance calculator*/
 
-        while((field[i]<=' ') && (field[i]>0))
-        {
+	j=strlen(field);
+	char * f2 = (char *)i_malloc(sizeof(char)*(j+1));
+	i=0; k=0;
+	while(i<j)
+	{
+        	if(field[i]>' ')
+        	{
+			f2[k]=tolower(field[i]);
+			k++;
+		}
         	i++;
         }
-	field=field+i;
-	j=strlen(field);
-	while((j>0) &&(field[j-1]<=' '))
-	{
-		j--;
-	}	
-        
-	char * f2 = (char *)i_malloc(sizeof(char)*(j+1));
-        for(long i=0;i<=j;i++)
-        {
-                f2[i]=tolower(field[i]);
-        }
+	f2[k]=0;
 
 	switch (key->type) 
     	{
@@ -400,7 +397,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) 
 	{
-		i_info("refreshing...");
+//		i_info("refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
     	return 0;
