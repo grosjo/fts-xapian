@@ -295,24 +295,25 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
         	i++;
         }
 	f2[k]=0;
+	std::string f3(f2);
+	i_free(f2);
 
 	switch (key->type) 
     	{
     		case FTS_BACKEND_BUILD_KEY_HDR:
 	    	case FTS_BACKEND_BUILD_KEY_MIME_HDR:
             		ctx->tbi_isfield=true;
-            		ctx->tbi_field=f2;
+            		ctx->tbi_field=f3;
             		ctx->tbi_uid=key->uid;
             		break;
         	case FTS_BACKEND_BUILD_KEY_BODY_PART:
-            		ctx->tbi_field=f2;
+            		ctx->tbi_field=f3;
             		ctx->tbi_isfield=false;
             		ctx->tbi_uid=key->uid;
             		break;
 	    	case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
 		    	i_unreached();
 	}
-	i_free(f2);
 	
 	return TRUE;
 }
