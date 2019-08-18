@@ -53,7 +53,7 @@ Compile and install the plugin.
 
 ```
 autoreconf -vi
-PANDOC=false ./configure --with-dovecot=/path/to/dovecot
+./configure --with-dovecot=/path/to/dovecot
 make
 sudo make install
 
