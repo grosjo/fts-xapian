@@ -95,7 +95,12 @@ class XQuerySet
 
 	void add(icu::UnicodeString *h, icu::UnicodeString *t, bool is_neg)
         {
+		long i,j;
+		XQuerySet * q2;
+		icu::UnicodeString *r;
+
 	        t->findAndReplace("'"," ");
+		t->findAndReplace("\""," ");
                 t->findAndReplace(":"," ");
                 t->findAndReplace(";"," ");
                 t->findAndReplace("\""," ");
@@ -110,26 +115,41 @@ class XQuerySet
 		if(h->length()<1) return;
 		if(t->length()<limit) return;
 
-                long i = t->lastIndexOf(" "),j;
+		i = t->lastIndexOf(" ");
                 if(i>0)
                 {
-			XQuerySet * q2 = new XQuerySet(true,is_neg,limit);
-			while(i>0)
-			{
-				j = t->length();
-				icu::UnicodeString * r = new icu::UnicodeString(*t,i+1,j-i-1);
-				q2->add(h,r,false);
-				delete(r);
-				t->truncate(i);
-				i = t->lastIndexOf(" ");
-			}
-			if(t->length()>0)
-				q2->add(h,t,false);
-			if(q2->count()>0) add(q2);
-			else delete(q2);
+                        q2 = new XQuerySet(true,false,limit);
+                        while(i>0)
+                        {
+                                j = t->length();
+                                r = new icu::UnicodeString(*t,i+1,j-i-1);
+                                q2->add(h,r,false);
+                                delete(r);
+                                t->truncate(i);
+                                i = t->lastIndexOf(" ");
+                        }
+                        if(t->length()>0) q2->add(h,t,false);
+                        if(q2->count()>0) add(q2); else delete(q2);
+                        return;
+                }
+
+		i = t->indexOf(".");
+		if(i>=0)
+		{
+			r = new icu::UnicodeString(*t);
+			r->findAndReplace(".","_");
+			q2 = new XQuerySet(false,false,limit);
+			q2->add(h,r,false);
+			delete(r);
+
+			t->findAndReplace("."," ");
+			t->trim();
+			q2->add(h,t,false);
+                	
+			if(q2->count()>0) add(q2); else delete(q2);
 			return;
 		}
-
+		
                 std::string tmp1;
                 h->toUTF8String(tmp1);
                 char * h2 = i_strdup(tmp1.c_str());
@@ -139,7 +159,7 @@ class XQuerySet
 
 		if(strcmp(h2,XAPIAN_WILDCARD)==0)
 		{
-			XQuerySet * q2 = new XQuerySet(false,is_neg,limit);
+			q2 = new XQuerySet(false,is_neg,limit);
 			for(i=1;i<HDRS_NB;i++)
 			{
 				q2->add(hdrs_emails[i],t2,is_neg);
@@ -172,7 +192,7 @@ class XQuerySet
 			return;
                 }
 
-		XQuerySet * q2 = new XQuerySet(global_and,is_neg,limit);
+		q2 = new XQuerySet(global_and,is_neg,limit);
 		q2->add(h,t,false);
 		add(q2);
 	}
@@ -329,11 +349,22 @@ class XHeaderTerm
 
 		d->toLower();
 		d->findAndReplace("'"," ");
+		d->findAndReplace("\""," ");
 		d->findAndReplace(":"," ");
 		d->findAndReplace(";"," ");
 		d->findAndReplace("\""," ");
 		d->findAndReplace("<"," ");
 		d->findAndReplace(">"," ");
+
+		long i = d->indexOf(".");
+		if(i>=0)
+		{
+			r = new icu::UnicodeString(*d);
+			r->findAndReplace(".","_");
+			add(r);
+			delete(r);
+			d->findAndReplace("."," ");
+		}
 		d->trim();
 	
 		long l = d->length();
@@ -346,7 +377,7 @@ class XHeaderTerm
                         return;
                 }
 
-		long i = d->indexOf(" ");
+		i = d->indexOf(" ");
 
 		if(i>0)
 		{
