@@ -18,7 +18,7 @@ You are going to need the following things to get this going:
 ```
 * Dovecot above 2.3.x (untested with previous versions)
 * Xapian 1.4.x (or above)
-* ICU 
+* ICU 64.x (or above)
 ```
 
 You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
