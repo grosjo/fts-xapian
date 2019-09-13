@@ -444,12 +444,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if((flags & FTS_LOOKUP_FLAG_AND_ARGS) != 0)
 	{
-		i_info("FTS Xapian: FLAG=AND");
+		i_debug("FTS Xapian: FLAG=AND");
 		is_and=true;
 	}
 	else
 	{
-		i_info("FTS Xapian: FLAG=OR");
+		i_debug("FTS Xapian: FLAG=OR");
 	}
 
 	XQuerySet * qs = new XQuerySet(is_and,false,backend->partial);
@@ -482,7 +482,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	/* Performance calc */
         gettimeofday(&tp, NULL);
         dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-	i_info("FTS Xapian: %ld results in %ld ms",n,dt);	
+	i_debug("FTS Xapian: %ld results in %ld ms",n,dt);
 
 	return 0;
 }

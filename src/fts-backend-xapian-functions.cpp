@@ -35,7 +35,6 @@ class XQuerySet
 	bool item_neg; // for the term
 	long qsize;
 	long limit;
-	bool display;
 
 	XQuerySet()
 	{
@@ -45,7 +44,6 @@ class XQuerySet
 		header=NULL;
                 text=NULL;
 		global_neg=false;
-		display=false;
 	}
 
 	XQuerySet(bool is_and, bool is_neg, long l)
@@ -57,7 +55,6 @@ class XQuerySet
 		text=NULL;
 		global_and=is_and;
 		global_neg=is_neg;
-		display=true;
 	}
 
 	~XQuerySet()
@@ -293,7 +290,7 @@ class XQuerySet
 
 		char *s = i_strdup(get_string().c_str());
 	
-		if(display) { i_info("FTS Xapian: Query= %s",s); }
+		i_debug("FTS Xapian: Query= %s",s);
 
 		qp->set_database(*db);
 	
@@ -452,7 +449,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
         	/* End Performance calculator*/
 	
-                i_info("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
+                i_debug("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
                 i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
