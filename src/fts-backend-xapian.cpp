@@ -89,28 +89,28 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
         	else
 		{
-            		i_error("FTS Xapian: Invalid setting: %s", *tmp);
+            		*error_r = t_strdup_printf("FTS Xapian: Invalid setting: %s", *tmp);
             		return -1;
         	}
     	}
     	if(backend->partial<2)
     	{
-        	i_error("FTS Xapian: 'partial' can not be null (try partial=2)");
+        	*error_r = "FTS Xapian: 'partial' can not be null (try partial=2)";
         	return -1;
     	}
     	if(backend->full<1)
     	{
-        	i_error("FTS Xapian: 'full' can not be null (try full=20)");
+        	*error_r = "FTS Xapian: 'full' can not be null (try full=20)";
         	return -1;
     	}
     	if(backend->partial > backend->full)
     	{
-        	i_error("FTS Xapian: 'full' must be equal or greater than 'partial'");
+        	*error_r = "FTS Xapian: 'full' must be equal or greater than 'partial'";
         	return -1;
     	}
     	if(backend->full > 50)
     	{
-        	i_error("FTS Xapian: 'full' above 50 is not realistic");
+        	*error_r = "FTS Xapian: 'full' above 50 is not realistic";
         	return -1;
     	}
 
@@ -122,7 +122,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	{
 		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
 		{
-			i_error("FTS Xapian: can not create '%s'",backend->path);
+			*error_r = t_strdup_printf("FTS Xapian: can not create '%s'",backend->path);
                 	return -1;
 		}
 	}
