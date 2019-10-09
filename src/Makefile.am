@@ -5,9 +5,11 @@ AM_CPPFLAGS = \
 	$(LIBDOVECOT_LIBFTS_INCLUDE) \
 	$(LIBDOVECOT_FTS_INCLUDE)
 
+# -fpermissive is unfortunately needed for str.h
 AM_CXXFLAGS = \
 	$(AM_CPPFLAGS) \
-	$(XAPIAN_CXXFLAGS)
+	$(XAPIAN_CXXFLAGS) \
+	-fpermissive
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
 

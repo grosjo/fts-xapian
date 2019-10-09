@@ -5,6 +5,7 @@
 #define FTS_XAPIAN_PLUGIN_H
 
 #include "lib.h"
+#include "str.h"
 #include "mail-storage-private.h"
 #include "mailbox-list-private.h"
 #include "mail-search.h"
