@@ -91,28 +91,28 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
         	else
 		{
-            		*error_r = t_strdup_printf("FTS Xapian: Invalid setting: %s", *tmp);
+            		*error_r = t_strdup_printf("Invalid setting: %s", *tmp);
             		return -1;
         	}
     	}
     	if(backend->partial<2)
     	{
-        	*error_r = "FTS Xapian: 'partial' can not be null (try partial=2)";
+        	*error_r = "'partial' can not be null (try partial=2)";
         	return -1;
     	}
     	if(backend->full<1)
     	{
-        	*error_r = "FTS Xapian: 'full' can not be null (try full=20)";
+        	*error_r = "'full' can not be null (try full=20)";
         	return -1;
     	}
     	if(backend->partial > backend->full)
     	{
-        	*error_r = "FTS Xapian: 'full' must be equal or greater than 'partial'";
+        	*error_r = "'full' must be equal or greater than 'partial'";
         	return -1;
     	}
     	if(backend->full > 50)
     	{
-        	*error_r = "FTS Xapian: 'full' above 50 is not realistic";
+        	*error_r = "'full' above 50 is not realistic";
         	return -1;
     	}
 
@@ -124,13 +124,14 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	{
 		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
 		{
-			*error_r = t_strdup_printf("FTS Xapian: can not create '%s'",backend->path);
+			*error_r = t_strdup_printf("can not create '%s'",backend->path);
                 	return -1;
 		}
 	}
 
         backend->event = event_create(_backend->ns->user->event);
         event_add_category(backend->event, &event_category_fts_xapian);
+	event_set_append_log_prefix(backend->event, "FTS Xapian: ");
 	return 0;
 }
 
@@ -160,13 +161,13 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
 	if(fts_backend_xapian_set_box(backend, box) < 0)
 	{
-		i_error("FTS Xapian: get_last_uid: Can not select mailbox '%s'",box->name);
+		e_error(backend->event, "get_last_uid: Can not select mailbox '%s'",box->name);
 		return -1;
 	}
 
 	if(!fts_backend_xapian_check_read(backend))
 	{
-		i_error("FTS Xapian: get_last_uid: can not open DB %s",backend->db);
+		e_error(backend->event, "get_last_uid: can not open DB %s",backend->db);
 		return -1;
 	}
 
@@ -176,11 +177,11 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: fts_backend_xapian_get_last_uid %s",backend->box->name);
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		e_error(backend->event, "fts_backend_xapian_get_last_uid %s",backend->box->name);
+		e_error(backend->event, "%s",e.get_msg().c_str());
 		return -1;
 	}
-	//i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
+	//e_debug(backend->event, "Get last UID of %s = %d",backend->box->name,*last_uid_r);
         return 0;
 }
 
@@ -224,7 +225,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
-		i_error("FTS Xapian: Expunge UID=%d: Can not open db",uid);
+		e_error(backend->event, "Expunge UID=%d: Can not open db",uid);
 		return ;
 	}
 
@@ -236,7 +237,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		e_error(backend->event, "%s",e.get_msg().c_str());
 	}
 }
 
@@ -250,7 +251,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(backend->box == NULL)
 	{
-		i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
+		i_warning("Build key %s with no mailbox",key->hdr_name);
 		return FALSE;
 	}
 
@@ -279,7 +280,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                         r=backend->perf_nb*1000.0;
                         r=r/dt;
                 }
-		i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
+		e_debug(backend->event, "Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
 	}
 	/* End Performance calculator*/
 
@@ -365,7 +366,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
-		i_error("FTS Xapian: Buildmore: Can not open db");
+		e_error(backend->event, "Buildmore: Can not open db");
 		return -1;
 	}
 
@@ -388,13 +389,13 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         {
                 fts_backend_xapian_oldbox(backend);
                 backend->oldbox = i_strdup(backend->box->name);
-                //i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
+                //e_debug(backend->event, "Start indexing '%s' (%s)",backend->box->name,backend->db);
         }
 
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
 	{
-//		i_info("refreshing...");
+//		e_debug(backend->event, "refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
     	return 0;
@@ -409,7 +410,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 	struct stat sb;
         if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
         {
-		i_error("FTS Xapian: Index folder inexistent");
+		e_error(backend->event, "Index folder inexistent");
 		return -1;
 	}
 
@@ -426,7 +427,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if(!fts_backend_xapian_check_read(backend))
         {
-                i_error("FTS Xapian: Lookup: Can not open db RO");
+                e_error(backend->event, "Lookup: Can not open db RO");
                 return -1;
         }
 
@@ -438,7 +439,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if(backend->dbw !=NULL)
         {
-		//i_info("FTS Xapian: Committing changes %s",backend->box->name);
+		//e_debug(backend->event, "Committing changes %s",backend->box->name);
                 backend->dbw->commit();
 	}
 
@@ -446,12 +447,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if((flags & FTS_LOOKUP_FLAG_AND_ARGS) != 0)
 	{
-		i_info("FTS Xapian: FLAG=AND");
+		e_debug(backend->event, "FLAG=AND");
 		is_and=true;
 	}
 	else
 	{
-		i_info("FTS Xapian: FLAG=OR");
+		e_debug(backend->event, "FLAG=OR");
 	}
 
 	XQuerySet * qs = new XQuerySet(is_and,false,backend->partial);
@@ -475,7 +476,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		}
 		catch(Xapian::Error e)
 		{
-			i_error("FTS Xapian: %s",e.get_msg().c_str());
+			e_error(backend->event, "%s",e.get_msg().c_str());
 		}
 	}
 	delete(r);
@@ -484,7 +485,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	/* Performance calc */
         gettimeofday(&tp, NULL);
         dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-	i_info("FTS Xapian: %ld results in %ld ms",n,dt);
+	e_debug(backend->event, "%ld results in %ld ms",n,dt);
 
 	return 0;
 }

@@ -27,6 +27,7 @@ class XResultSet
 class XQuerySet
 {
 	public:
+	struct event * event;
 	char * header;
 	char * text;
 	XQuerySet ** qs;
@@ -293,7 +294,7 @@ class XQuerySet
 
 		char *s = i_strdup(get_string().c_str());
 	
-		if(display) { i_info("FTS Xapian: Query= %s",s); }
+		//if(display) { i_info("FTS Xapian: Query= %s",s); }
 
 		qp->set_database(*db);
 	
@@ -451,8 +452,12 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 			r=r/dt;
 		}
         	/* End Performance calculator*/
-	
-                i_info("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
+		struct event_passthrough *e = event_create_passthrough(backend->event);
+		e->set_name("fts_xapian_indexing_finished")->
+		   add_str("mailbox", backend->oldbox)->
+		   add_int("messages", backend->perf_nb);
+
+                e_debug(e->event(), "Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
                 i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
@@ -498,7 +503,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	if(box==backend->box)
 	{
-		i_info("FTS Xapian: Box is unchanged");
+		e_debug(backend->event, "Box is unchanged");
 	}
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
@@ -526,7 +531,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		i_warning("FTS Xapian: check_read : no DB name");
+		e_warning(backend->event, "check_read : no DB name");
 		return false;
 	}
 
@@ -544,7 +549,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		}
 		catch(Xapian::Error e)
 		{
-			i_info("FTS Xapian: Tried to create an existing db '%s'",backend->db);
+			e_warning(backend->event, "Tried to create an existing db '%s'",backend->db);
 		}
 	}
 	try
@@ -554,8 +559,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	}
         catch(Xapian::Error e)
         {
-                i_error("FTS Xapian: Can not open RO index (%s) %s",backend->box->name,backend->db);
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+                e_error(backend->event, "Can not open RO index (%s) %s: %s",backend->box->name,backend->db, e.get_msg().c_str());
                 return false;
         }
         return true;
@@ -565,7 +569,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		i_warning("FTS Xapian: check_write : no DB name");
+		e_warning(backend->event, "check_write : no DB name");
 		return false;
 	}
 
@@ -578,8 +582,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
         {
-		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
-                i_error("FTS Xapian: %s",e.get_msg().c_str());
+		e_error(backend->event, "Can't open RW index (%s) %s: %s",backend->box->name,backend->db, e.get_msg().c_str());
                 return false;
         }
 	return true;	
@@ -802,7 +805,7 @@ static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct st
 {
 	if(typeflag == FTW_F)
 	{
-		i_info("FTS Xapian: Removing file %s",fpath);
+		//i_info("FTS Xapian: Removing file %s",fpath);
 		remove(fpath);
 	}
 	return 0;
@@ -821,16 +824,16 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
 
                 try
                 {
-			i_info("FTS Xapian: Emptying %s",fpath);
+			//i_info("FTS Xapian: Emptying %s",fpath);
                         Xapian::WritableDatabase db(fpath,Xapian::DB_CREATE_OR_OPEN);
 			db.close();
 			ftw(fpath,fts_backend_xapian_empty_db_remove,100);
-			i_info("FTS Xapian: Removing directory %s",fpath);
+			//i_info("FTS Xapian: Removing directory %s",fpath);
 			rmdir(fpath);
                 }
                 catch(Xapian::Error e)
                 {
-                        i_error("Xapian: %s",e.get_msg().c_str());
+                       //i_error("Xapian: %s",e.get_msg().c_str());
                 }
         }
         return 0;
