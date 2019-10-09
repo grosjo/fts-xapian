@@ -18,10 +18,12 @@ extern "C" {
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "message-id", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",       "XBDY", "XBDY" };
 
+static struct event_category event_category_fts_xapian{NULL,"fts_xapian"};
 
 struct xapian_fts_backend
 {
         struct fts_backend backend;
+        struct event * event;
         char * path;
 
         struct mailbox *box;
@@ -127,6 +129,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
+        backend->event = event_create(_backend->ns->user->event);
+        event_add_category(backend->event, &event_category_fts_xapian);
 	return 0;
 }
 
@@ -141,7 +145,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	backend->oldbox = NULL;
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
-
+        event_unref(&backend->event);
 	i_free(backend);
 }
 
