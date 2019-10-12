@@ -756,10 +756,10 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 {
 	try
         {
-        	XQuerySet * xq = new XQuerySet();
+		XQuerySet * xq = new XQuerySet();
 
 		const char *u = t_strdup_printf("%d",uid);
-                xq->add("uid",u);
+		xq->add("uid",u);
 
                 XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
   
@@ -768,7 +768,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
                 if(result->size<1)
                 {
 			doc.add_value(1,Xapian::sortable_serialise(uid));
-                        snprintf(u,30,"Q%d",uid);
+                        u = t_strdup_printf("Q%d",uid);
                         doc.add_term(u);
                         docid=dbx->add_document(doc);
                 }
