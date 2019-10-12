@@ -19,7 +19,7 @@ static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "c
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",       "XBDY", "XBDY" }; 
 
 
-struct xapian_fts_backend 
+struct xapian_fts_backend
 {
         struct fts_backend backend;
         char * path;
@@ -80,43 +80,42 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	if (env == NULL)
 		return 0;
 
-	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++) 
+	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
 	{
         	if (str_begins(*tmp, "partial=") && (str_to_uint(*tmp + 8, &len)>=0))
 		{
 			backend->partial=len;
-		}	
+		}
         	else if (str_begins(*tmp, "full=") && (str_to_uint(*tmp + 5, &len)>=0))
 		{
 			backend->full=len;
 		}
 		else if (str_begins(*tmp, "debug=") && (str_to_uint(*tmp + 6, &len)>=0))
-                {
-			if(len>0)
-                        	backend->debug=true;
-                }
-        	else 
+		{
+			if(len>0) backend->debug=true;
+		}
+		else 
 		{
             		i_error("FTS Xapian: Invalid setting: %s", *tmp);
             		return -1;
         	}
     	}
-    	if(backend->partial<2) 
+    	if(backend->partial < 2)
     	{
         	i_error("FTS Xapian: 'partial' can not be null (try partial=2)");
         	return -1;
     	}
-    	if(backend->full<1) 
+    	if(backend->full<1)
     	{
         	i_error("FTS Xapian: 'full' can not be null (try full=20)");
         	return -1;
     	}
-    	if(backend->partial > backend->full) 
+    	if(backend->partial > backend->full)
     	{
         	i_error("FTS Xapian: 'full' must be equal or greater than 'partial'");
         	return -1;
     	}
-    	if(backend->full > 50) 
+    	if(backend->full > 50)
     	{
         	i_error("FTS Xapian: 'full' above 50 is not realistic");
         	return -1;
@@ -162,7 +161,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 
 	*last_uid_r = 0;
 
-	if(fts_backend_xapian_set_box(backend, box) < 0) 
+	if(fts_backend_xapian_set_box(backend, box) < 0)
 	{
 		i_error("FTS Xapian: get_last_uid: Can not select mailbox '%s'",box->name);
 		return -1;
@@ -202,7 +201,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
-	
+
 	ctx->ctx.backend = NULL;
 
 	i_free(ctx);
@@ -266,7 +265,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 
 	/* Performance calculator*/
-	if( backend->perf_uid != key->uid ) 
+	if( backend->perf_uid != key->uid )
 	{
 		backend->perf_nb++;
 		backend->perf_uid = key->uid;
@@ -298,7 +297,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
         	i++;
         }
 
-	switch (key->type) 
+	switch (key->type)
     	{
     		case FTS_BACKEND_BUILD_KEY_HDR:
 	    	case FTS_BACKEND_BUILD_KEY_MIME_HDR:
@@ -314,7 +313,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	    	case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
 		    	i_unreached();
 	}
-	
+
 	return TRUE;
 }
 
@@ -396,7 +395,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         }
 
 	backend->nb_updates++;
-	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT) 
+	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
 	{
 //		i_info("refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
@@ -488,7 +487,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	/* Performance calc */
         gettimeofday(&tp, NULL);
         dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-	i_info("FTS Xapian: %ld results in %ld ms",n,dt);	
+	i_info("FTS Xapian: %ld results in %ld ms",n,dt);
 
 	return 0;
 }
