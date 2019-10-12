@@ -290,7 +290,7 @@ class XQuerySet
 
 		char *s = i_strdup(get_string().c_str());
 	
-		if(verbose>0) { i_info("FTS Xapian: Query= %s",s); }
+		if(verbose>1) { i_info("FTS Xapian: Query= %s",s); }
 
 		qp->set_database(*db);
 	
