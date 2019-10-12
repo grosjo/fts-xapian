@@ -233,8 +233,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
     	try
 	{
-		char s[30];
-		snprintf(s,30,"Q%d",uid);	
+		const char * s = t_strdup_printf("Q%d",uid);
         	backend->dbw->delete_document(s);
 	}
 	catch(Xapian::Error e)
