@@ -35,7 +35,6 @@ class XQuerySet
 	bool item_neg; // for the term
 	long qsize;
 	long limit;
-	bool display;
 
 	XQuerySet()
 	{
@@ -45,7 +44,6 @@ class XQuerySet
 		header=NULL;
                 text=NULL;
 		global_neg=false;
-		display=false;
 	}
 
 	XQuerySet(bool is_and, bool is_neg, long l)
@@ -57,7 +55,6 @@ class XQuerySet
 		text=NULL;
 		global_and=is_and;
 		global_neg=is_neg;
-		display=true;
 	}
 
 	~XQuerySet()
@@ -293,7 +290,7 @@ class XQuerySet
 
 		char *s = i_strdup(get_string().c_str());
 	
-		if(display) { i_info("FTS Xapian: Query= %s",s); }
+		if(verbose>0) { i_info("FTS Xapian: Query= %s",s); }
 
 		qp->set_database(*db);
 	
@@ -452,7 +449,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
         	/* End Performance calculator*/
 	
-                i_info("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
+                if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
                 i_free(backend->oldbox);
                 backend->oldbox=NULL;
         }
@@ -498,7 +495,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	if(box==backend->box)
 	{
-		i_info("FTS Xapian: Box is unchanged");
+		if(verbose>1) i_info("FTS Xapian: Box is unchanged");
 		return 0;
 	}
 
@@ -533,7 +530,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		i_warning("FTS Xapian: check_read : no DB name");
+		if(verbose>1) i_info("FTS Xapian: check_read : no DB name");
 		return false;
 	}
 
@@ -551,12 +548,12 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		}
 		catch(Xapian::Error e)
 		{
-			i_info("FTS Xapian: Tried to create an existing db '%s'",backend->db);
+			if(verbose>0) i_info("FTS Xapian: Tried to create an existing db '%s'",backend->db);
 		}
 	}
 	try
 	{
-//		i_info("Opening DB (RO) %s",backend->db);
+		if(verbose>1) i_info("Opening DB (RO) %s",backend->db);
                 backend->dbr = new Xapian::Database(backend->db); 
 	}
         catch(Xapian::Error e)
@@ -572,7 +569,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		i_warning("FTS Xapian: check_write : no DB name");
+		if(verbose>1) i_info("FTS Xapian: check_write : no DB name");
 		return false;
 	}
 
@@ -580,7 +577,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 
 	try
 	{
-//		i_info("Opening DB (RW) %s",backend->db);
+		if(verbose>1) i_info("Opening DB (RW) %s",backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
@@ -811,7 +808,7 @@ static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct st
 {
 	if(typeflag == FTW_F)
 	{
-		i_info("FTS Xapian: Removing file %s",fpath);
+		if(verbose>1) i_info("FTS Xapian: Removing file %s",fpath);
 		remove(fpath);
 	}
 	return 0;
@@ -830,11 +827,11 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
 
                 try
                 {
-			i_info("FTS Xapian: Emptying %s",fpath);
+			if(verbose>1) i_info("FTS Xapian: Emptying %s",fpath);
                         Xapian::WritableDatabase db(fpath,Xapian::DB_CREATE_OR_OPEN);
 			db.close();
 			ftw(fpath,fts_backend_xapian_empty_db_remove,100);
-			i_info("FTS Xapian: Removing directory %s",fpath);
+			if(verbose>1) i_info("FTS Xapian: Removing directory %s",fpath);
 			rmdir(fpath);
                 }
                 catch(Xapian::Error e)

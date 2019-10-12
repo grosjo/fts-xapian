@@ -18,6 +18,7 @@ extern "C" {
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "message-id", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",       "XBDY", "XBDY" }; 
 
+static int verbose = 0;
 
 struct xapian_fts_backend
 {
@@ -37,8 +38,6 @@ struct xapian_fts_backend
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
-
-	bool debug;
 };
 
 struct xapian_fts_backend_update_context
@@ -74,7 +73,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         backend->box = NULL;
 	backend->path = NULL;
 	backend->oldbox = NULL;
-	backend->debug = false;
+	verbose = 0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)
@@ -90,9 +89,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		{
 			backend->full=len;
 		}
-		else if (str_begins(*tmp, "debug=") && (str_to_uint(*tmp + 6, &len)>=0))
+		else if (str_begins(*tmp, "verbose=") && (str_to_uint(*tmp + 6, &len)>=0))
 		{
-			if(len>0) backend->debug=true;
+			if(len>0) verbose=len;
 		}
 		else 
 		{
@@ -183,7 +182,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return -1;
 	}
-	//i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
+	if(verbose>1) i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
         return 0;
 }
 
@@ -281,7 +280,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                         r=backend->perf_nb*1000.0;
                         r=r/dt;
                 }
-		i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
+		if(verbose>0) i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
 	}
 	/* End Performance calculator*/
 
@@ -390,13 +389,13 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         {
                 fts_backend_xapian_oldbox(backend);
                 backend->oldbox = i_strdup(backend->box->name);
-                //i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
+                if(verbose>1) i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
         }
 
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
 	{
-//		i_info("refreshing...");
+		if(verbose>1) i_info("refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
     	return 0;
@@ -440,7 +439,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if(backend->dbw !=NULL)
         {
-		//i_info("FTS Xapian: Committing changes %s",backend->box->name);
+		if(verbose>1) i_info("FTS Xapian: Committing changes %s",backend->box->name);
                 backend->dbw->commit();
 	}
 
@@ -448,12 +447,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if((flags & FTS_LOOKUP_FLAG_AND_ARGS) != 0)
 	{
-		i_info("FTS Xapian: FLAG=AND");
+		if(verbose>1) i_info("FTS Xapian: FLAG=AND");
 		is_and=true;
 	}
 	else
 	{
-		i_info("FTS Xapian: FLAG=OR");
+		if(verbose>1) i_info("FTS Xapian: FLAG=OR");
 	}
 
 	XQuerySet * qs = new XQuerySet(is_and,false,backend->partial);
@@ -486,7 +485,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	/* Performance calc */
         gettimeofday(&tp, NULL);
         dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-	i_info("FTS Xapian: %ld results in %ld ms",n,dt);
+	if(verbose>0) i_info("FTS Xapian: %ld results in %ld ms",n,dt);
 
 	return 0;
 }
