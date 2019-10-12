@@ -37,6 +37,8 @@ struct xapian_fts_backend
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
+
+	bool debug;
 };
 
 struct xapian_fts_backend_update_context
@@ -72,6 +74,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         backend->box = NULL;
 	backend->path = NULL;
 	backend->oldbox = NULL;
+	backend->debug = false;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)
@@ -87,6 +90,11 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		{
 			backend->full=len;
 		}
+		else if (str_begins(*tmp, "debug=") && (str_to_uint(*tmp + 6, &len)>=0))
+                {
+			if(len>0)
+                        	backend->debug=true;
+                }
         	else 
 		{
             		i_error("FTS Xapian: Invalid setting: %s", *tmp);

@@ -499,14 +499,21 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if(box==backend->box)
 	{
 		i_info("FTS Xapian: Box is unchanged");
+		return 0;
 	}
+
+	fts_backend_xapian_unset_box(backend);
+
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	long l=strlen(backend->path)+strlen(mb)+5; 
-	backend->db = (char *)i_malloc(l*sizeof(char));
-	snprintf(backend->db,l,"%s/db_%s",backend->path,mb);
+	if((mb == NULL) || (strlen(mb)<3))
+	{
+		i_error("FTS Xapian: Invalid box");
+		return -1;
+	}
 
+	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
 	backend->box = box;
 	backend->nb_updates=0;
 
