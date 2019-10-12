@@ -89,7 +89,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		{
 			backend->full=len;
 		}
-		else if (str_begins(*tmp, "verbose=") && (str_to_uint(*tmp + 6, &len)>=0))
+		else if (str_begins(*tmp, "verbose=") && (str_to_uint(*tmp + 8, &len)>=0))
 		{
 			if(len>0) verbose=len;
 		}
