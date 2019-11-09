@@ -315,10 +315,6 @@ class XHeaderTerm
         XHeaderTerm(long p, long f, bool o) 
 	{ 
 		partial=p; full=f; 
-
-		if(partial<1) partial=2;
-		if(full<partial) full=partial+10;
-
 		size=0; 
 		maxlength=0;
 		data=NULL; 
