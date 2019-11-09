@@ -81,11 +81,11 @@ class XQuerySet
                 if(h==NULL) return;
                 if(t==NULL) return;
 
-                icu::StringPiece sp(h);
-                icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(sp);
+                icu::StringPiece sp_h(h);
+                icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(sp_h);
 
-                icu::StringPiece sp2(t);
-                icu::UnicodeString t2 = icu::UnicodeString::fromUTF8(sp2);
+                icu::StringPiece sp_t(t);
+                icu::UnicodeString t2 = icu::UnicodeString::fromUTF8(sp_t);
 
                 add(&h2,&t2,is_neg);
         }
@@ -103,6 +103,8 @@ class XQuerySet
                 t->findAndReplace("\""," ");
                 t->findAndReplace("<"," ");
                 t->findAndReplace(">"," ");
+                t->findAndReplace("\n"," ");
+                t->findAndReplace("\r"," ");
 
 		h->trim();
 		t->trim();
@@ -123,9 +125,10 @@ class XQuerySet
                                 q2->add(h,r,false);
                                 delete(r);
                                 t->truncate(i);
+				t->trim();
                                 i = t->lastIndexOf(" ");
                         }
-                        if(t->length()>0) q2->add(h,t,false);
+                        q2->add(h,t,false);
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
@@ -312,6 +315,10 @@ class XHeaderTerm
         XHeaderTerm(long p, long f, bool o) 
 	{ 
 		partial=p; full=f; 
+
+		if(partial<1) partial=2;
+		if(full<partial) full=partial+10;
+
 		size=0; 
 		maxlength=0;
 		data=NULL; 
@@ -334,7 +341,7 @@ class XHeaderTerm
 	void add(const char * s)
         {
         	if(s==NULL) return;
-		
+
 		icu::StringPiece sp(s);
 		icu::UnicodeString d = icu::UnicodeString::fromUTF8(sp);
 		add(&d);
@@ -352,6 +359,8 @@ class XHeaderTerm
 		d->findAndReplace("\""," ");
 		d->findAndReplace("<"," ");
 		d->findAndReplace(">"," ");
+		d->findAndReplace("\n"," ");
+		d->findAndReplace("\r"," ");
 
 		long i = d->indexOf(".");
 		if(i>=0)
@@ -362,8 +371,8 @@ class XHeaderTerm
 			delete(r);
 			d->findAndReplace("."," ");
 		}
+
 		d->trim();
-	
 		long l = d->length();
 
 		if(l<partial) return;
@@ -382,6 +391,8 @@ class XHeaderTerm
 			add(r);
 			delete(r);
 			d->truncate(i);
+			d->trim();
+			l=d->length();
 		}
 	
 		for(i=0;i<=l-partial;i++)
@@ -398,12 +409,15 @@ class XHeaderTerm
 	
 	void add_stem(icu::UnicodeString *d)
 	{
+		d->trim();
+		
+		long l=d->length();
+		if(l<partial) return;
+                if(l>XAPIAN_TERM_SIZELIMIT) return;
+
 		std::string s;
 		d->toUTF8String(s);
-		
-		long l = s.length();
-		if(l>XAPIAN_TERM_SIZELIMIT) return;
-
+	
 		char * s2 = i_strdup(s.c_str());
  
                 if(size<1)
