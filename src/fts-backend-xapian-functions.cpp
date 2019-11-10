@@ -409,11 +409,12 @@ class XHeaderTerm
 		
 		long l=d->length();
 		if(l<partial) return;
-                if(l>XAPIAN_TERM_SIZELIMIT) return;
 
 		std::string s;
 		d->toUTF8String(s);
-	
+		l  = s.length();
+		if(l>XAPIAN_TERM_SIZELIMIT) return;
+
 		char * s2 = i_strdup(s.c_str());
  
                 if(size<1)
