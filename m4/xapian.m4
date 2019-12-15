@@ -102,6 +102,7 @@ dnl Otherwise add hooks to the end of LT_INIT, AC_PROG_LIBTOOL and
 dnl AM_PROG_LIBTOOL to enable it if one of these is expanded later.
     XAPIAN_VERSION=`$XAPIAN_CONFIG --version|sed 's/.* //;s/_.*$//'`
     XAPIAN_CXXFLAGS=`$XAPIAN_CONFIG --cxxflags`
+    XAPIAN_INCLUDE=`$XAPIAN_CONFIG --swigflags`
     AC_PROVIDE_IFELSE([LT_INIT],
       [XAPIAN_LIBS=`$XAPIAN_CONFIG --ltlibs`],
       [AC_PROVIDE_IFELSE([AC_PROG_LIBTOOL],
@@ -128,6 +129,7 @@ dnl AM_PROG_LIBTOOL to enable it if one of these is expanded later.
   AC_SUBST(XAPIAN_CXXFLAGS)
   AC_SUBST(XAPIAN_LIBS)
   AC_SUBST(XAPIAN_VERSION)
+  AC_SUBST(XAPIAN_INCLUDE)
   m4_define([XO_LIB_XAPIAN_EXPANDED_], [])
 ])
 
