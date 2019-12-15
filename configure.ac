@@ -35,7 +35,8 @@ AC_SUBST(LIBDOVECOT_INCLUDE)
 XO_LIB_XAPIAN
 XO_REQUIRE([1.4.0], AC_MSG_ERROR([Xapian version 1.4.0 or better required]),)
 
-PKG_CHECK_MODULES(ICU, icu-uc)
+XO_LIB_ICU
+XO_ICU_REQUIRE([64], AC_MSG_ERROR([ICU version 64 or better required]),)
 
 if test "$DOVECOT_INSTALLED" != "yes"; then
 	DOVECOT_FTS_PLUGIN="$abs_dovecotdir/src/plugins/fts/lib20_fts_plugin.la"

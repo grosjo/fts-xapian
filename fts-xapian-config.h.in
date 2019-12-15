@@ -1,5 +1,2 @@
-/* Define to the full name of Dovecot FTS Xapian. */
-#undef FTS_XAPIAN_NAME
-
-/* Define to the version of Dovecot FTS Xapian. */
-#undef FTS_XAPIAN_VERSION
+#define FTS_XAPIAN_NAME "Dovecot FTS Xapian"
+#define FTS_XAPIAN_VERSION "1.2.4"
