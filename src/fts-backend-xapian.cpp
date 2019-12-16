@@ -43,9 +43,9 @@ struct xapian_fts_backend
 struct xapian_fts_backend_update_context
 {
         struct fts_backend_update_context ctx;
-        std::string tbi_field;
+        char * tbi_field=NULL;
         bool tbi_isfield;
-        uint32_t tbi_uid;
+        uint32_t tbi_uid=0;
 };
 
 #include "fts-backend-xapian-functions.cpp"
@@ -249,17 +249,13 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	struct xapian_fts_backend *backend =
                 (struct xapian_fts_backend *)ctx->ctx.backend;
 
+	ctx->tbi_isfield=false;
+        ctx->tbi_uid=0;
+
 	if(backend->box == NULL)
 	{
 		i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
 		return FALSE;
-	}
-
-	const char * field=key->hdr_name;
-
-	if(field==NULL)
-	{
-		field="body";
 	}
 
 	/* Performance calculator*/
@@ -271,45 +267,63 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	if((backend->perf_nb - backend->perf_pt)>=200)
 	{
 		backend->perf_pt = backend->perf_nb;
-                struct timeval tp;
-                gettimeofday(&tp, NULL);
-                long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
-                double r=0;
-                if(dt>0)
-                {
-                        r=backend->perf_nb*1000.0;
-                        r=r/dt;
-                }
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+		double r=0;
+		if(dt>0)
+		{
+			r=backend->perf_nb*1000.0;
+			r=r/dt;
+		}
 		if(verbose>0) i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
 	}
 	/* End Performance calculator*/
+
+	const char * field=key->hdr_name;
+
+	if(field==NULL)
+	{
+		field="body";
+	}
 
 	long i=0,j=strlen(field);
 	std::string f2;
 	while(i<j)
 	{
-        	if(field[i]>' ')
-        	{
+		if((field[i]>' ') && (field[i]!='"') && (field[i]!='\''))
+		{
 			f2+=tolower(field[i]);
 		}
-        	i++;
+		i++;
         }
+	ctx->tbi_field=i_strdup(f2.c_str());
+
+	i=0;
+	while((i<HDRS_NB) && (strcmp(ctx->tbi_field,hdrs_emails[i])!=0))
+	{
+		i++;
+	}
+	if(i>=HDRS_NB) 
+	{ 
+		if(verbose>1) i_warning("FTS Xapian: Unknown header '%s'",ctx->tbi_field); 
+		i_free(ctx->tbi_field); 
+		ctx->tbi_field=NULL;
+		return FALSE; 
+	}
 
 	switch (key->type)
-    	{
-    		case FTS_BACKEND_BUILD_KEY_HDR:
-	    	case FTS_BACKEND_BUILD_KEY_MIME_HDR:
-            		ctx->tbi_isfield=true;
-            		ctx->tbi_field=f2;
-            		ctx->tbi_uid=key->uid;
-            		break;
-        	case FTS_BACKEND_BUILD_KEY_BODY_PART:
-            		ctx->tbi_field=f2;
-            		ctx->tbi_isfield=false;
-            		ctx->tbi_uid=key->uid;
-            		break;
-	    	case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
-		    	i_unreached();
+	{
+		case FTS_BACKEND_BUILD_KEY_HDR:
+		case FTS_BACKEND_BUILD_KEY_MIME_HDR:
+			ctx->tbi_isfield=true;
+			ctx->tbi_uid=key->uid;
+			break;
+		case FTS_BACKEND_BUILD_KEY_BODY_PART:
+			ctx->tbi_uid=key->uid;
+			break;
+		case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
+			i_unreached();
 	}
 
 	return TRUE;
@@ -320,7 +334,12 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
 
+	if(ctx->tbi_field!=NULL)
+	{
+		i_free(ctx->tbi_field);
+	}
     	ctx->tbi_uid=0;
+	ctx->tbi_field=NULL;
 }
 
 static int fts_backend_xapian_refresh(struct fts_backend * _backend)
@@ -372,14 +391,14 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
     	if(ctx->tbi_isfield)
     	{
-        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s, backend->partial,backend->full))
+        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full))
         	{
             		return -1;
         	}
     	}
     	else
     	{
-		if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field.c_str(), s))
+		if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s))
         	{
             		return -1;
         	}
