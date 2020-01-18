@@ -32,11 +32,44 @@ BINARY_LDFLAGS="$PIE_LDFLAGS $RELRO_LDFLAGS"
 BINARY_CFLAGS="$PIE_CFLAGS"
 AC_SUBST(LIBDOVECOT_INCLUDE)
 
-XO_LIB_XAPIAN
-XO_REQUIRE([1.4.0], AC_MSG_ERROR([Xapian version 1.4.0 or better required]),)
+PKG_PROG_PKG_CONFIG([0.25]) # check and set $PKG_CONFIG
+PKG_CHECK_MODULES([ICU_UC], [icu-uc >= 64], [have_icu_uc=true], [have_icu_uc=false])
+PKG_CHECK_MODULES([ICU_I18N], [icu-i18n >= 64], [have_icu_i18n=true], [have_icu_i18n=false])
+if !($have_icu_uc && $have_icu_i18n); then
+  AC_MSG_ERROR([icu 64 or higher is required, but was not found.])
+fi
 
-XO_LIB_ICU
-XO_ICU_REQUIRE([64], AC_MSG_ERROR([ICU version 64 or better required]),)
+ICU_LDFLAGS=$($PKG_CONFIG --libs-only-L icu-uc | sed 's/-L//g')
+ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
+ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
+ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
+
+AC_SUBST(ICU_CFLAGS)
+AC_SUBST(ICU_LIBS)
+AC_SUBST(ICU_INCLUDE)
+AC_SUBST(ICU_LDFLAGS)
+
+# xapian checking - we need 1.4 at least
+AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
+AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
+AS_IF([test "x$XAPIAN_CONFIG" = "xno"],[
+   AC_MSG_ERROR([
+   *** xapian could not be found; please install it
+   *** e.g., in debian/ubuntu the package would be 'libxapian-dev'
+   *** If you compiled it yourself, you should ensure that xapian-config
+   *** is in your PATH.])],
+   [XAPIAN_VERSION=$($XAPIAN_CONFIG --version | sed -e 's/.* //')])
+
+AS_CASE([$XAPIAN_VERSION],
+    [1.[[4-9]].[[0-9]]*],
+      [AC_DEFINE([XAPIAN_HAVE_OP_WILDCARD],[1],[Xapian::Query::OP_WILDCARD?])],
+      [AC_MSG_ERROR([*** xapian version >= 1.4 needed, but version $XAPIAN_VERSION found.])])
+
+XAPIAN_CXXFLAGS="$($XAPIAN_CONFIG --cxxflags)"
+XAPIAN_LIBS="$($XAPIAN_CONFIG --libs)"
+
+AC_SUBST(XAPIAN_CXXFLAGS)
+AC_SUBST(XAPIAN_LIBS)
 
 if test "$DOVECOT_INSTALLED" != "yes"; then
 	DOVECOT_FTS_PLUGIN="$abs_dovecotdir/src/plugins/fts/lib20_fts_plugin.la"
