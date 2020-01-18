@@ -821,7 +821,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 			ti++;
 			n--;
 		}
-		if(verbose>1) i_info("NGRAM(%s,%s) %d max=%d",field,h,ngram->size,ngram->maxlength);
+		if(verbose>1) i_info("NGRAM(%s,%s) %ld max=%ld",field,h,ngram->size,ngram->maxlength);
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
                 {
