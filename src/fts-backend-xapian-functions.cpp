@@ -297,7 +297,7 @@ class XQuerySet
 
 		qp->set_database(*db);
 	
-		Xapian::Query * q = new Xapian::Query(qp->parse_query(s));
+		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_DEFAULT | Xapian::QueryParser::FLAG_PARTIAL));
                 
 		i_free(s);
                 delete(qp);
@@ -305,14 +305,14 @@ class XQuerySet
 	}
 };
 
-class XHeaderTerm
+class XNGram
 {
 	public:
 		long size,partial,full,maxlength;
 		char ** data;
 		bool onlyone;
   
-        XHeaderTerm(long p, long f, bool o) 
+        XNGram(long p, long f, bool o) 
 	{ 
 		partial=p; full=f; 
 		size=0; 
@@ -321,7 +321,7 @@ class XHeaderTerm
 		onlyone=o;
 	}
 
-        ~XHeaderTerm() 
+        ~XNGram() 
 	{ 
 		if (size>0) 
 		{ 
@@ -728,27 +728,27 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 
 		if(i>=HDRS_NB) return true;
 		const char * h=hdrs_xapian[i];
-		{
-			XHeaderTerm * xhs = new XHeaderTerm(p,f,strcmp(h,"XMID")==0);
-	                xhs->add(data);
-	
-			char *t = (char*)i_malloc(sizeof(char)*(xhs->maxlength+6));
 		
-			for(i=0;i<xhs->size;i++)
+		XNGram * ngram = new XNGram(p,f,strcmp(h,"XMID")==0);
+	        ngram->add(data);
+	
+		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
+	
+		for(i=0;i<ngram->size;i++)
+		{
+			snprintf(t,ngram->maxlength+6,"%s%s",h,ngram->data[i]);
+			try
 			{
-				snprintf(t,xhs->maxlength+6,"%s%s",h,xhs->data[i]);
-				try
-				{
-					doc.add_term(t);
-				}
-				catch(Xapian::Error e)
-				{
-					i_error("FTS Xapian: %s",e.get_msg().c_str());
-				}
+				doc.add_term(t);
 			}
-			i_free(t);
-			delete(xhs);
+			catch(Xapian::Error e)
+			{
+				i_error("FTS Xapian: %s",e.get_msg().c_str());
+			}
 		}
+		i_free(t);
+		delete(ngram);
+		
 		dbx->replace_document(docid,doc);
 	    	return true;
 	}
@@ -760,7 +760,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	return false;
 }
 
-bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, const char * data)
+bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, const char * data,long p, long f)
 {
 	try
         {
@@ -788,9 +788,11 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 		delete(result);
 		delete(xq);
 
+		Xapian::Document doc2;
 		Xapian::TermGenerator termgenerator;
-		termgenerator.set_stemmer(Xapian::Stem("en"));
-		termgenerator.set_document(doc);
+		Xapian::Stem stem("en");
+		termgenerator.set_stemmer(stem);
+		termgenerator.set_document(doc2);
 	
 		const char * h;
                 if(strcmp(field,"subject")==0) 
@@ -802,8 +804,40 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 			h="XBDY";
 		}
 		std::string d(data);
+		termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
 		termgenerator.index_text(d, 1, h);
-		
+	
+		long n= doc2.termlist_count();
+		Xapian::TermIterator ti = doc2.termlist_begin();
+		XNGram * ngram = new XNGram(p,f,false);
+		while(n>0)
+		{
+			const std::string s = *ti;
+			if(s.compare(0,strlen(h),h)==0)
+			{
+//				if(verbose>1) i_info("Adding STEM %s",s.c_str());
+				ngram->add(s.c_str()+strlen(h));
+			}
+			ti++;
+			n--;
+		}
+		if(verbose>1) i_info("NGRAM(%s,%s) %d max=%d",field,h,ngram->size,ngram->maxlength);
+		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
+		for(n=0;n<ngram->size;n++)
+                {
+                        snprintf(t,ngram->maxlength+6,"%s%s",h,ngram->data[n]);
+                        try
+                        {
+                                doc.add_term(t);
+                        }
+                        catch(Xapian::Error e)
+                        {
+                                i_error("FTS Xapian: %s",e.get_msg().c_str());
+                        }
+                }
+                i_free(t);
+                delete(ngram);
+
                 dbx->replace_document(docid,doc);
           }
           catch(Xapian::Error e)

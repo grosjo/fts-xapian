@@ -378,10 +378,12 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(data == NULL) return 0;
 	if(size<1) return 0;
 
-	char * s = (char*)i_malloc(sizeof(char)*(size+1));
-	strncpy(s,(char *)data,size);
-	s[size]=0;
-
+	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
+	{
+		fts_backend_xapian_oldbox(backend);
+		backend->oldbox = i_strdup(backend->box->name);
+		if(verbose>1) i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
+	}
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
@@ -389,27 +391,22 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		return -1;
 	}
 
+	char * s = (char*)i_malloc(sizeof(char)*(size+1));
+	strncpy(s,(char *)data,size);
+	s[size]=0;
+
+	bool ok=true;
+
     	if(ctx->tbi_isfield)
     	{
-        	if(!fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full))
-        	{
-            		return -1;
-        	}
+        	ok=fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full);
     	}
     	else
     	{
-		if(!fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s))
-        	{
-            		return -1;
-        	}
+		ok=fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full);
     	}
 
-        if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
-        {
-                fts_backend_xapian_oldbox(backend);
-                backend->oldbox = i_strdup(backend->box->name);
-                if(verbose>1) i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
-        }
+	i_free(s);
 
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
@@ -417,7 +414,9 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		if(verbose>1) i_info("refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
-    	return 0;
+    	
+	if(!ok) return -1;
+	return 0;
 }
 
 
