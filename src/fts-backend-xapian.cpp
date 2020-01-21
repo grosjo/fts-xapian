@@ -101,12 +101,12 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
     	}
     	if(backend->partial < 2)
     	{
-        	i_error("FTS Xapian: 'partial' parameter is incorrect (%d). Try 'partial=2'",backend->partial);
+        	i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=2'",backend->partial);
         	return -1;
     	}
     	if(backend->full<1)
     	{
-        	i_error("FTS Xapian: 'full' parameter is incorrect (%d). Try 'full=20'",backend->full);
+        	i_error("FTS Xapian: 'full' parameter is incorrect (%ld). Try 'full=20'",backend->full);
         	return -1;
     	}
     	if(backend->partial > backend->full)
