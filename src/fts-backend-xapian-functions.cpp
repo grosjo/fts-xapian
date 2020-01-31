@@ -307,18 +307,25 @@ class XQuerySet
 
 class XNGram
 {
-	public:
-		long size,partial,full,maxlength;
-		char ** data;
+	private:
+		long partial,full,hardlimit;
+		const char * prefix;
 		bool onlyone;
+
+	public:
+		char ** data;
+		long size,maxlength;
   
-        XNGram(long p, long f, bool o) 
+        XNGram(long p, long f, const char * pre) 
 	{ 
 		partial=p; full=f; 
 		size=0; 
 		maxlength=0;
 		data=NULL; 
-		onlyone=o;
+		prefix=pre;
+		hardlimit=XAPIAN_TERM_SIZELIMIT-strlen(prefix);
+		onlyone=false;
+		if(strcmp(prefix,"XMID")==0) onlyone=true;
 	}
 
         ~XNGram() 
@@ -373,12 +380,6 @@ class XNGram
 
 		if(l<partial) return;
 
-                if(onlyone)
-                {
-                        add_stem(d);
-                        return;
-                }
-
 		i = d->indexOf(" ");
 
 		if(i>0)
@@ -389,6 +390,12 @@ class XNGram
 			d->truncate(i);
 			d->trim();
 			l=d->length();
+		}
+
+		if(onlyone)
+		{
+			add_stem(d);
+			return;
 		}
 	
 		for(i=0;i<=l-partial;i++)
@@ -413,7 +420,16 @@ class XNGram
 		std::string s;
 		d->toUTF8String(s);
 		l  = s.length();
-		if(l>XAPIAN_TERM_SIZELIMIT) return;
+		if(l>hardlimit)
+		{
+			icu::UnicodeString * r = new icu::UnicodeString(*d,1);
+			add_stem(r);
+			delete(r);
+			r = new icu::UnicodeString(*d,0,d->length()-1);
+			add_stem(r);
+			delete(r);
+			return;
+		}
 
 		char * s2 = i_strdup(s.c_str());
  
@@ -729,7 +745,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		if(i>=HDRS_NB) return true;
 		const char * h=hdrs_xapian[i];
 		
-		XNGram * ngram = new XNGram(p,f,strcmp(h,"XMID")==0);
+		XNGram * ngram = new XNGram(p,f,h);
 	        ngram->add(data);
 	
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
@@ -809,13 +825,12 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 	
 		long n= doc2.termlist_count();
 		Xapian::TermIterator ti = doc2.termlist_begin();
-		XNGram * ngram = new XNGram(p,f,false);
+		XNGram * ngram = new XNGram(p,f,h);
 		while(n>0)
 		{
 			const std::string s = *ti;
 			if(s.compare(0,strlen(h),h)==0)
 			{
-//				if(verbose>1) i_info("Adding STEM %s",s.c_str());
 				ngram->add(s.c_str()+strlen(h));
 			}
 			ti++;
