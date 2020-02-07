@@ -823,20 +823,25 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 		termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
 		termgenerator.index_text(d, 1, h);
 	
-		long n= doc2.termlist_count();
+		long l = strlen(h);
+		long n = doc2.termlist_count();
 		Xapian::TermIterator ti = doc2.termlist_begin();
 		XNGram * ngram = new XNGram(p,f,h);
+		std::string s;
+		const char * c;
 		while(n>0)
 		{
-			const std::string s = *ti;
-			if(s.compare(0,strlen(h),h)==0)
+			s = *ti;
+			c=s.c_str();	
+			if(strncmp(c,h,l)==0)
 			{
-				ngram->add(s.c_str()+strlen(h));
+				ngram->add(c+l);
 			}
 			ti++;
 			n--;
 		}
 		if(verbose>1) i_info("NGRAM(%s,%s) %ld max=%ld",field,h,ngram->size,ngram->maxlength);
+
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
                 {
