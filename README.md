@@ -76,7 +76,7 @@ plugin {
 	plugin = fts fts_xapian (...)
 
 	fts = xapian
-	fts_xapian = partial=2 full=20 verbose=0
+	fts_xapian = partial=2 full=20 attachments=0 verbose=0
 
 	fts_autoindex = yes
 	fts_enforced = yes
@@ -85,11 +85,12 @@ plugin {
 (...)
 }
 ```
-note: 2 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
+Partial & full parameters : 2 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between is 2 and 20 chars long. Full words are also added by default.
 
 Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
+Set "attachments=1" if you want to index attachments (this works only for text attachments)
 
 Restart Dovecot:
 

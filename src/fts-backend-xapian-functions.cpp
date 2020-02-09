@@ -422,12 +422,15 @@ class XNGram
 		l  = s.length();
 		if(l>hardlimit)
 		{
+			if(verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%s ...)",s.substr(0,100).c_str());
+			/* this is indeed useless and timeconsuming 
 			icu::UnicodeString * r = new icu::UnicodeString(*d,1);
 			add_stem(r);
 			delete(r);
 			r = new icu::UnicodeString(*d,0,d->length()-1);
 			add_stem(r);
 			delete(r);
+			*/
 			return;
 		}
 
@@ -557,7 +560,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		if(verbose>1) i_info("FTS Xapian: check_read : no DB name");
+		if(verbose>1) i_warning("FTS Xapian: check_read : no DB name");
 		return false;
 	}
 
@@ -575,12 +578,12 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		}
 		catch(Xapian::Error e)
 		{
-			if(verbose>0) i_info("FTS Xapian: Tried to create an existing db '%s'",backend->db);
+			if(verbose>0) i_warning("FTS Xapian: Tried to create an existing db '%s'",backend->db);
 		}
 	}
 	try
 	{
-		if(verbose>1) i_info("Opening DB (RO) %s",backend->db);
+		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
                 backend->dbr = new Xapian::Database(backend->db); 
 	}
         catch(Xapian::Error e)
@@ -596,7 +599,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		if(verbose>1) i_info("FTS Xapian: check_write : no DB name");
+		if(verbose>1) i_warning("FTS Xapian: check_write : no DB name");
 		return false;
 	}
 
@@ -604,7 +607,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 
 	try
 	{
-		if(verbose>1) i_info("Opening DB (RW) %s",backend->db);
+		if(verbose>1) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
@@ -840,7 +843,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 			ti++;
 			n--;
 		}
-		if(verbose>1) i_info("NGRAM(%s,%s) %ld max=%ld",field,h,ngram->size,ngram->maxlength);
+		if(verbose>1) i_info("FTS Xapian: NGRAM(%s,%s) %ld max=%ld",field,h,ngram->size,ngram->maxlength);
 
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
@@ -873,7 +876,7 @@ static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct st
 {
 	if(typeflag == FTW_F)
 	{
-		if(verbose>1) i_info("FTS Xapian: Removing file %s",fpath);
+		if(verbose>0) i_info("FTS Xapian: Removing file %s",fpath);
 		remove(fpath);
 	}
 	return 0;
@@ -892,11 +895,11 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
 
                 try
                 {
-			if(verbose>1) i_info("FTS Xapian: Emptying %s",fpath);
+			if(verbose>0) i_info("FTS Xapian: Emptying %s",fpath);
                         Xapian::WritableDatabase db(fpath,Xapian::DB_CREATE_OR_OPEN);
 			db.close();
 			ftw(fpath,fts_backend_xapian_empty_db_remove,100);
-			if(verbose>1) i_info("FTS Xapian: Removing directory %s",fpath);
+			if(verbose>0) i_info("FTS Xapian: Removing directory %s",fpath);
 			rmdir(fpath);
                 }
                 catch(Xapian::Error e)

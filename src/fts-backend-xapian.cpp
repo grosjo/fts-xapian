@@ -31,8 +31,9 @@ struct xapian_fts_backend
         char * db;
 	Xapian::WritableDatabase * dbw;
 	Xapian::Database * dbr;
-        long partial,full;
+	long partial,full;
 	long nb_updates;
+	bool attachments;
 
 	long perf_pt;
 	long perf_nb;
@@ -67,17 +68,21 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	const char *const *tmp, *env;
 	unsigned int len;
 
-        backend->dbw = NULL;
-        backend->dbr = NULL;
-        backend->db = NULL;
-        backend->box = NULL;
+	backend->dbw = NULL;
+	backend->dbr = NULL;
+	backend->db = NULL;
+	backend->box = NULL;
 	backend->path = NULL;
 	backend->oldbox = NULL;
+	backend->attachments = false;
 	verbose = 0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
-	if (env == NULL)
-		return 0;
+	if (env == NULL) 
+	{
+		i_error("FTS Xapian: missing configuration");
+		return -1;
+	}
 
 	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
 	{
@@ -92,6 +97,10 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		else if (str_begins(*tmp, "verbose=") && (str_to_uint(*tmp + 8, &len)>=0))
 		{
 			if(len>0) verbose=len;
+		}
+		else if (str_begins(*tmp, "attachments=") && (str_to_uint(*tmp + 12, &len)>=0))
+		{
+			if(len>0) backend->attachments=true;
 		}
 		else 
 		{
@@ -132,6 +141,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
                 	return -1;
 		}
 	}
+
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d verbose=%d",backend->partial,backend->full,backend->attachments,verbose);
 
 	return 0;
 }
@@ -182,7 +193,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return -1;
 	}
-	if(verbose>1) i_info("Get last UID of %s = %d",backend->box->name,*last_uid_r);
+	if(verbose>1) i_info("FTS Xapian: Get last UID of %s = %d",backend->box->name,*last_uid_r);
         return 0;
 }
 
@@ -254,7 +265,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(backend->box == NULL)
 	{
-		i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
+		if(verbose>0) i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
 		return FALSE;
 	}
 
@@ -281,7 +292,26 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	/* End Performance calculator*/
 
 	const char * field=key->hdr_name;
+	const char * type = key->body_content_type;
+	const char * disposition = key->body_content_disposition;
 
+	if(verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+
+	// Verify content-type
+	if((type != NULL) && (strncmp(type,"text",4)!=0))
+	{
+		if(verbose>0) i_info("FTS Xapian: Skipping part of type '%s'",type);
+		return FALSE;
+	}
+
+	// Verify content-disposition
+	if((disposition != NULL) && (!backend->attachments) && (strstr(disposition,"filename=")!=NULL))
+	{
+		if(verbose>0) i_info("FTS Xapian: Skipping part of type '%s' and disposition '%s'",type,disposition);
+		return FALSE;
+	}
+
+	// Fill-in field
 	if(field==NULL)
 	{
 		field="body";
@@ -306,7 +336,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB) 
 	{ 
-		if(verbose>1) i_warning("FTS Xapian: Unknown header '%s'",ctx->tbi_field); 
+		if(verbose>1) i_info("FTS Xapian: Unknown header '%s'",ctx->tbi_field); 
 		i_free(ctx->tbi_field); 
 		ctx->tbi_field=NULL;
 		return FALSE; 
@@ -382,7 +412,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	{
 		fts_backend_xapian_oldbox(backend);
 		backend->oldbox = i_strdup(backend->box->name);
-		if(verbose>1) i_info("Start indexing '%s' (%s)",backend->box->name,backend->db);
+		if(verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->box->name,backend->db);
 	}
 
 	if(!fts_backend_xapian_check_write(backend))
@@ -411,7 +441,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
 	{
-		if(verbose>1) i_info("refreshing...");
+		if(verbose>1) i_info("FTS Xapian: Refreshing...");
 		fts_backend_xapian_refresh( ctx->ctx.backend);
 	}
     	
@@ -512,7 +542,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 struct fts_backend fts_backend_xapian = {
 	.name = "xapian",
-	.flags = FTS_BACKEND_FLAG_NORMALIZE_INPUT,
+	.flags = FTS_BACKEND_FLAG_BUILD_FULL_WORDS,
 	{
 		fts_backend_xapian_alloc,
 		fts_backend_xapian_init,
