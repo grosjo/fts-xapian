@@ -175,7 +175,12 @@ class XQuerySet
 		{
 			i++;
 		}
-		if(i>=HDRS_NB) { i_error("FTS Xapian: Unknown header '%s'",h2); i_free(h2); i_free(t2); return; }
+		if(i>=HDRS_NB)
+		{
+			i_error("FTS Xapian: Unknown header '%s'",h2);
+			i_free(h2); i_free(t2);
+			return;
+		}
 
                 if(has(h2,t2,true))
                 {
@@ -560,7 +565,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		if(verbose>1) i_warning("FTS Xapian: check_read : no DB name");
+		if(verbose>0) i_warning("FTS Xapian: check_read : no DB name");
 		return false;
 	}
 
@@ -599,7 +604,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 {
 	if((backend->db == NULL) || (strlen(backend->db)<1)) 
 	{
-		if(verbose>1) i_warning("FTS Xapian: check_write : no DB name");
+		if(verbose>0) i_warning("FTS Xapian: check_write : no DB name");
 		return false;
 	}
 

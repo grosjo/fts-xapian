@@ -66,7 +66,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 	const char *const *tmp, *env;
-	unsigned int len;
+	long len;
 
 	backend->dbw = NULL;
 	backend->dbr = NULL;
@@ -76,6 +76,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->oldbox = NULL;
 	backend->attachments = false;
 	verbose = 0;
+	backend->partial = 0;
+	backend->full = 0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL) 
@@ -86,21 +88,24 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
 	{
-        	if (str_begins(*tmp, "partial=") && (str_to_uint(*tmp + 8, &len)>=0))
+        	if (strncmp(*tmp, "partial=",8)==0)
 		{
-			backend->partial=len;
+			len=atol(*tmp + 8);
+			if(len>0) backend->partial=len;
 		}
-        	else if (str_begins(*tmp, "full=") && (str_to_uint(*tmp + 5, &len)>=0))
+        	else if (strncmp(*tmp,"full=",5)==0)
 		{
-			backend->full=len;
+			len=atol(*tmp + 5);
+			if(len>0) backend->full=len;
 		}
-		else if (str_begins(*tmp, "verbose=") && (str_to_uint(*tmp + 8, &len)>=0))
+		else if (strncmp(*tmp,"verbose=",8)==0)
 		{
+			len=atol(*tmp + 8);
 			if(len>0) verbose=len;
 		}
-		else if (str_begins(*tmp, "attachments=") && (str_to_uint(*tmp + 12, &len)>=0))
+		else if (strncmp(*tmp,"attachments=",12)==0)
 		{
-			if(len>0) backend->attachments=true;
+			if(atol(*tmp + 12)>0) backend->attachments=true;
 		}
 		else 
 		{
