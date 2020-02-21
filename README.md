@@ -68,8 +68,6 @@ The module will be placed into the module directory of your dovecot configuratio
 Update your dovecot.conf file with something similar to:
 
 ```
-default_vsz_limit = 2GB // or above
-
 mail_plugins = fts fts_xapian (...)
 
 (...)
@@ -95,6 +93,13 @@ Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., j
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
 Set "attachments=1" if you want to index attachments (this works only for text attachments)
 
+
+If you face memory issues, you may set :
+```
+service indexer-worker {
+vsz_limit = 0
+}
+```
 Restart Dovecot:
 
 ```
