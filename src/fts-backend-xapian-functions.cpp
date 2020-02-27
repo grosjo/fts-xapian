@@ -381,10 +381,6 @@ class XNGram
 		}
 
 		d->trim();
-		long l = d->length();
-
-		if(l<partial) return;
-
 		i = d->indexOf(" ");
 
 		if(i>0)
@@ -394,8 +390,10 @@ class XNGram
 			delete(r);
 			d->truncate(i);
 			d->trim();
-			l=d->length();
 		}
+	
+		long l = d->length();
+		if(l<partial) return;
 
 		if(onlyone)
 		{
@@ -418,7 +416,6 @@ class XNGram
 	void add_stem(icu::UnicodeString *d)
 	{
 		d->trim();
-		
 		long l=d->length();
 		if(l<partial) return;
 
@@ -428,14 +425,6 @@ class XNGram
 		if(l>hardlimit)
 		{
 			if(verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%s ...)",s.substr(0,100).c_str());
-			/* this is indeed useless and timeconsuming 
-			icu::UnicodeString * r = new icu::UnicodeString(*d,1);
-			add_stem(r);
-			delete(r);
-			r = new icu::UnicodeString(*d,0,d->length()-1);
-			add_stem(r);
-			delete(r);
-			*/
 			return;
 		}
 
@@ -716,8 +705,21 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
     	return set;
 }
 
-bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, const char* data,long p, long f)
+bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, icu::UnicodeString* data,long p, long f)
 {
+	if(data->length()<p) { return true; }
+
+	if(strlen(field)<1) { return true; }
+
+	long i=0;
+	while((i<HDRS_NB) && (strcmp(field,hdrs_emails[i])!=0))
+	{
+		i++;
+	}
+	if(i>=HDRS_NB) return true;
+
+	const char * h=hdrs_xapian[i];
+
 	try
 	{
 		XQuerySet * xq = new XQuerySet();
@@ -743,16 +745,6 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		delete(result);
 		delete(xq);
 	
-		if(strlen(field)<1) { return true; }
-		long i=0;
-		while((i<HDRS_NB) && (strcmp(field,hdrs_emails[i])!=0))
-		{
-			i++;
-		}
-
-		if(i>=HDRS_NB) return true;
-		const char * h=hdrs_xapian[i];
-		
 		XNGram * ngram = new XNGram(p,f,h);
 	        ngram->add(data);
 	
@@ -784,8 +776,10 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	return false;
 }
 
-bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, const char * data,long p, long f)
+bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, icu::UnicodeString * data,long p, long f)
 {
+	if(data->length()<p) { return true; }
+
 	try
         {
 		XQuerySet * xq = new XQuerySet();
@@ -827,15 +821,15 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 		{
 			h="XBDY";
 		}
-		std::string d(data);
+		std::string s;
+		data->toUTF8String(s);
 		termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
-		termgenerator.index_text(d, 1, h);
+		termgenerator.index_text(s, 1, h);
 	
 		long l = strlen(h);
 		long n = doc2.termlist_count();
 		Xapian::TermIterator ti = doc2.termlist_begin();
 		XNGram * ngram = new XNGram(p,f,h);
-		std::string s;
 		const char * c;
 		while(n>0)
 		{

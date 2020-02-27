@@ -310,7 +310,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 
 	// Verify content-disposition
-	if((disposition != NULL) && (!backend->attachments) && (strstr(disposition,"filename=")!=NULL))
+	if((disposition != NULL) && (!backend->attachments) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
 	{
 		if(verbose>0) i_info("FTS Xapian: Skipping part of type '%s' and disposition '%s'",type,disposition);
 		return FALSE;
@@ -346,6 +346,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		ctx->tbi_field=NULL;
 		return FALSE; 
 	}
+
+//	if(verbose>0) { i_info("FTS Xapian: Indexing FIELD=%s TYPE=%s DESC=%s",field,type,disposition); }
 
 	switch (key->type)
 	{
@@ -411,7 +413,9 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(ctx->tbi_uid<1) return 0;
 
 	if(data == NULL) return 0;
-	if(size<1) return 0;
+	icu::StringPiece sp_d((const char *)data,(int32_t )size);
+	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
+	if(d2.length() < backend->partial) return 0;
 
 	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
 	{
@@ -426,22 +430,16 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		return -1;
 	}
 
-	char * s = (char*)i_malloc(sizeof(char)*(size+1));
-	strncpy(s,(char *)data,size);
-	s[size]=0;
-
 	bool ok=true;
 
     	if(ctx->tbi_isfield)
     	{
-        	ok=fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full);
+        	ok=fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, &d2, backend->partial,backend->full);
     	}
     	else
     	{
-		ok=fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, s, backend->partial,backend->full);
+		ok=fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, &d2, backend->partial,backend->full);
     	}
-
-	i_free(s);
 
 	backend->nb_updates++;
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)

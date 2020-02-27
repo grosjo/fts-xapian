@@ -96,6 +96,8 @@ Set "attachments=1" if you want to index attachments (this works only for text a
 
 If you face memory issues, you may set :
 ```
+default_vsz_limit = 0
+
 service indexer-worker {
 vsz_limit = 0
 }
