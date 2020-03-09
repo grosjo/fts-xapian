@@ -16,7 +16,7 @@ Prerequisites
 You are going to need the following things to get this going:
 
 ```
-* Dovecot above 2.2.x (or above)
+* Dovecot 2.2.x (or above)
 * Xapian 1.4.x (or above)
 * ICU 60.x (or above)
 ```

@@ -509,9 +509,6 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct mailbox *box)
 {
-
-	fts_backend_xapian_unset_box(backend);
-
 	if (box == NULL)
 	{
                 return 0;

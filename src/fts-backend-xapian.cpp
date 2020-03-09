@@ -157,13 +157,14 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 
+	if(verbose>0) i_info("Deinit %s",backend->path);
+
 	fts_backend_xapian_unset_box(backend);
 
 	if(backend->oldbox != NULL) i_free(backend->oldbox);
 	backend->oldbox = NULL;
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
-
 	i_free(backend);
 }
 
@@ -198,7 +199,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return -1;
 	}
-	if(verbose>1) i_info("FTS Xapian: Get last UID of %s = %d",backend->box->name,*last_uid_r);
+	if(verbose>0) i_info("FTS Xapian: Get last UID of %s = %d",backend->box->name,*last_uid_r);
         return 0;
 }
 
@@ -216,10 +217,13 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 {
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
+	struct xapian_fts_backend *backend =
+		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	ctx->ctx.backend = NULL;
+	if(verbose>0) i_info("Update deinit %s",backend->path);
 
 	i_free(ctx);
+
 	return 0;
 }
 
@@ -246,15 +250,20 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 		return ;
 	}
 
+	if(verbose>0) i_info("FTS Xapian: Expunge UID=%d from %s",uid,backend->box->name);
+
     	try
 	{
 		const char * s = t_strdup_printf("Q%d",uid);
         	backend->dbw->delete_document(s);
+//		backend->dbw->commit();
 	}
 	catch(Xapian::Error e)
 	{
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 	}
+	
+	if(verbose>0) i_info("FTS Xapian: Expunge UID=%d from %s done",uid,backend->box->name);
 }
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
