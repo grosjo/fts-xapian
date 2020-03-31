@@ -15,7 +15,7 @@ extern "C" {
 #define XAPIAN_WILDCARD "wldcrd"
 
 #define HDRS_NB 9
-static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "message-id", "body", ""  };
+static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",       "XBDY", "XBDY" }; 
 
 static int verbose = 0;
@@ -27,8 +27,10 @@ struct xapian_fts_backend
 
         struct mailbox *box;
 	char * oldbox;
+	char * oldbox_name;
 
-        char * db;
+	char * db;
+	char * guid;
 	Xapian::WritableDatabase * dbw;
 	Xapian::Database * dbr;
 	long partial,full;
@@ -74,6 +76,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->box = NULL;
 	backend->path = NULL;
 	backend->oldbox = NULL;
+	backend->oldbox_name = NULL;
 	backend->attachments = false;
 	verbose = 0;
 	backend->partial = 0;
@@ -157,12 +160,14 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 
-	if(verbose>0) i_info("Deinit %s",backend->path);
+	if(verbose>1) i_info("Deinit %s",backend->path);
 
 	fts_backend_xapian_unset_box(backend);
 
 	if(backend->oldbox != NULL) i_free(backend->oldbox);
 	backend->oldbox = NULL;
+	if(backend->oldbox_name != NULL) i_free(backend->oldbox_name);
+	backend->oldbox_name = NULL;
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
 	i_free(backend);
@@ -199,7 +204,9 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return -1;
 	}
-	if(verbose>0) i_info("FTS Xapian: Get last UID of %s = %d",backend->box->name,*last_uid_r);
+
+	if(verbose>0) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->box->name,backend->guid,*last_uid_r);
+
         return 0;
 }
 
@@ -220,7 +227,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(verbose>0) i_info("Update deinit %s",backend->path);
+	if(verbose>1) i_info("Update deinit %s",backend->path);
 
 	i_free(ctx);
 
@@ -250,17 +257,23 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 		return ;
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Expunge UID=%d from %s",uid,backend->box->name);
-
     	try
 	{
-		const char * s = t_strdup_printf("Q%d",uid);
-        	backend->dbw->delete_document(s);
-//		backend->dbw->commit();
+		XQuerySet * xq = new XQuerySet();
+
+		const char *u = t_strdup_printf("%d",uid);
+		xq->add("uid",u);
+		XResultSet * result=fts_backend_xapian_query(backend->dbw,xq,1);
+
+		Xapian::docid docid=result->data[0];
+		if(verbose>0) i_info("FTS Xapian: UID=%d -> Docid=%d",uid,docid);
+		backend->dbw->delete_document(docid);
+		delete(result);
+		delete(xq);
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		i_error("FTS Xapian: (deleting) %s",e.get_msg().c_str());
 	}
 	
 	if(verbose>0) i_info("FTS Xapian: Expunge UID=%d from %s done",uid,backend->box->name);
@@ -281,6 +294,14 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	{
 		if(verbose>0) i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
 		return FALSE;
+	}
+
+	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->guid)!=0))
+        {
+		fts_backend_xapian_oldbox(backend);
+		backend->oldbox = i_strdup(backend->guid);
+		backend->oldbox_name = i_strdup(backend->box->name);
+		if(verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->box->name,backend->guid);
 	}
 
 	/* Performance calculator*/
@@ -335,7 +356,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	std::string f2;
 	while(i<j)
 	{
-		if((field[i]>' ') && (field[i]!='"') && (field[i]!='\''))
+		if((field[i]>' ') && (field[i]!='"') && (field[i]!='\'') && (field[i]!='-'))
 		{
 			f2+=tolower(field[i]);
 		}
@@ -355,8 +376,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		ctx->tbi_field=NULL;
 		return FALSE; 
 	}
-
-//	if(verbose>0) { i_info("FTS Xapian: Indexing FIELD=%s TYPE=%s DESC=%s",field,type,disposition); }
 
 	switch (key->type)
 	{
@@ -390,18 +409,11 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 
 static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 {
-
         struct xapian_fts_backend *backend =
                 (struct xapian_fts_backend *) _backend;
 
-        if(backend->dbw !=NULL)
-        {
-                backend->dbw->commit();
-		backend->dbw->close();
-                delete(backend->dbw);
-                backend->dbw=NULL;
-                backend->nb_updates=0;
-        }
+	fts_backend_xapian_commit(backend,"refresh");
+        
         if(backend->dbr !=NULL)
         {
 		backend->dbr->close();
@@ -422,16 +434,10 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(ctx->tbi_uid<1) return 0;
 
 	if(data == NULL) return 0;
+
 	icu::StringPiece sp_d((const char *)data,(int32_t )size);
 	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
 	if(d2.length() < backend->partial) return 0;
-
-	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->box->name)!=0))
-	{
-		fts_backend_xapian_oldbox(backend);
-		backend->oldbox = i_strdup(backend->box->name);
-		if(verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->box->name,backend->db);
-	}
 
 	if(!fts_backend_xapian_check_write(backend))
 	{
@@ -485,6 +491,8 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	if(fts_backend_xapian_set_box(backend, box)<0)
 		return -1;
 
+	fts_backend_xapian_commit(backend,"lookup");
+
 	if(!fts_backend_xapian_check_read(backend))
         {
                 i_error("FTS Xapian: Lookup: Can not open db RO");
@@ -495,13 +503,6 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	struct timeval tp;
         gettimeofday(&tp, NULL);
         long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-
-	if(backend->dbw !=NULL)
-        {
-		if(verbose>1) i_info("FTS Xapian: Committing changes %s",backend->box->name);
-                backend->dbw->commit();
-	}
 
 	bool is_and=false;
 
@@ -550,7 +551,24 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	return 0;
 }
 
- 
+static int fts_backend_xapian_lookup_multi (struct fts_backend *_backend, struct mailbox *const boxes[], struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_multi_result *result)
+{
+	struct xapian_fts_backend *backend =
+                (struct xapian_fts_backend *) _backend;
+
+	ARRAY(struct fts_result) box_results;
+	struct fts_result *box_result;
+	int i;
+
+	p_array_init(&box_results, result->pool, 0);
+	for (i = 0; boxes[i] != NULL; i++) 
+	{
+		box_result = array_append_space(&box_results);
+		box_result->box = boxes[i];
+		if(fts_backend_xapian_lookup(_backend, boxes[i], args, flags, box_result)<1) return -1;
+	}
+	return 0;
+}
 
 struct fts_backend fts_backend_xapian = {
 	.name = "xapian",
@@ -572,7 +590,7 @@ struct fts_backend fts_backend_xapian = {
 		NULL,
 		fts_backend_default_can_lookup,
 		fts_backend_xapian_lookup,
-		NULL,
+		fts_backend_xapian_lookup_multi,
         	NULL
 	}
 };

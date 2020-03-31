@@ -59,9 +59,8 @@ class XQuerySet
 
 	~XQuerySet()
         {
-                if(text!=NULL) i_free(text);
-                if(header!=NULL) i_free(header);
-                text=NULL; header=NULL;
+                if(text!=NULL) { i_free(text); text=NULL; }
+                if(header!=NULL) { i_free(header); header=NULL; }
 
                 for(long j=0;j<qsize;j++)
                 {
@@ -302,7 +301,7 @@ class XQuerySet
 
 		qp->set_database(*db);
 	
-		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_DEFAULT | Xapian::QueryParser::FLAG_PARTIAL));
+		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_DEFAULT));// | Xapian::QueryParser::FLAG_PARTIAL));
                 
 		i_free(s);
                 delete(qp);
@@ -459,23 +458,42 @@ class XNGram
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-        if(backend->oldbox != NULL)
-        {
+	if(backend->oldbox != NULL)
+	{
 		/* Performance calculator*/
-        	struct timeval tp;
-        	gettimeofday(&tp, NULL);
-        	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
 		double r=0;
 		if(dt>0)
 		{
 			r=backend->perf_nb*1000.0;
 			r=r/dt;
 		}
-        	/* End Performance calculator*/
-	
-                if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox,backend->perf_nb,dt,r);
-                i_free(backend->oldbox);
-                backend->oldbox=NULL;
+		/* End Performance calculator*/
+                
+		if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox_name, backend->oldbox,backend->perf_nb,dt,r);
+		i_free(backend->oldbox); backend->oldbox = NULL;
+		i_free(backend->oldbox_name); backend->oldbox_name = NULL;
+        }
+}
+
+static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const char * reason)
+{
+	if(backend->dbw !=NULL)
+        {
+                try
+                {
+                        backend->dbw->commit();
+                        backend->dbw->close();
+                }
+                catch(Xapian::Error e)
+                {
+                        i_error("FTS Xapian: (%s) %s",reason, e.get_msg().c_str());
+                }
+                delete(backend->dbw);
+                backend->dbw=NULL;
+		backend->nb_updates=0;
         }
 }
 
@@ -487,17 +505,12 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	if(backend->db != NULL) 
 	{
-		i_free(backend->db);
-		backend->db = NULL;
+		i_free(backend->db); backend->db = NULL;
+		i_free(backend->guid); backend->guid = NULL;
 	}
 
-	if(backend->dbw !=NULL)
-	{
-		backend->dbw->commit();
-		backend->dbw->close();
-		delete(backend->dbw);
-		backend->dbw=NULL;
-	}
+	fts_backend_xapian_commit(backend,"unset");
+	
 	if(backend->dbr !=NULL)
         {
 		backend->dbr->close();
@@ -511,16 +524,10 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 {
 	if (box == NULL)
 	{
+		fts_backend_xapian_unset_box(backend);
+		if(verbose>1) i_info("FTS Xapian: Box is empty");
                 return 0;
 	}
-
-	if(box==backend->box)
-	{
-		if(verbose>1) i_info("FTS Xapian: Box is unchanged");
-		return 0;
-	}
-
-	fts_backend_xapian_unset_box(backend);
 
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
@@ -531,9 +538,18 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		return -1;
 	}
 
+	if((backend->guid != NULL) && (strcmp(mb,backend->guid)==0))
+	{
+		if(verbose>1) i_info("FTS Xapian: Box is unchanged");
+		return 0;
+	}
+
+	fts_backend_xapian_unset_box(backend);
+
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
 	backend->box = box;
 	backend->nb_updates=0;
+	backend->guid = i_strdup(mb);
 
 	 /* Performance calculator*/
         struct timeval tp;
@@ -575,7 +591,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	try
 	{
 		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
-                backend->dbr = new Xapian::Database(backend->db); 
+		backend->dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN); 
 	}
         catch(Xapian::Error e)
         {
@@ -723,7 +739,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
         	const char *u = t_strdup_printf("%d",uid);
         	xq->add("uid",u);
 
-        	XResultSet *result=fts_backend_xapian_query(dbx,xq,1);
+        	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
 
 		Xapian::docid docid;
 		Xapian::Document doc;
