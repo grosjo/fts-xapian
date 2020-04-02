@@ -1,6 +1,7 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
 #include <xapian.h>
+#include <sqlite3.h>
 #include <cstdio>
 extern "C" {
 #include "fts-xapian-plugin.h"
@@ -13,6 +14,7 @@ extern "C" {
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_LIMIT 1000
 #define XAPIAN_WILDCARD "wldcrd"
+#define XAPIAN_EXPUNGE_SIZE 4
 
 #define HDRS_NB 9
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "body", ""  };
@@ -24,23 +26,34 @@ struct xapian_fts_backend
 {
         struct fts_backend backend;
         char * path;
+	long partial,full;
+	bool attachments;
 
         struct mailbox *box;
+	char * guid;
+	char * db;
+
 	char * oldbox;
 	char * oldbox_name;
 
-	char * db;
-	char * guid;
-	Xapian::WritableDatabase * dbw;
 	Xapian::Database * dbr;
-	long partial,full;
+
+	Xapian::WritableDatabase * dbw;
 	long nb_updates;
-	bool attachments;
+
+	sqlite3 * dbexpunge;
 
 	long perf_pt;
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
+};
+
+struct xapian_fts_expunge
+{
+	Xapian::docid did[XAPIAN_EXPUNGE_SIZE];
+	long uid[XAPIAN_EXPUNGE_SIZE];
+	int index;
 };
 
 struct xapian_fts_backend_update_context
@@ -116,6 +129,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
             		return -1;
         	}
     	}
+
     	if(backend->partial < 2)
     	{
         	i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=2'",backend->partial);
@@ -174,8 +188,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 }
 
 
-static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend,
-			       struct mailbox *box, uint32_t *last_uid_r)
+static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct mailbox *box, uint32_t *last_uid_r)
 {
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
@@ -251,7 +264,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(!fts_backend_xapian_check_write(backend))
+	if(!fts_backend_xapian_check_read(backend))
 	{
 		i_error("FTS Xapian: Expunge UID=%d: Can not open db",uid);
 		return ;
@@ -259,15 +272,20 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
     	try
 	{
-		XQuerySet * xq = new XQuerySet();
+		if(verbose>0) i_info("FTS Xapian: Expunge UID=%d",uid);
 
+		XQuerySet * xq = new XQuerySet();
 		const char *u = t_strdup_printf("%d",uid);
 		xq->add("uid",u);
-		XResultSet * result=fts_backend_xapian_query(backend->dbw,xq,1);
 
-		Xapian::docid docid=result->data[0];
-		if(verbose>0) i_info("FTS Xapian: UID=%d -> Docid=%d",uid,docid);
-		backend->dbw->delete_document(docid);
+		XResultSet * result=fts_backend_xapian_query(backend->dbr,xq,1);
+		
+		if(result->size>0)
+		{
+			Xapian::docid docid=result->data[0];
+			if(docid>0) fts_backend_xapian_add_expunge(backend,docid,uid);
+		}
+
 		delete(result);
 		delete(xq);
 	}
@@ -275,8 +293,6 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	{
 		i_error("FTS Xapian: (deleting) %s",e.get_msg().c_str());
 	}
-	
-	if(verbose>0) i_info("FTS Xapian: Expunge UID=%d from %s done",uid,backend->box->name);
 }
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)

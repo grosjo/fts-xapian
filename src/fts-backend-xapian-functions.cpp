@@ -456,6 +456,30 @@ class XNGram
 };
 
 
+static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
+{
+	if((backend->db == NULL) || (strlen(backend->db)<1))
+	{
+		if(verbose>0) i_warning("FTS Xapian: check_write : no DB name");
+		return false;
+	}
+
+	if(backend->dbw != NULL) return true;
+
+	try
+	{
+		if(verbose>1) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
+		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
+	}
+	catch(Xapian::Error e)
+	{
+		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
+		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		return false;
+	}
+	return true;
+}
+
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
 	if(backend->oldbox != NULL)
@@ -473,15 +497,34 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		/* End Performance calculator*/
                 
 		if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox_name, backend->oldbox,backend->perf_nb,dt,r);
+
 		i_free(backend->oldbox); backend->oldbox = NULL;
 		i_free(backend->oldbox_name); backend->oldbox_name = NULL;
         }
+}
+
+static void fts_backend_xapian_add_expunge(struct xapian_fts_backend *backend, Xapian::docid docid, unsigned int uid)
+{
+	char *zErrMsg = 0;
+
+	char * sql = i_strdup_printf("REPLACE INTO IDS (DOCID,ID) VALUES (%d,%d);",docid,uid);
+
+	if(verbose>0) i_info("FTS Xapian: adding expunge IDs : %s",sql);
+
+	int rc = sqlite3_exec(backend->dbexpunge, sql, 0, 0, &zErrMsg);
+	if(rc != SQLITE_OK)
+	{
+		i_error("FTS Xapian: adding expunge IDs (%s) : err(%d,%s)",sql,rc,zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	i_free(sql);
 }
 
 static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const char * reason)
 {
 	if(backend->dbw !=NULL)
         {
+		if(verbose>0) i_info("FTS Xapian: Commiting (%s)",reason);
                 try
                 {
                         backend->dbw->commit();
@@ -497,9 +540,75 @@ static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const 
         }
 }
 
+static int fts_backend_xapian_expunge_callback(void *data, int argc, char **argv, char **azColName)
+{
+	struct xapian_fts_expunge * xfe = (struct xapian_fts_expunge *)data;
+
+	xfe->did[xfe->index]=atoi(argv[0]);
+	xfe->uid[xfe->index]=atoi(argv[1]);
+	xfe->index++;
+
+	return 0;
+}
+
+static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend)
+{
+	if(backend->dbexpunge == NULL) return;
+
+	Xapian::docid d;
+	long u;
+	struct xapian_fts_expunge xfe;
+	int i,rc;
+	char *zErrMsg = 0;
+
+	xfe.index=0;
+	i=XAPIAN_EXPUNGE_SIZE;
+
+	char * sql = i_strdup_printf("SELECT DOCID,ID from IDS LIMIT %d",i);
+
+	rc = sqlite3_exec(backend->dbexpunge, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
+	if( rc != SQLITE_OK )
+	{
+		i_error("FTS Xapian: Error in expunge fct (%s) : %s",sql,zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	i_free(sql);
+
+	if(xfe.index <1) return;
+
+	if(!fts_backend_xapian_check_write(backend)) return;
+
+	for(i=0;i<xfe.index;i++)
+	{
+		d = xfe.did[i];
+		u = xfe.uid[i];
+
+		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%d (Docid=%d)",u,d);
+		try
+		{
+			backend->dbw->delete_document(d);
+		}
+		catch(Xapian::Error e)
+		{
+			if(verbose>0) i_info("FTS Xapian: Can not delete document %d",d);
+		}
+		
+		sql = i_strdup_printf("DELETE FROM IDS WHERE DOCID=%d",d);
+		rc = sqlite3_exec(backend->dbexpunge, sql, 0 ,0, &zErrMsg);
+		if( rc != SQLITE_OK )
+		{
+			i_error("FTS Xapian: Error in cleaning expunge (%s): %s",sql,zErrMsg);
+			sqlite3_free(zErrMsg);
+		}
+		i_free(sql);
+	}
+}
+
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	fts_backend_xapian_oldbox(backend);
+
+	fts_backend_xapian_expunge(backend);
 
 	backend->box = NULL;
 
@@ -516,6 +625,12 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 		backend->dbr->close();
                 delete(backend->dbr);
 		backend->dbr = NULL;
+	}
+
+	if(backend->dbexpunge != NULL)
+	{
+		sqlite3_close(backend->dbexpunge);
+		backend->dbexpunge = NULL;
 	}
 	return 0;
 }
@@ -550,6 +665,29 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->box = box;
 	backend->nb_updates=0;
 	backend->guid = i_strdup(mb);
+	
+	/* Expunge DB */
+	char * ename = i_strdup_printf("%s/expunge_%s",backend->path,mb);
+        char *zErrMsg = 0;
+        struct stat sb;
+        bool exists = ( (stat(ename, &sb)==0) && S_ISREG(sb.st_mode) );
+
+        int rc = sqlite3_open(ename, &(backend->dbexpunge));
+        if(rc != SQLITE_OK)
+        {
+                i_error("FTS Xapian: Can not open expunge db of '%s' (%s)",box->name,mb);
+        }
+
+        if(!exists)
+        {
+		if(verbose>0) i_info("FTS Xapian: Creating expunge database : %s",ename);
+                rc = sqlite3_exec(backend->dbexpunge, "CREATE TABLE IDS (DOCID UNSIGNED BIG INT PRIMARY KEY NOT NULL, ID UNSIGNED BIG INT NOT NULL)", 0, 0, &zErrMsg);
+                if( rc != SQLITE_OK )
+                {
+                        i_error("FTS Xapian: Error in expunge file : %s",zErrMsg);
+                        sqlite3_free(zErrMsg);
+                }
+        }
 
 	 /* Performance calculator*/
         struct timeval tp;
@@ -602,29 +740,6 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
         return true;
 }
 
-static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
-{
-	if((backend->db == NULL) || (strlen(backend->db)<1)) 
-	{
-		if(verbose>0) i_warning("FTS Xapian: check_write : no DB name");
-		return false;
-	}
-
-	if(backend->dbw != NULL) return true;
-
-	try
-	{
-		if(verbose>1) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
-		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
-	}
-	catch(Xapian::Error e)
-        {
-		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
-                i_error("FTS Xapian: %s",e.get_msg().c_str());
-                return false;
-        }
-	return true;	
-}
 
 
 static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *a)
