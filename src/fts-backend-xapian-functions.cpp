@@ -473,7 +473,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->box->name,backend->db);
+		i_error("FTS Xapian: Can't open RW index (%s) %s",backend->boxname,backend->db);
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return false;
 	}
@@ -482,7 +482,7 @@ static bool fts_backend_xapian_check_write(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-	if(backend->oldbox != NULL)
+	if(backend->old_guid != NULL)
 	{
 		/* Performance calculator*/
 		struct timeval tp;
@@ -496,10 +496,10 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
 		/* End Performance calculator*/
                 
-		if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->oldbox_name, backend->oldbox,backend->perf_nb,dt,r);
+		if(verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->perf_nb,dt,r);
 
-		i_free(backend->oldbox); backend->oldbox = NULL;
-		i_free(backend->oldbox_name); backend->oldbox_name = NULL;
+		i_free(backend->old_guid); backend->old_guid = NULL;
+		i_free(backend->old_boxname); backend->old_boxname = NULL;
         }
 }
 
@@ -511,7 +511,7 @@ static void fts_backend_xapian_add_expunge(struct xapian_fts_backend *backend, X
 
 	if(verbose>0) i_info("FTS Xapian: adding expunge IDs : %s",sql);
 
-	int rc = sqlite3_exec(backend->dbexpunge, sql, 0, 0, &zErrMsg);
+	int rc = sqlite3_exec(backend->db_expunge, sql, 0, 0, &zErrMsg);
 	if(rc != SQLITE_OK)
 	{
 		i_error("FTS Xapian: adding expunge IDs (%s) : err(%d,%s)",sql,rc,zErrMsg);
@@ -520,12 +520,83 @@ static void fts_backend_xapian_add_expunge(struct xapian_fts_backend *backend, X
 	i_free(sql);
 }
 
+static int fts_backend_xapian_hold(struct xapian_fts_backend * backend, const char * boxname, const char * mb )
+{
+	char *zErrMsg = 0;
+        struct stat sb;
+
+	backend->guid = NULL;
+	backend->db = NULL;
+	backend->nb_updates=0;
+	backend->boxname = NULL;
+	backend->db_expunge = NULL;
+
+	/* Performance calculator*/
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	backend->perf_dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	backend->perf_uid=0;
+	backend->perf_nb=0;
+	backend->perf_pt=0;
+	/* End Performance calculator*/
+
+
+        char * ename = i_strdup_printf("%s/expunge_%s",backend->path,mb);
+        bool exists = ( (stat(ename, &sb)==0) && S_ISREG(sb.st_mode) );
+
+        int rc = sqlite3_open(ename, &(backend->db_expunge));
+        if(rc != SQLITE_OK)
+        {
+                i_error("FTS Xapian: Can not open expunge db '%s' for box '%s'",ename,boxname);
+                backend->db_expunge = NULL;
+		i_free(ename);
+		return -1;
+        }
+        else if(!exists)
+        {
+                if(verbose>0) i_info("FTS Xapian: Creating expunge database : %s",ename);
+
+                rc = sqlite3_exec(backend->db_expunge, "CREATE TABLE IDS (DOCID UNSIGNED BIG INT PRIMARY KEY NOT NULL, ID UNSIGNED BIG INT NOT NULL)", 0, 0, &zErrMsg);
+                if( rc != SQLITE_OK )
+                {
+                        i_error("FTS Xapian: Error in expunge file : %s",zErrMsg);
+                        sqlite3_free(zErrMsg);
+			i_free(ename);
+			return -1;
+                }
+        }
+
+	backend->guid = i_strdup(mb);
+	backend->boxname = i_strdup(boxname);
+        backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
+
+	i_free(ename);
+	return 0;
+}
+
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason)
+{
+        if(backend->dbr !=NULL)
+        {
+                backend->dbr->close();
+                delete(backend->dbr);
+                backend->dbr = NULL;
+        }
+}
+
 static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const char * reason)
 {
+	struct timeval tp;
+	long dt;
+
 	if(backend->dbw !=NULL)
         {
-		if(verbose>0) i_info("FTS Xapian: Commiting (%s)",reason);
-                try
+		if(verbose>0)
+		{
+                	gettimeofday(&tp, NULL);
+                	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+                }
+		try
                 {
                         backend->dbw->commit();
                         backend->dbw->close();
@@ -537,6 +608,12 @@ static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const 
                 delete(backend->dbw);
                 backend->dbw=NULL;
 		backend->nb_updates=0;
+		if(verbose>0)
+		{
+			gettimeofday(&tp, NULL);
+			dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
+			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,dt);
+		}
         }
 }
 
@@ -551,9 +628,13 @@ static int fts_backend_xapian_expunge_callback(void *data, int argc, char **argv
 	return 0;
 }
 
-static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend)
+static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const char * reason)
 {
-	if(backend->dbexpunge == NULL) return;
+	if(backend->db_expunge == NULL) 
+	{
+		if(verbose>0) i_info("FTS Xapian: Expunge on an empty box (%s)",reason);
+		return;
+	}
 
 	Xapian::docid d;
 	long u;
@@ -564,12 +645,12 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend)
 	xfe.index=0;
 	i=XAPIAN_EXPUNGE_SIZE;
 
-	char * sql = i_strdup_printf("SELECT DOCID,ID from IDS LIMIT %d",i);
+	char * sql = i_strdup_printf("SELECT DOCID,ID from IDS ORDER BY DOCID LIMIT %d",i);
 
-	rc = sqlite3_exec(backend->dbexpunge, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
+	rc = sqlite3_exec(backend->db_expunge, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
 	if( rc != SQLITE_OK )
 	{
-		i_error("FTS Xapian: Error in expunge fct (%s) : %s",sql,zErrMsg);
+		i_error("FTS Xapian: Error in expunge fct (%s) (%s) : %s",sql,zErrMsg,reason);
 		sqlite3_free(zErrMsg);
 	}
 	i_free(sql);
@@ -583,18 +664,18 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend)
 		d = xfe.did[i];
 		u = xfe.uid[i];
 
-		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%d (Docid=%d)",u,d);
+		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%d (Docid=%d) (%s)",u,d,reason);
 		try
 		{
 			backend->dbw->delete_document(d);
 		}
 		catch(Xapian::Error e)
 		{
-			if(verbose>0) i_info("FTS Xapian: Can not delete document %d",d);
+			if(verbose>0) i_info("FTS Xapian: Can not delete document %d (%s)",d,reason);
 		}
 		
 		sql = i_strdup_printf("DELETE FROM IDS WHERE DOCID=%d",d);
-		rc = sqlite3_exec(backend->dbexpunge, sql, 0 ,0, &zErrMsg);
+		rc = sqlite3_exec(backend->db_expunge, sql, 0 ,0, &zErrMsg);
 		if( rc != SQLITE_OK )
 		{
 			i_error("FTS Xapian: Error in cleaning expunge (%s): %s",sql,zErrMsg);
@@ -606,32 +687,33 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend)
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
+	if(verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
+
 	fts_backend_xapian_oldbox(backend);
 
-	fts_backend_xapian_expunge(backend);
+	fts_backend_xapian_release(backend,"unset_box");
+	
+	fts_backend_xapian_expunge(backend,"unset_box");
 
-	backend->box = NULL;
+	fts_backend_xapian_commit(backend,"unset_box");
 
 	if(backend->db != NULL) 
 	{
-		i_free(backend->db); backend->db = NULL;
-		i_free(backend->guid); backend->guid = NULL;
+		i_free(backend->db);
+		backend->db = NULL;
+		
+		i_free(backend->guid);
+		backend->guid = NULL;
+		
+		i_free(backend->boxname);
+		backend->boxname = NULL;
 	}
-
-	fts_backend_xapian_commit(backend,"unset");
-	
-	if(backend->dbr !=NULL)
-        {
-		backend->dbr->close();
-                delete(backend->dbr);
-		backend->dbr = NULL;
-	}
-
-	if(backend->dbexpunge != NULL)
+	if(backend->db_expunge != NULL)
 	{
-		sqlite3_close(backend->dbexpunge);
-		backend->dbexpunge = NULL;
+		sqlite3_close(backend->db_expunge);
+		backend->db_expunge = NULL;
 	}
+
 	return 0;
 }
 
@@ -640,12 +722,14 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if (box == NULL)
 	{
 		fts_backend_xapian_unset_box(backend);
-		if(verbose>1) i_info("FTS Xapian: Box is empty");
+		if(verbose>0) i_info("FTS Xapian: Box is empty");
                 return 0;
 	}
 
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
+
+	if(verbose>0) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
 
 	if((mb == NULL) || (strlen(mb)<3))
 	{
@@ -661,44 +745,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	fts_backend_xapian_unset_box(backend);
 
-	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
-	backend->box = box;
-	backend->nb_updates=0;
-	backend->guid = i_strdup(mb);
-	
-	/* Expunge DB */
-	char * ename = i_strdup_printf("%s/expunge_%s",backend->path,mb);
-        char *zErrMsg = 0;
-        struct stat sb;
-        bool exists = ( (stat(ename, &sb)==0) && S_ISREG(sb.st_mode) );
-
-        int rc = sqlite3_open(ename, &(backend->dbexpunge));
-        if(rc != SQLITE_OK)
-        {
-                i_error("FTS Xapian: Can not open expunge db of '%s' (%s)",box->name,mb);
-        }
-
-        if(!exists)
-        {
-		if(verbose>0) i_info("FTS Xapian: Creating expunge database : %s",ename);
-                rc = sqlite3_exec(backend->dbexpunge, "CREATE TABLE IDS (DOCID UNSIGNED BIG INT PRIMARY KEY NOT NULL, ID UNSIGNED BIG INT NOT NULL)", 0, 0, &zErrMsg);
-                if( rc != SQLITE_OK )
-                {
-                        i_error("FTS Xapian: Error in expunge file : %s",zErrMsg);
-                        sqlite3_free(zErrMsg);
-                }
-        }
-
-	 /* Performance calculator*/
-        struct timeval tp;
-        gettimeofday(&tp, NULL);
-        backend->perf_dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-	backend->perf_uid=0;
-	backend->perf_nb=0;
-	backend->perf_pt=0;
-	/* End Performance calculator*/
-
-	return 0;
+	return fts_backend_xapian_hold(backend,box->name,mb);
 }
 
 static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
@@ -731,13 +778,13 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
 		backend->dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN); 
 	}
-        catch(Xapian::Error e)
-        {
-                i_error("FTS Xapian: Can not open RO index (%s) %s",backend->box->name,backend->db);
+	catch(Xapian::Error e)
+	{
+		i_error("FTS Xapian: Can not open RO index (%s) %s",backend->boxname,backend->db);
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
-                return false;
-        }
-        return true;
+		return false;
+	}
+	return true;
 }
 
 
@@ -1010,29 +1057,27 @@ static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct st
 }
 
 static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb, int typeflag)
-{       
-        if(typeflag == FTW_D)
-        {
-		const char * sl = fpath;
-		while(strstr(sl,"/")!=NULL)
-		{
-			sl=strstr(sl,"/")+1;
-		}
-		if(strncmp(sl,"db_",3)!=0) return 0;
+{
+	const char * s = fpath;
+	const char * sl = fpath;
 
-                try
-                {
-			if(verbose>0) i_info("FTS Xapian: Emptying %s",fpath);
-                        Xapian::WritableDatabase db(fpath,Xapian::DB_CREATE_OR_OPEN);
-			db.close();
-			ftw(fpath,fts_backend_xapian_empty_db_remove,100);
-			if(verbose>0) i_info("FTS Xapian: Removing directory %s",fpath);
-			rmdir(fpath);
-                }
-                catch(Xapian::Error e)
-                {
-                        i_error("Xapian: %s",e.get_msg().c_str());
-                }
-        }
+	while(sl !=NULL)
+	{
+		s=sl;
+		sl=strstr(sl,"/")+1;
+	}
+
+	if((typeflag == FTW_D) && (strncmp(s,"db_",3)==0))
+	{
+		if(verbose>0) i_info("FTS Xapian: Emptying %s",fpath);
+		ftw(fpath,fts_backend_xapian_empty_db_remove,100);
+		if(verbose>0) i_info("FTS Xapian: Removing directory %s",fpath);
+		rmdir(fpath);
+	}
+	else if((typeflag == FTW_F) && (strncmp(s,"expunge_",8)==0))
+	{
+		if(verbose>0) i_info("FTS Xapian: Removing file %s",fpath);
+		remove(fpath);
+	}
         return 0;
 }

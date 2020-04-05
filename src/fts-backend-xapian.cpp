@@ -14,7 +14,7 @@ extern "C" {
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_LIMIT 1000
 #define XAPIAN_WILDCARD "wldcrd"
-#define XAPIAN_EXPUNGE_SIZE 4
+#define XAPIAN_EXPUNGE_SIZE 5
 
 #define HDRS_NB 9
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "body", ""  };
@@ -29,19 +29,19 @@ struct xapian_fts_backend
 	long partial,full;
 	bool attachments;
 
-        struct mailbox *box;
 	char * guid;
+	char * boxname;
 	char * db;
 
-	char * oldbox;
-	char * oldbox_name;
+	char * old_guid;
+	char * old_boxname;
 
 	Xapian::Database * dbr;
 
 	Xapian::WritableDatabase * dbw;
 	long nb_updates;
 
-	sqlite3 * dbexpunge;
+	sqlite3 * db_expunge;
 
 	long perf_pt;
 	long perf_nb;
@@ -86,11 +86,12 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->dbw = NULL;
 	backend->dbr = NULL;
 	backend->db = NULL;
-	backend->box = NULL;
+	backend->guid = NULL;
 	backend->path = NULL;
-	backend->oldbox = NULL;
-	backend->oldbox_name = NULL;
+	backend->old_guid = NULL;
+	backend->old_boxname = NULL;
 	backend->attachments = false;
+	backend->db_expunge = NULL;
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
@@ -178,12 +179,15 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	fts_backend_xapian_unset_box(backend);
 
-	if(backend->oldbox != NULL) i_free(backend->oldbox);
-	backend->oldbox = NULL;
-	if(backend->oldbox_name != NULL) i_free(backend->oldbox_name);
-	backend->oldbox_name = NULL;
+	if(backend->old_guid != NULL) i_free(backend->old_guid);
+	backend->old_guid = NULL;
+
+	if(backend->old_boxname != NULL) i_free(backend->old_boxname);
+	backend->old_boxname = NULL;
+
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
+
 	i_free(backend);
 }
 
@@ -213,12 +217,12 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: fts_backend_xapian_get_last_uid %s",backend->box->name);
+		i_error("FTS Xapian: fts_backend_xapian_get_last_uid for '%s' (%s)",backend->boxname,backend->guid);
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return -1;
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->box->name,backend->guid,*last_uid_r);
+	if(verbose>0) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->boxname,backend->guid,*last_uid_r);
 
         return 0;
 }
@@ -306,18 +310,18 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	ctx->tbi_isfield=false;
         ctx->tbi_uid=0;
 
-	if(backend->box == NULL)
+	if(backend->guid == NULL)
 	{
 		if(verbose>0) i_warning("FTS Xapian: Build key %s with no mailbox",key->hdr_name);
 		return FALSE;
 	}
 
-	if((backend->oldbox == NULL) || (strcmp(backend->oldbox,backend->guid)!=0))
+	if((backend->old_guid == NULL) || (strcmp(backend->old_guid,backend->guid)!=0))
         {
 		fts_backend_xapian_oldbox(backend);
-		backend->oldbox = i_strdup(backend->guid);
-		backend->oldbox_name = i_strdup(backend->box->name);
-		if(verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->box->name,backend->guid);
+		backend->old_guid = i_strdup(backend->guid);
+		backend->old_boxname = i_strdup(backend->boxname);
+		if(verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->boxname,backend->guid);
 	}
 
 	/* Performance calculator*/
@@ -338,7 +342,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			r=backend->perf_nb*1000.0;
 			r=r/dt;
 		}
-		if(verbose>0) i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->box->name,backend->perf_nb,dt,r);
+		if(verbose>0) i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->boxname,backend->perf_nb,dt,r);
 	}
 	/* End Performance calculator*/
 
@@ -425,20 +429,17 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 
 static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 {
-        struct xapian_fts_backend *backend =
-                (struct xapian_fts_backend *) _backend;
+	struct xapian_fts_backend *backend =
+		(struct xapian_fts_backend *) _backend;
+
+	fts_backend_xapian_release(backend,"refresh");
+	
+	fts_backend_xapian_expunge(backend,"refresh");
 
 	fts_backend_xapian_commit(backend,"refresh");
         
-        if(backend->dbr !=NULL)
-        {
-		backend->dbr->close();
-                delete(backend->dbr);
-                backend->dbr = NULL;
-        }
-        return 0;
+	return 0;
 }
-
 
 static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
@@ -476,13 +477,28 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
 	{
 		if(verbose>1) i_info("FTS Xapian: Refreshing...");
-		fts_backend_xapian_refresh( ctx->ctx.backend);
+		fts_backend_xapian_release(backend,"refreshing");
+		fts_backend_xapian_expunge(backend,"refreshing");
+		fts_backend_xapian_commit(backend,"refreshing");
 	}
     	
 	if(!ok) return -1;
 	return 0;
 }
 
+static int fts_backend_xapian_optimize(struct fts_backend *_backend)
+{
+	struct xapian_fts_backend *backend =
+		(struct xapian_fts_backend *) _backend;
+
+	if(verbose>0) i_info("Optimize function");
+
+	fts_backend_xapian_expunge(backend,"optimize");
+
+        fts_backend_xapian_commit(backend,"optimize");
+
+	return 0;
+}
 
 static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 {
@@ -496,7 +512,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 		return -1;
 	}
 
-	return ftw(backend->path,fts_backend_xapian_empty_db,1024);
+	return ftw(backend->path,fts_backend_xapian_empty_db,512);
 }
 
 static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbox *box, struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_result *result)
@@ -603,7 +619,7 @@ struct fts_backend fts_backend_xapian = {
 		fts_backend_xapian_update_build_more,
 		fts_backend_xapian_refresh,
 		fts_backend_xapian_rescan,
-		NULL,
+		fts_backend_xapian_optimize,
 		fts_backend_default_can_lookup,
 		fts_backend_xapian_lookup,
 		fts_backend_xapian_lookup_multi,
