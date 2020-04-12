@@ -664,7 +664,7 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 		d = xfe.did[i];
 		u = xfe.uid[i];
 
-		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%d (Docid=%d) (%s)",u,d,reason);
+		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%ld (Docid=%d) (%s)",u,d,reason);
 		try
 		{
 			backend->dbw->delete_document(d);
@@ -945,7 +945,9 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: fts_backend_xapian_index_hdr (%s) -> %s",field,data);
+		std::string s;
+		data->toUTF8String(s);
+		i_error("FTS Xapian: fts_backend_xapian_index_hdr (%s) -> %s",field,s.c_str());
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 	}
 	return false;
