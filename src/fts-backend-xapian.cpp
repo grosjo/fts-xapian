@@ -13,6 +13,7 @@ extern "C" {
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_LIMIT 1000
+#define XAPIAN_COMMIT_TIMEOUT 300
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_SIZE 5
 
@@ -40,6 +41,7 @@ struct xapian_fts_backend
 
 	Xapian::WritableDatabase * dbw;
 	long nb_updates;
+	long last_commit_dt;
 
 	sqlite3 * db_expunge;
 
@@ -474,9 +476,12 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
     	}
 
 	backend->nb_updates++;
-	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT)
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT || backend->last_commit_dt + XAPIAN_COMMIT_TIMEOUT*1000 < dt)
 	{
-		if(verbose>1) i_info("FTS Xapian: Refreshing...");
+		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", dt - backend->last_commit_dt, backend->nb_updates);
 		fts_backend_xapian_release(backend,"refreshing");
 		fts_backend_xapian_expunge(backend,"refreshing");
 		fts_backend_xapian_commit(backend,"refreshing");
