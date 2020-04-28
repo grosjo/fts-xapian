@@ -525,16 +525,21 @@ static int fts_backend_xapian_hold(struct xapian_fts_backend * backend, const ch
 	char *zErrMsg = 0;
         struct stat sb;
 
+	struct timeval tp;
+	long dt;
+	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+	gettimeofday(&tp, NULL);
+
 	backend->guid = NULL;
 	backend->db = NULL;
 	backend->nb_updates=0;
+	backend->last_commit_dt=dt;
 	backend->boxname = NULL;
 	backend->db_expunge = NULL;
 
 	/* Performance calculator*/
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	backend->perf_dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	backend->perf_dt = dt;
 	backend->perf_uid=0;
 	backend->perf_nb=0;
 	backend->perf_pt=0;
@@ -608,11 +613,13 @@ static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const 
                 delete(backend->dbw);
                 backend->dbw=NULL;
 		backend->nb_updates=0;
+		struct timeval tp;
+		gettimeofday(&tp, NULL);
+		long edt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+		backend->last_commit_dt = edt;
 		if(verbose>0)
 		{
-			gettimeofday(&tp, NULL);
-			dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,dt);
+			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,edt - dt);
 		}
         }
 }
