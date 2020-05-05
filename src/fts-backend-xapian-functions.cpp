@@ -526,20 +526,20 @@ static int fts_backend_xapian_hold(struct xapian_fts_backend * backend, const ch
         struct stat sb;
 
 	struct timeval tp;
-	long dt;
-	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	long current_time;
 
 	gettimeofday(&tp, NULL);
+	current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 	backend->guid = NULL;
 	backend->db = NULL;
-	backend->nb_updates=0;
-	backend->last_commit_dt=dt;
+	backend->commit_updates=0;
+	backend->commit_time = current_time;
 	backend->boxname = NULL;
 	backend->db_expunge = NULL;
 
 	/* Performance calculator*/
-	backend->perf_dt = dt;
+	backend->perf_dt = current_time;
 	backend->perf_uid=0;
 	backend->perf_nb=0;
 	backend->perf_pt=0;
@@ -589,18 +589,10 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
         }
 }
 
-static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const char * reason)
+static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const char * reason, long commit_time)
 {
-	struct timeval tp;
-	long dt;
-
 	if(backend->dbw !=NULL)
         {
-		if(verbose>0)
-		{
-                	gettimeofday(&tp, NULL);
-                	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-                }
 		try
                 {
                         backend->dbw->commit();
@@ -612,16 +604,17 @@ static void fts_backend_xapian_commit(struct xapian_fts_backend *backend, const 
                 }
                 delete(backend->dbw);
                 backend->dbw=NULL;
-		backend->nb_updates=0;
+		backend->commit_updates=0;
+		backend->commit_time = commit_time;
+	}
+
+	if(verbose>0)
+	{
 		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		long edt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-		backend->last_commit_dt = edt;
-		if(verbose>0)
-		{
-			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,edt - dt);
-		}
-        }
+        	gettimeofday(&tp, NULL);
+        	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+		i_info("FTS Xapian: Committed '%s' in %ld ms",reason,current_time - commit_time);
+	}
 }
 
 static int fts_backend_xapian_expunge_callback(void *data, int argc, char **argv, char **azColName)
@@ -698,11 +691,13 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	fts_backend_xapian_oldbox(backend);
 
-	fts_backend_xapian_release(backend,"unset_box");
-	
-	fts_backend_xapian_expunge(backend,"unset_box");
+        struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	fts_backend_xapian_commit(backend,"unset_box");
+	fts_backend_xapian_release(backend,"unset_box");
+	fts_backend_xapian_expunge(backend,"unset_box");
+	fts_backend_xapian_commit(backend,"unset_box", commit_time);
 
 	if(backend->db != NULL) 
 	{

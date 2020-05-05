@@ -38,17 +38,17 @@ struct xapian_fts_backend
 	char * old_boxname;
 
 	Xapian::Database * dbr;
-
 	Xapian::WritableDatabase * dbw;
-	long nb_updates;
-	long last_commit_dt;
-
 	sqlite3 * db_expunge;
+
+	long commit_updates;
+	long commit_time;
 
 	long perf_pt;
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
+
 };
 
 struct xapian_fts_expunge
@@ -434,11 +434,13 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *) _backend;
 
-	fts_backend_xapian_release(backend,"refresh");
-	
-	fts_backend_xapian_expunge(backend,"refresh");
+	struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	fts_backend_xapian_commit(backend,"refresh");
+	fts_backend_xapian_release(backend,"refresh");
+	fts_backend_xapian_expunge(backend,"refresh");
+	fts_backend_xapian_commit(backend,"refresh", current_time);
         
 	return 0;
 }
@@ -475,16 +477,18 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		ok=fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, &d2, backend->partial,backend->full);
     	}
 
-	backend->nb_updates++;
+	backend->commit_updates++;
+
 	struct timeval tp;
 	gettimeofday(&tp, NULL);
-	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-	if(backend->nb_updates>XAPIAN_COMMIT_LIMIT || backend->last_commit_dt + XAPIAN_COMMIT_TIMEOUT*1000 < dt)
+	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+	if( (backend->commit_updates>XAPIAN_COMMIT_LIMIT) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
-		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", dt - backend->last_commit_dt, backend->nb_updates);
+		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", current_time - backend->commit_time, backend->commit_updates);
 		fts_backend_xapian_release(backend,"refreshing");
 		fts_backend_xapian_expunge(backend,"refreshing");
-		fts_backend_xapian_commit(backend,"refreshing");
+		fts_backend_xapian_commit(backend,"refreshing", current_time);
 	}
     	
 	if(!ok) return -1;
@@ -497,10 +501,13 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 		(struct xapian_fts_backend *) _backend;
 
 	if(verbose>0) i_info("Optimize function");
-
+	
+	struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	
 	fts_backend_xapian_expunge(backend,"optimize");
-
-        fts_backend_xapian_commit(backend,"optimize");
+        fts_backend_xapian_commit(backend,"optimize",current_time);
 
 	return 0;
 }
@@ -528,18 +535,18 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	if(fts_backend_xapian_set_box(backend, box)<0)
 		return -1;
 
-	fts_backend_xapian_commit(backend,"lookup");
+	/* Performance calc */
+	struct timeval tp;
+        gettimeofday(&tp, NULL);
+        long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+	fts_backend_xapian_commit(backend,"lookup", current_time);
 
 	if(!fts_backend_xapian_check_read(backend))
         {
                 i_error("FTS Xapian: Lookup: Can not open db RO");
                 return -1;
         }
-
-	/* Performance calc */
-	struct timeval tp;
-        gettimeofday(&tp, NULL);
-        long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 	bool is_and=false;
 
@@ -581,9 +588,12 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	delete(qs);
 
 	/* Performance calc */
-        gettimeofday(&tp, NULL);
-        dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
-	if(verbose>0) i_info("FTS Xapian: %ld results in %ld ms",n,dt);
+        if(verbose>0)
+	{
+		gettimeofday(&tp, NULL);
+        	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time;
+		i_info("FTS Xapian: %ld results in %ld ms",n,dt);
+	}
 
 	return 0;
 }
