@@ -32,7 +32,7 @@ BINARY_LDFLAGS="$PIE_LDFLAGS $RELRO_LDFLAGS"
 BINARY_CFLAGS="$PIE_CFLAGS"
 AC_SUBST(LIBDOVECOT_INCLUDE)
 
-PKG_PROG_PKG_CONFIG([0.25]) # check and set $PKG_CONFIG
+PKG_PROG_PKG_CONFIG() # check and set $PKG_CONFIG
 PKG_CHECK_MODULES([ICU_UC], [icu-uc >= 60], [have_icu_uc=true], [have_icu_uc=false])
 PKG_CHECK_MODULES([ICU_I18N], [icu-i18n >= 60], [have_icu_i18n=true], [have_icu_i18n=false])
 if !($have_icu_uc && $have_icu_i18n); then
