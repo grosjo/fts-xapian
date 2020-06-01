@@ -1068,7 +1068,8 @@ static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb,
 	while(sl !=NULL)
 	{
 		s=sl;
-		sl=strstr(sl,"/")+1;
+		sl=strstr(sl,"/");
+		if(sl != NULL) sl = sl + 1;
 	}
 
 	if((typeflag == FTW_D) && (strncmp(s,"db_",3)==0))
