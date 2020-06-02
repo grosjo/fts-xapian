@@ -833,11 +833,23 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
                         else
                         {
                                 delete(q2);
-                        }
-                }
-                else
-                {
-                        qs->add(hdr,a->value.str,a->match_not);
+			}
+		}
+		else
+		{
+			long i=0,j=strlen(hdr);
+       			std::string f2;
+			while(i<j)
+			{
+				if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
+				{
+					f2+=tolower(hdr[i]);
+				}
+				i++;
+        		}
+        		char * h = i_strdup(f2.c_str());
+                        qs->add(h,a->value.str,a->match_not);
+			i_free(h);
                 }
                 a->match_always=true;
 		a = a->next;
@@ -846,10 +858,10 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-    	XResultSet * set= new XResultSet();
+	XResultSet * set= new XResultSet();
    
-    	try
-    	{
+	try
+	{	
 		Xapian::Enquire enquire(*dbx);
 
 		Xapian::Query * q = query->get_query(dbx);
