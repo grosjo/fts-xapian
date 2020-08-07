@@ -628,7 +628,7 @@ static int fts_backend_xapian_expunge_callback(void *data, int argc, char **argv
 	return 0;
 }
 
-static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const char * reason)
+static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const char * reason, int limit)
 {
 	if(backend->db_expunge == NULL) 
 	{
@@ -641,11 +641,18 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 	struct xapian_fts_expunge xfe;
 	int i,rc;
 	char *zErrMsg = 0;
+	char * sql;
 
 	xfe.index=0;
-	i=XAPIAN_EXPUNGE_SIZE;
-
-	char * sql = i_strdup_printf("SELECT DOCID,ID from IDS ORDER BY DOCID LIMIT %d",i);
+	
+	if(limit>0)
+	{
+		sql = i_strdup_printf("SELECT DOCID,ID from IDS ORDER BY DOCID LIMIT %d",limit);
+	}
+	else
+	{
+		sql = i_strdup("SELECT DOCID,ID from IDS ORDER BY DOCID");
+	}
 
 	rc = sqlite3_exec(backend->db_expunge, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
 	if( rc != SQLITE_OK )
@@ -696,7 +703,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
         long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 	fts_backend_xapian_release(backend,"unset_box");
-	fts_backend_xapian_expunge(backend,"unset_box");
+	if(backend->doexpunge) { fts_backend_xapian_expunge(backend,"unset_box",XAPIAN_EXPUNGE_SIZE); }
 	fts_backend_xapian_commit(backend,"unset_box", commit_time);
 
 	if(backend->db != NULL) 
