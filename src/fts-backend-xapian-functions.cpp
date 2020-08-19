@@ -545,7 +545,6 @@ static int fts_backend_xapian_hold(struct xapian_fts_backend * backend, const ch
 	backend->perf_pt=0;
 	/* End Performance calculator*/
 
-
         char * ename = i_strdup_printf("%s/expunge_%s",backend->path,mb);
         bool exists = ( (stat(ename, &sb)==0) && S_ISREG(sb.st_mode) );
 
