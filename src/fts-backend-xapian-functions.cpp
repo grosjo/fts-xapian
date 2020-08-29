@@ -176,7 +176,7 @@ class XQuerySet
 		}
 		if(i>=HDRS_NB)
 		{
-			i_error("FTS Xapian: Unknown header '%s'",h2);
+			i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
 			i_free(h2); i_free(t2);
 			return;
 		}
@@ -913,7 +913,7 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	}
 	if(i>=HDRS_NB) return true;
 
-	const char * h=hdrs_xapian[i];
+	const char * h = hdrs_xapian[i];
 
 	try
 	{
