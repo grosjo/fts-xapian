@@ -33,6 +33,7 @@ struct xapian_fts_backend
 
 	char * guid;
 	char * boxname;
+	char * expname;
 	char * db;
 
 	char * old_guid;
@@ -40,7 +41,6 @@ struct xapian_fts_backend
 
 	Xapian::Database * dbr;
 	Xapian::WritableDatabase * dbw;
-	sqlite3 * db_expunge;
 
 	long commit_updates;
 	long commit_time;
@@ -94,7 +94,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
 	backend->attachments = false;
-	backend->db_expunge = NULL;
 	backend->doexpunge = false;
 	verbose = 0;
 	backend->partial = 0;
@@ -510,7 +509,6 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	{
 		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", current_time - backend->commit_time, backend->commit_updates);
 		fts_backend_xapian_release(backend,"refreshing");
-		//fts_backend_xapian_expunge(backend,"refreshing",XAPIAN_EXPUNGE_SIZE);
 		fts_backend_xapian_commit(backend,"refreshing", current_time);
 	}
     	
