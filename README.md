@@ -84,10 +84,10 @@ plugin {
 (...)
 }
 ```
-Partial & full parameters : 2 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between 2 and 20 chars long.
+Partial & full parameters : 3 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between 3 and 20 chars long.
 Full words are also added by default (if not longer than 245 chars, which is the limit of Xapian capability).
 
-Example: "<john@doe>" will create jo, oh, ... , @d, do, .. joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
+Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
 Set "attachments=1" if you want to index attachments (this works only for text attachments)
