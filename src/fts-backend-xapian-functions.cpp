@@ -197,8 +197,6 @@ class XQuerySet
 			return;
                 }
 
-		if(verbose>0) { i_info("FTS Xapian: Query adding search term ('%s','%s')",h2,t2); }
-		
 		q2 = new XQuerySet(global_and,is_neg,limit);
 		q2->add(h,t,false);
 		add(q2);
@@ -322,11 +320,13 @@ class XNGram
 	public:
 		char ** data;
 		long size,maxlength;
+		long memory;
   
         XNGram(long p, long f, const char * pre) 
 	{ 
 		partial=p; full=f; 
 		size=0; 
+		memory=0;
 		maxlength=0;
 		data=NULL; 
 		prefix=pre;
@@ -432,30 +432,38 @@ class XNGram
 		}
 
 		char * s2 = i_strdup(s.c_str());
+		long p =0;
  
                 if(size<1)
                 {
                 	data=(char **)i_malloc(sizeof(char*));
 			size=0;
+			p=0;
                 }
                 else
                 {
-			bool existing=false;
-			long i=0;
-			while((!existing) && (i<size))
-                	{
-				if(strcmp(data[i],s2)==0)
-				{
-					existing=true;
-				}
-				i++;
+			p=0;
+			while((p<size) && (strcmp(data[p],s2)<0))
+			{
+				p++;
 			}
-			if(existing) { i_free(s2); return; }
-                	data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
+			if((p<size) && (strcmp(data[p],s2)==0))
+			{
+				i_free(s2);
+				return;
+			}
+			data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
+			long i=size;
+			while(i>p)
+			{
+				data[i]=data[i-1];
+				i--;
+			}
                 }
 		if(l>maxlength) { maxlength=l; }
-                data[size]=s2;
+                data[p]=s2;
                 size++;
+		memory = memory + ((l+1) * sizeof(data[p][0]));
 	}
 };
 
@@ -951,6 +959,8 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	        ngram->add(data);
 	
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
+
+		if(verbose>0) { i_info("FTS Xapian: Ngram(%s) -> %d items (total %ld KB)",h,ngram->size, ngram->memory/1024); }
 	
 		for(i=0;i<ngram->size;i++)
 		{
@@ -1046,7 +1056,7 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 			ti++;
 			n--;
 		}
-		if(verbose>1) i_info("FTS Xapian: NGRAM(%s,%s) %ld max=%ld",field,h,ngram->size,ngram->maxlength);
+		if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
 
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
