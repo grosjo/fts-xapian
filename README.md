@@ -75,7 +75,7 @@ plugin {
 	plugin = fts fts_xapian (...)
 
 	fts = xapian
-	fts_xapian = partial=2 full=20 attachments=0 verbose=0
+	fts_xapian = partial=3 full=20 attachments=0 verbose=0
 
 	fts_autoindex = yes
 	fts_enforced = yes

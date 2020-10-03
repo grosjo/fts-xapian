@@ -640,6 +640,8 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
                	sql = i_strdup("SELECT DOCID,ID from IDS ORDER BY DOCID");
        	}
 
+	if(verbose>0) i_info("FTS Xapian: Searching expunges (%s)",sql);
+
 	rc = sqlite3_exec(db, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
 	if( rc != SQLITE_OK )
 	{
@@ -647,6 +649,8 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 		sqlite3_free(zErrMsg);
 	}
 	i_free(sql);
+
+	if(verbose>0) i_info("FTS Xapian: Found %ld expunges", xfe.index);
 
 	if(xfe.index <1)
 	{
