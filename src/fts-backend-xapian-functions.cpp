@@ -527,6 +527,8 @@ static int fts_backend_xapian_add_expunge(struct xapian_fts_backend *backend, Xa
 		return rc;
         }
 
+	sqlite3_busy_timeout(db,10);
+
 	const char * sql1 = "CREATE TABLE IF NOT EXISTS IDS (DOCID UNSIGNED BIG INT PRIMARY KEY NOT NULL, ID UNSIGNED BIG INT NOT NULL)";
 
 	if(verbose>0) i_info("FTS Xapian: Preparing expunge database : %s",sql1);
@@ -630,7 +632,9 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
                 if(verbose>0) i_info("FTS Xapian: Can not open expunge db '%s' for box '%s'",backend->expname,backend->boxname);
 		return;
         }
-		
+	
+	sqlite3_busy_timeout(db,10);
+	
 	if(limit>0)
        	{
                	sql = i_strdup_printf("SELECT DOCID,ID from IDS ORDER BY DOCID LIMIT %d",limit);
