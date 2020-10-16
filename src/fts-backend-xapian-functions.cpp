@@ -527,7 +527,7 @@ static int fts_backend_xapian_add_expunge(struct xapian_fts_backend *backend, Xa
 		return rc;
         }
 
-	sqlite3_busy_timeout(db,10);
+	sqlite3_busy_timeout(db,100);
 
 	const char * sql1 = "CREATE TABLE IF NOT EXISTS IDS (DOCID UNSIGNED BIG INT PRIMARY KEY NOT NULL, ID UNSIGNED BIG INT NOT NULL)";
 
@@ -633,7 +633,7 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 		return;
         }
 	
-	sqlite3_busy_timeout(db,10);
+	sqlite3_busy_timeout(db,100);
 	
 	if(limit>0)
        	{
