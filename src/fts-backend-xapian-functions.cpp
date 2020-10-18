@@ -337,9 +337,10 @@ class XNGram
 
         ~XNGram() 
 	{ 
-		if (size>0) 
+		long i;
+		if (data != NULL) 
 		{ 
-			for(long i=0;i<size;i++) 
+			for(i=0;i<size;i++) 
 			{ 
 				i_free(data[i]); 
 			} 
