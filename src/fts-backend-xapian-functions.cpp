@@ -689,7 +689,7 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 		}
 		catch(Xapian::Error e)
 		{
-			if(verbose>0) i_info("FTS Xapian: Can not delete document %d (%s)",d,reason);
+			if(verbose>0) i_info("FTS Xapian: Can not delete document %d (%s) : %s - %s",d,reason,e.get_type(),e.get_error_string());
 		}
 	}
 	sqlite3_close(db);
@@ -802,7 +802,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 		}
 		catch(Xapian::Error e)
 		{
-			if(verbose>0) i_warning("FTS Xapian: Tried to create an existing db '%s'",backend->db);
+			if(verbose>0) i_warning("FTS Xapian: Tried to create an existing db '%s' : %s - %s",backend->db,e.get_type(),e.get_error_string());
 		}
 	}
 	try
@@ -812,7 +812,7 @@ static bool fts_backend_xapian_check_read(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can not open RO index (%s) %s",backend->boxname,backend->db);
+		i_error("FTS Xapian: Can not open RO index (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
 		i_error("FTS Xapian: %s",e.get_msg().c_str());
 		return false;
 	}
