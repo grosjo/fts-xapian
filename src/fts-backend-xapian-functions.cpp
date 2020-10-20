@@ -645,17 +645,17 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
                	sql = i_strdup("SELECT DOCID,ID from IDS ORDER BY DOCID");
        	}
 
-	if(verbose>0) i_info("FTS Xapian: Searching expunges (%s)",sql);
+	if(verbose>0) i_info("FTS Xapian: Searching expunges (%s) for '%s'",sql,backend->boxname);
 
 	rc = sqlite3_exec(db, sql, fts_backend_xapian_expunge_callback, (void*)(&xfe), &zErrMsg);
 	if( rc != SQLITE_OK )
 	{
-		if(verbose>0) i_info("FTS Xapian: Can not select expunges (%s) (%s) : %s",sql,zErrMsg,reason);
+		if(verbose>0) i_info("FTS Xapian: Can not select expunges (%s) (%s) for '%' : %s",sql,zErrMsg,backend->boxname,reason);
 		sqlite3_free(zErrMsg);
 	}
 	i_free(sql);
 
-	if(verbose>0) i_info("FTS Xapian: Found %ld expunges", xfe.index);
+	if(verbose>0) i_info("FTS Xapian: Found %ld expunges in '%s'", xfe.index,backend->boxname);
 
 	if(xfe.index <1)
 	{
@@ -674,7 +674,7 @@ static void fts_backend_xapian_expunge(struct xapian_fts_backend *backend, const
 		d = xfe.did[i];
 		u = xfe.uid[i];
 
-		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%ld (Docid=%d) (%s)",u,d,reason);
+		if(verbose>0) i_info("FTS Xapian: Deleting terms for expunged UID=%ld (Docid=%d) in '%s' (%s)",u,d,backend->boxname, reason);
 		try
 		{
 			backend->dbw->delete_document(d);

@@ -15,7 +15,7 @@ extern "C" {
 #define XAPIAN_COMMIT_LIMIT 1000
 #define XAPIAN_COMMIT_TIMEOUT 300
 #define XAPIAN_WILDCARD "wldcrd"
-#define XAPIAN_EXPUNGE_SIZE 5
+#define XAPIAN_EXPUNGE_SIZE 2
 
 #define HDRS_NB 10
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
