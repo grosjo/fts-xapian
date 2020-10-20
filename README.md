@@ -19,7 +19,6 @@ You are going to need the following things to get this going:
 * Dovecot 2.2.x (or above)
 * Xapian 1.4.x (or above)
 * ICU 60.x (or above)
-* SQLite 3.x (or above)
 ```
 
 You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
@@ -34,11 +33,11 @@ First install the following packages, or equivalent for your operating system.
 Ubuntu:
 apt-get build-dep dovecot-core
 apt-get install dovecot-dev
-apt-get install git xapian-core libicu-dev libsqlite3-dev
+apt-get install git xapian-core libicu-dev
 
 Archlinux:
 pacman -S dovecot
-pacman -S xapian-core icu sqlite
+pacman -S xapian-core icu
 ```
 
 Clone this project:

@@ -1,7 +1,6 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
 #include <xapian.h>
-#include <sqlite3.h>
 #include <cstdio>
 extern "C" {
 #include "fts-xapian-plugin.h"
@@ -16,10 +15,11 @@ extern "C" {
 #define XAPIAN_COMMIT_TIMEOUT 300
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_SIZE 2
+#define XAPIAN_EXPUNGE_HEADER 9
 
-#define HDRS_NB 10
-static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
-static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" }; 
+#define HDRS_NB 11
+static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "expungeheader",	""  };
+static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XEXP",		"XBDY" }; 
 
 static int verbose = 0;
 
@@ -33,13 +33,11 @@ struct xapian_fts_backend
 
 	char * guid;
 	char * boxname;
-	char * expname;
 	char * db;
 
 	char * old_guid;
 	char * old_boxname;
 
-	Xapian::Database * dbr;
 	Xapian::WritableDatabase * dbw;
 
 	long commit_updates;
@@ -50,13 +48,6 @@ struct xapian_fts_backend
 	long perf_uid;
 	long perf_dt;
 
-};
-
-struct xapian_fts_expunge
-{
-	Xapian::docid did[XAPIAN_EXPUNGE_SIZE];
-	long uid[XAPIAN_EXPUNGE_SIZE];
-	int index;
 };
 
 struct xapian_fts_backend_update_context
@@ -86,9 +77,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	const char *const *tmp, *env;
 	long len;
 
-	backend->dbw = NULL;
-	backend->dbr = NULL;
 	backend->db = NULL;
+	backend->dbw = NULL;
+
 	backend->guid = NULL;
 	backend->path = NULL;
 	backend->old_guid = NULL;
@@ -182,7 +173,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	if(verbose>1) i_info("Deinit %s",backend->path);
 
-	fts_backend_xapian_unset_box(backend);
+	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
 	if(backend->old_guid != NULL) i_free(backend->old_guid);
 	backend->old_guid = NULL;
@@ -212,7 +203,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 		return -1;
 	}
 
-	if(!fts_backend_xapian_check_read(backend))
+	if(!fts_backend_xapian_check_access(backend))
 	{
 		i_error("FTS Xapian: get_last_uid: can not open DB %s",backend->db);
 		return -1;
@@ -220,7 +211,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 
     	try
 	{
-		*last_uid_r = Xapian::sortable_unserialise(backend->dbr->get_value_upper_bound(1));
+		*last_uid_r = Xapian::sortable_unserialise(backend->dbw->get_value_upper_bound(1));
 	}
 	catch(Xapian::Error e)
 	{
@@ -283,26 +274,42 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(!fts_backend_xapian_check_read(backend))
+	if(!fts_backend_xapian_check_access(backend))
 	{
-		i_error("FTS Xapian: Expunge UID=%d: Can not open db",uid);
+		i_error("FTS Xapian: Flagging UID=%d for expunge: Can not open db",uid);
 		return ;
 	}
 
     	try
 	{
-		if(verbose>0) i_info("FTS Xapian: Expunge UID=%d",uid);
+		if(verbose>0) i_info("FTS Xapian: Flagging UID=%d for expunge",uid);
 
 		XQuerySet * xq = new XQuerySet();
-		const char *u = t_strdup_printf("%d",uid);
+		char *u = i_strdup_printf("%d",uid);
 		xq->add("uid",u);
 
-		XResultSet * result=fts_backend_xapian_query(backend->dbr,xq,1);
-		
+		XResultSet * result=fts_backend_xapian_query(backend->dbw,xq,1);
+
+		i_free(u);
+
 		if(result->size>0)
 		{
 			Xapian::docid docid=result->data[0];
-			if(docid>0) fts_backend_xapian_add_expunge(backend,docid,uid);
+			if(docid>0) 
+			{
+				Xapian::Document doc = backend->dbw->get_document(docid);
+				try
+				{
+					doc.remove_term(hdrs_xapian[XAPIAN_EXPUNGE_HEADER]);
+				}
+				catch(Xapian::InvalidArgumentError e2)
+				{
+				}
+				u = i_strdup_printf("%s1",hdrs_xapian[XAPIAN_EXPUNGE_HEADER]);
+				doc.add_term(u);
+				backend->dbw->replace_document(docid,doc);	
+				i_free(u);
+			}
 		}
 
 		delete(result);
@@ -310,7 +317,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: (deleting) %s",e.get_msg().c_str());
+		i_error("FTS Xapian: Expunging UID=%d %s",uid,e.get_msg().c_str());
 	}
 }
 
@@ -459,8 +466,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
         gettimeofday(&tp, NULL);
         long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	fts_backend_xapian_release(backend,"refresh");
-	fts_backend_xapian_commit(backend,"refresh", current_time);
+	fts_backend_xapian_release(backend,"refresh", current_time);
         
 	return 0;
 }
@@ -482,7 +488,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
 	if(d2.length() < backend->partial) return 0;
 
-	if(!fts_backend_xapian_check_write(backend))
+	if(!fts_backend_xapian_check_access(backend))
 	{
 		i_error("FTS Xapian: Buildmore: Can not open db");
 		return -1;
@@ -508,8 +514,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if( (backend->commit_updates>XAPIAN_COMMIT_LIMIT) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
 		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", current_time - backend->commit_time, backend->commit_updates);
-		fts_backend_xapian_release(backend,"refreshing");
-		fts_backend_xapian_commit(backend,"refreshing", current_time);
+		fts_backend_xapian_release(backend,"refreshing", current_time);
 	}
     	
 	if(!ok) return -1;
@@ -527,8 +532,8 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
         gettimeofday(&tp, NULL);
         long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	
-	fts_backend_xapian_expunge(backend,"optimize",0);
-        fts_backend_xapian_commit(backend,"optimize",current_time);
+	fts_backend_xapian_do_expunge(backend,"optimize",0);
+        fts_backend_xapian_release(backend,"optimize",current_time);
 
 	return 0;
 }
@@ -565,12 +570,16 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
         gettimeofday(&tp, NULL);
         long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	fts_backend_xapian_commit(backend,"lookup", current_time);
+	Xapian::Database * dbr;
 
-	if(!fts_backend_xapian_check_read(backend))
+	i_array_init(&(result->maybe_uids),0);
+	i_array_init(&(result->scores),0);
+
+	if(!fts_backend_xapian_open_readonly(backend, &dbr))
         {
                 i_error("FTS Xapian: Lookup: Can not open db RO");
-                return -1;
+		i_array_init(&(result->definite_uids),0);
+                return 0;
         }
 
 	bool is_and=false;
@@ -588,20 +597,18 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	XQuerySet * qs = new XQuerySet(is_and,false,backend->partial);
 	fts_backend_xapian_build_qs(qs,args);
 
-	XResultSet * r=fts_backend_xapian_query(backend->dbr,qs);
+	XResultSet * r=fts_backend_xapian_query(dbr,qs);
 
 	long n=r->size;
 
 	i_array_init(&(result->definite_uids),r->size);
-        i_array_init(&(result->maybe_uids),0);
-	i_array_init(&(result->scores),0);
 
 	uint32_t uid;
 	for(long i=0;i<n;i++)
 	{
 		try
 		{
-			uid=Xapian::sortable_unserialise(backend->dbr->get_document(r->data[i]).get_value(1));
+			uid=Xapian::sortable_unserialise(dbr->get_document(r->data[i]).get_value(1));
 			seq_range_array_add(&result->definite_uids, uid);
 		}
 		catch(Xapian::Error e)
@@ -612,6 +619,9 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	delete(r);
 	delete(qs);
 
+	dbr->close();
+        delete(dbr);
+
 	/* Performance calc */
         if(verbose>0)
 	{
@@ -619,7 +629,6 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
         	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time;
 		i_info("FTS Xapian: %ld results in %ld ms",n,dt);
 	}
-
 	return 0;
 }
 

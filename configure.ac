@@ -49,18 +49,6 @@ AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
 
-PKG_CHECK_MODULES([SQLITE3], [sqlite3 >= 3.0], , AC_MSG_ERROR([SQLite3 missing]))
-
-SQL_LDFLAGS=$($PKG_CONFIG --libs-only-L sqlite3 | sed 's/-L//g')
-SQL_LIBS=$($PKG_CONFIG --libs sqlite3)
-SQL_CFLAGS=$($PKG_CONFIG --cflags-only-I sqlite3)
-SQL_INCLUDE=$($PKG_CONFIG --variable=includedir sqlite3)
-
-AC_SUBST(SQL_CFLAGS)
-AC_SUBST(SQL_LIBS)
-AC_SUBST(SQL_INCLUDE)
-AC_SUBST(SQL_LDFLAGS)
-
 # xapian checking - we need 1.4 at least
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
