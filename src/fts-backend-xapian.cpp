@@ -656,7 +656,7 @@ static int fts_backend_xapian_lookup_multi (struct fts_backend *_backend, struct
 struct fts_backend fts_backend_xapian = {
 	.name = "xapian",
 	.flags = FTS_BACKEND_FLAG_BUILD_FULL_WORDS,
-	{
+	.v = {
 		fts_backend_xapian_alloc,
 		fts_backend_xapian_init,
 		fts_backend_xapian_deinit,

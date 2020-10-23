@@ -646,7 +646,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 		j=limit;
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %d to do, doing %d",backend->boxname,result->size,j);
+	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %ld to do, doing %ld",backend->boxname,result->size,j);
 
 	while(i<j)
 	{
@@ -666,7 +666,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 		k++;
 		if(k>XAPIAN_EXPUNGE_SIZE)
 		{
-			s = i_strdup_printf("Expunging UID=%d '%s' : %s",docid,backend->boxname);
+			s = i_strdup_printf("Expunging UID=%ld '%s': Committing changes",docid,backend->boxname);
 			fts_backend_xapian_release(backend,s,current_time);
 			i_free(s);
 			k=0;
@@ -868,7 +868,10 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		XNGram * ngram = new XNGram(p,f,h);
 	        ngram->add(data);
 	
-		if(verbose>0) { i_info("FTS Xapian: Ngram(%s) -> %d items (total %ld KB)",h,ngram->size, ngram->memory/1024); }
+		if(verbose>0) 
+		{ 
+			i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
+		}
 	
 		for(i=0;i<ngram->size;i++)
 		{
