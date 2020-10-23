@@ -666,7 +666,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 		k++;
 		if(k>XAPIAN_EXPUNGE_SIZE)
 		{
-			s = i_strdup_printf("Expunging UID=%ld '%s': Committing changes",docid,backend->boxname);
+			s = i_strdup_printf("Expunging UID=%lu '%s': Committing changes",docid,backend->boxname);
 			fts_backend_xapian_release(backend,s,current_time);
 			i_free(s);
 			k=0;
