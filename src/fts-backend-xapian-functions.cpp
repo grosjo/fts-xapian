@@ -473,6 +473,8 @@ class XNGram
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
 {
+	if(verbose>0) i_info("fts_backend_xapian_open_readonly");
+
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
 		if(verbose>0) i_warning("FTS Xapian: Open DB Read Only : no DB name");
@@ -500,6 +502,8 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 {
+	if(verbose>0) i_info("fts_backend_xapian_check_access");
+
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
 		if(verbose>0) i_warning("FTS Xapian: check_write : no DB name");
@@ -510,7 +514,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 
 	try
 	{
-		if(verbose>1) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
+		if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
 		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
 	}
 	catch(Xapian::Error e)
@@ -518,11 +522,14 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 		i_error("FTS Xapian: Can't open Xapian DB (%s) %s : %s",backend->boxname,backend->db,e.get_msg().c_str());
 		return false;
 	}
+	if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s : Done",backend->db);
 	return true;
 }
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
+	if(verbose>0) i_info("fts_backend_xapian_oldbox");
+
 	if(backend->old_guid != NULL)
 	{
 		/* Performance calculator*/
@@ -546,6 +553,8 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
 {
+	if(verbose>0) i_info("fts_backend_xapian_release (%s)",reason);
+
 	if(backend->dbw !=NULL)
         {
 		try
@@ -575,6 +584,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
+	if(verbose>0) i_info("fts_backend_xapian_query");
+
         XResultSet * set= new XResultSet();
 
 	try
@@ -612,6 +623,8 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 
 static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, const char * reason, int limit)
 {
+	if(verbose>0) i_info("fts_backend_xapian_do_expunge");
+
 	if(!fts_backend_xapian_check_access(backend))
         {
 		if(verbose>0) i_info("FTS Xapian: Expunge on an empty box (%s)",reason);
@@ -829,6 +842,8 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, const char* field, icu::UnicodeString* data)
 {
+	if(verbose>0) i_info("fts_backend_xapian_index_hdr");
+
 	Xapian::WritableDatabase * dbx = backend->dbw;
 	long p = backend->partial;
 	long f = backend->full;
@@ -913,6 +928,8 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 
 bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, const char * field, icu::UnicodeString * data)
 {
+	if(verbose>0) i_info("fts_backend_xapian_index_text");
+
 	Xapian::WritableDatabase * dbx = backend->dbw;
         long p = backend->partial;
         long f = backend->full;
