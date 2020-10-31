@@ -896,7 +896,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 			i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
 		}
 
-		backend->memory = backend->memory + ngram->memory/1024;
+		backend->memory = backend->memory + ngram->memory;
 	
 		for(i=0;i<ngram->size;i++)
 		{
@@ -1000,7 +1000,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		}
 		if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
 
-		backend->memory = backend->memory + ngram->memory/1024;
+		backend->memory = backend->memory + ngram->memory;
 
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
