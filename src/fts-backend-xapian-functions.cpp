@@ -470,6 +470,19 @@ class XNGram
 	}
 };
 
+static bool fts_backend_xapian_test_memory()
+{
+	void* p = malloc(XAPIAN_COMMIT_MEMORY * 1024);
+	if(p == NULL)
+	{
+		return false;
+	}
+	else
+	{
+		free(p);
+		return true;
+	}
+}
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
 {
