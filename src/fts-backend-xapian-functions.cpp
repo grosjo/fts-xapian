@@ -473,7 +473,7 @@ class XNGram
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
 {
-	if(verbose>0) i_info("fts_backend_xapian_open_readonly");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_open_readonly");
 
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
@@ -502,7 +502,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 {
-	if(verbose>0) i_info("fts_backend_xapian_check_access");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_check_access");
 
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
@@ -528,7 +528,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-	if(verbose>0) i_info("fts_backend_xapian_oldbox");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox");
 
 	if(backend->old_guid != NULL)
 	{
@@ -553,7 +553,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
 {
-	if(verbose>0) i_info("fts_backend_xapian_release (%s)",reason);
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(backend->dbw !=NULL)
         {
@@ -584,7 +584,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-	if(verbose>0) i_info("fts_backend_xapian_query");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_query");
 
         XResultSet * set= new XResultSet();
 
@@ -623,7 +623,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 
 static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, const char * reason, int limit)
 {
-	if(verbose>0) i_info("fts_backend_xapian_do_expunge");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_do_expunge");
 
 	if(!fts_backend_xapian_check_access(backend))
         {
@@ -697,7 +697,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
-	if(verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
+	if(verbose>1) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
 
 	struct timeval tp;
         gettimeofday(&tp, NULL);
@@ -736,7 +736,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	if(verbose>0) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
+	if(verbose>1) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
 
 	if((mb == NULL) || (strlen(mb)<3))
 	{
@@ -842,7 +842,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, const char* field, icu::UnicodeString* data)
 {
-	if(verbose>0) i_info("fts_backend_xapian_index_hdr");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_hdr");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
 	long p = backend->partial;
@@ -928,7 +928,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 
 bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, const char * field, icu::UnicodeString * data)
 {
-	if(verbose>0) i_info("fts_backend_xapian_index_text");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
         long p = backend->partial;

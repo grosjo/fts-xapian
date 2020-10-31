@@ -170,12 +170,10 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_deinit");
-
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 
-	if(verbose>1) i_info("Deinit %s",backend->path);
+	if(verbose>0) i_info("FTS Xapian: Deinit %s",backend->path);
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
@@ -528,7 +526,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if( (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (backend->memory > 1024 * XAPIAN_COMMIT_MEMORY) )
 	{
-		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates and %ld KB ...", current_time - backend->commit_time, backend->commit_updates, backend->memory);
+		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates and %ld KB ...", current_time - backend->commit_time, backend->commit_updates, backend->memory);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
 	}
     	
