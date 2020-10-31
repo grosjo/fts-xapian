@@ -12,7 +12,7 @@ extern "C" {
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_ENTRIES 1000000
-#define XAPIAN_COMMIT_TIMEOUT 300
+#define XAPIAN_COMMIT_TIMEOUT 500
 #define XAPIAN_COMMIT_MEMORY 10240
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_SIZE 3
@@ -336,7 +336,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
 
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
@@ -455,7 +455,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_context *_ctx)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
 
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
@@ -486,7 +486,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_build_more");
+	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_build_more");
 
 	struct xapian_fts_backend_update_context *ctx =
 		(struct xapian_fts_backend_update_context *)_ctx;
@@ -524,13 +524,10 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-//	if( (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (backend->memory > 1024 * XAPIAN_COMMIT_MEMORY) )
 	if( (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (!fts_backend_xapian_test_memory()))
 	{
 		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) and %ld KB ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES, backend->memory/1024);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
-		gettimeofday(&tp, NULL);
-		if(verbose>0) i_info("FTS Xapian: Refreshing done in %ld ms",tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time);
 	}
     	
 	if(!ok) return -1;
