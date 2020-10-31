@@ -11,10 +11,11 @@ extern "C" {
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245
-#define XAPIAN_COMMIT_LIMIT 1000
+#define XAPIAN_COMMIT_ENTRIES 1000
 #define XAPIAN_COMMIT_TIMEOUT 300
+#define XAPIAN_COMMIT_MEMORY 1024
 #define XAPIAN_WILDCARD "wldcrd"
-#define XAPIAN_EXPUNGE_SIZE 2
+#define XAPIAN_EXPUNGE_SIZE 3
 #define XAPIAN_EXPUNGE_HEADER 9
 
 #define HDRS_NB 11
@@ -43,11 +44,12 @@ struct xapian_fts_backend
 	long commit_updates;
 	long commit_time;
 
+	long memory;
+
 	long perf_pt;
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
-
 };
 
 struct xapian_fts_backend_update_context
@@ -498,11 +500,11 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
     	if(ctx->tbi_isfield)
     	{
-        	ok=fts_backend_xapian_index_hdr(backend->dbw,ctx->tbi_uid,ctx->tbi_field, &d2, backend->partial,backend->full);
+        	ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
     	}
     	else
     	{
-		ok=fts_backend_xapian_index_text(backend->dbw,ctx->tbi_uid,ctx->tbi_field, &d2, backend->partial,backend->full);
+		ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
     	}
 
 	backend->commit_updates++;
@@ -511,9 +513,9 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	if( (backend->commit_updates>XAPIAN_COMMIT_LIMIT) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
+	if( (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (backend->memory > 1024 * XAPIAN_COMMIT_MEMORY) )
 	{
-		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates...", current_time - backend->commit_time, backend->commit_updates);
+		if(verbose>1) i_info("FTS Xapian: Refreshing after %ld ms and %ld updates and %ld KB ...", current_time - backend->commit_time, backend->commit_updates, backend->memory);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
 	}
     	

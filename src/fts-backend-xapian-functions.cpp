@@ -105,6 +105,7 @@ class XQuerySet
                 t->findAndReplace("\n"," ");
                 t->findAndReplace("\r"," ");
 		t->findAndReplace("@"," ");
+		t->findAndReplace("-","_");
 
 		h->trim();
 		t->trim();
@@ -373,6 +374,7 @@ class XNGram
 		d->findAndReplace("\n"," ");
 		d->findAndReplace("\r"," ");
 		d->findAndReplace("@"," ");
+		d->findAndReplace("-","_");
 
 		long i = d->indexOf(".");
 		if(i>=0)
@@ -556,9 +558,10 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
                         i_error("FTS Xapian: (%s) %s",reason, e.get_msg().c_str());
                 }
                 delete(backend->dbw);
-                backend->dbw=NULL;
-		backend->commit_updates=0;
+                backend->dbw = NULL;
+		backend->commit_updates = 0;
 		backend->commit_time = commit_time;
+		backend->memory = 0;
 	}
 
 	if(verbose>0)
@@ -742,11 +745,12 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
         gettimeofday(&tp, NULL);
         current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-        backend->commit_updates=0;
+        backend->commit_updates = 0;
         backend->commit_time = current_time;
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
+	backend->memory = 0;
 	
         /* Performance calculator*/
         backend->perf_dt = current_time;
@@ -823,8 +827,12 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
         }
 }
 
-bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, const char* field, icu::UnicodeString* data,long p, long f)
+bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, const char* field, icu::UnicodeString* data)
 {
+	Xapian::WritableDatabase * dbx = backend->dbw;
+	long p = backend->partial;
+	long f = backend->full;
+
 	if(data->length()<p) { return true; }
 
 	if(strlen(field)<1) { return true; }
@@ -872,6 +880,8 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 		{ 
 			i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
 		}
+
+		backend->memory = backend->memory + ngram->memory/1024;
 	
 		for(i=0;i<ngram->size;i++)
 		{
@@ -901,8 +911,12 @@ bool fts_backend_xapian_index_hdr(Xapian::WritableDatabase * dbx, uint uid, cons
 	return false;
 }
 
-bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, const char * field, icu::UnicodeString * data,long p, long f)
+bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, const char * field, icu::UnicodeString * data)
 {
+	Xapian::WritableDatabase * dbx = backend->dbw;
+        long p = backend->partial;
+        long f = backend->full;
+
 	if(data->length()<p) { return true; }
 
 	try
@@ -968,6 +982,8 @@ bool fts_backend_xapian_index_text(Xapian::WritableDatabase * dbx,uint uid, cons
 			n--;
 		}
 		if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
+
+		backend->memory = backend->memory + ngram->memory/1024;
 
 		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 		for(n=0;n<ngram->size;n++)
