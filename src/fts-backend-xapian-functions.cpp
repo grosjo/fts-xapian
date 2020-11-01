@@ -526,7 +526,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can't open Xapian DB (%s) %s : %s",backend->boxname,backend->db,e.get_msg().c_str());
+		i_error("FTS Xapian: Can't open Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
 		return false;
 	}
 	if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s : Done",backend->db);
@@ -571,7 +571,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
                 }
                 catch(Xapian::Error e)
                 {
-                        i_error("FTS Xapian: (%s) %s",reason, e.get_msg().c_str());
+                        i_error("FTS Xapian: %s : %s - %s",reason,e.get_type(),e.get_error_string());
                 }
                 delete(backend->dbw);
                 backend->dbw = NULL;
@@ -623,7 +623,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		i_error("FTS Xapian: xapian_query %s - %s",e.get_type(),e.get_error_string());
 	}
 	return set;
 }
@@ -655,7 +655,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 	}
         catch(Xapian::Error e)
         {
-                i_error("FTS Xapian: Expunging '%s' : %s",backend->boxname,e.get_msg().c_str());
+                i_error("FTS Xapian: Expunging '%s' : %s - %s",backend->boxname,e.get_type(),e.get_error_string());
 		fts_backend_xapian_release(backend,"do_expunge",current_time);
 		return;
         }
@@ -683,7 +683,7 @@ static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, co
 			}
 			catch(Xapian::Error e)
 			{
-				i_error("FTS Xapian: Expunging UID=%d '%s' : %s",docid,backend->boxname,e.get_msg().c_str());
+				i_error("FTS Xapian: Expunging UID=%d '%s' : %s - %s",docid,backend->boxname,e.get_type(),e.get_error_string());
 			}
 		}
 		k++;
@@ -849,6 +849,8 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, const char* field, icu::UnicodeString* data)
 {
+	bool ok=true;
+
 	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_hdr");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
@@ -868,73 +870,81 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 
 	const char * h = hdrs_xapian[i];
 
+	XQuerySet * xq = new XQuerySet();
+        char *u = i_strdup_printf("%d",uid);
+        xq->add("uid",u);
+	i_free(u);
+
+        XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
+
+	Xapian::docid docid;
+	Xapian::Document * doc = NULL;
 	try
 	{
-		XQuerySet * xq = new XQuerySet();
-        	char *u = i_strdup_printf("%d",uid);
-        	xq->add("uid",u);
-		i_free(u);
-
-        	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
-
-		Xapian::docid docid;
-		Xapian::Document doc;
 		if(result->size<1)
-        	{
-			doc.add_value(1,Xapian::sortable_serialise(uid));
+       		{
+			doc = new Xapian::Document();
+			doc->add_value(1,Xapian::sortable_serialise(uid));
 			u = i_strdup_printf("Q%d",uid);
-			doc.add_term(u);
-			docid=dbx->add_document(doc);
+			doc->add_term(u);
+			docid=dbx->add_document(*doc);
 			i_free(u);
         	}
 		else
 		{
 			docid=result->data[0];
-			doc = dbx->get_document(docid);
+			doc = new Xapian::Document(dbx->get_document(docid));
 		}
-		delete(result);
-		delete(xq);
-	
-		XNGram * ngram = new XNGram(p,f,h);
-	        ngram->add(data);
-	
-		if(verbose>0) 
-		{ 
-			i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
-		}
-
-		backend->memory = backend->memory + ngram->memory;
-	
-		for(i=0;i<ngram->size;i++)
-		{
-			u = i_strdup_printf("%s%s",h,ngram->data[i]);
-			try
-			{
-				doc.add_term(u);
-			}
-			catch(Xapian::Error e)
-			{
-				i_error("FTS Xapian: %s",e.get_msg().c_str());
-			}
-			i_free(u);
-		}
-		delete(ngram);
-
-		dbx->replace_document(docid,doc);
-	    	return true;
 	}
 	catch(Xapian::Error e)
 	{
-		std::string s;
-		data->toUTF8String(s);
-		i_error("FTS Xapian: fts_backend_xapian_index_hdr (%s) -> %s",field,s.c_str());
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
+		i_error("FTS Xapian: fts_backend_xapian_index_hdr : %s - %s",e.get_type(),e.get_error_string());
+		if(doc!=NULL) delete(doc);
+		ok=false;
 	}
-	return false;
+		
+	delete(result);
+	delete(xq);
+
+	if(!ok) return false;
+
+	XNGram * ngram = new XNGram(p,f,h);
+	ngram->add(data);
+	
+	if(verbose>0) 
+	{ 
+		i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
+	}
+
+	backend->memory = backend->memory + ngram->memory;
+	
+	for(i=0;i<ngram->size;i++)
+	{
+		u = i_strdup_printf("%s%s",h,ngram->data[i]);
+		try
+		{
+			doc->add_term(u);
+		}
+		catch(Xapian::Error e)
+		{
+			i_error("FTS Xapian: fts_backend_xapian_index_hdr : %s - %s",e.get_type(),e.get_error_string());
+			ok=false;
+		}
+		i_free(u);
+	}
+	delete(ngram);
+
+	if(ok) dbx->replace_document(docid,*doc);
+
+	delete(doc);
+
+	return ok;
 }
 
 bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, const char * field, icu::UnicodeString * data)
 {
+	bool ok = true;
+
 	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
@@ -943,97 +953,108 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 
 	if(data->length()<p) { return true; }
 
+	XQuerySet * xq = new XQuerySet();
+
+	const char *u = t_strdup_printf("%d",uid);
+	xq->add("uid",u);
+
+	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
+
+	Xapian::docid docid;
+	Xapian::Document * doc = NULL;
+
 	try
-        {
-		XQuerySet * xq = new XQuerySet();
-
-		const char *u = t_strdup_printf("%d",uid);
-		xq->add("uid",u);
-
-                XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
-  
-                Xapian::docid docid;
-                Xapian::Document doc;
-                if(result->size<1)
-                {
-			doc.add_value(1,Xapian::sortable_serialise(uid));
-                        u = t_strdup_printf("Q%d",uid);
-                        doc.add_term(u);
-                        docid=dbx->add_document(doc);
-                }
-                else
-                {
-			docid=result->data[0];
-                        doc = dbx->get_document(docid);
-                }
-		delete(result);
-		delete(xq);
-
-		Xapian::Document doc2;
-		Xapian::TermGenerator termgenerator;
-		Xapian::Stem stem("en");
-		termgenerator.set_stemmer(stem);
-		termgenerator.set_document(doc2);
-	
-		const char * h;
-                if(strcmp(field,"subject")==0) 
-		{
-			h="S";
+	{
+		if(result->size<1)
+        	{
+			doc = new Xapian::Document();
+			doc->add_value(1,Xapian::sortable_serialise(uid));
+			u = t_strdup_printf("Q%d",uid);
+			doc->add_term(u);
+                	docid=dbx->add_document(*doc);
 		}
 		else
 		{
-			h="XBDY";
+			docid=result->data[0];
+			doc = new Xapian::Document(dbx->get_document(docid));
 		}
-		std::string s;
-		data->toUTF8String(s);
-		termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
-		termgenerator.index_text(s, 1, h);
+	}
+	catch(Xapian::Error e)
+	{
+		i_error("FTS Xapian: fts_backend_xapian_index_text : %s - %s",e.get_type(),e.get_error_string());
+		if(doc!=NULL) delete(doc);
+		ok=false;
+        }
+
+	delete(result);
+	delete(xq);
+
+	if(!ok) return false;
+
+	Xapian::Document * doc2 = new Xapian::Document();
+	Xapian::TermGenerator termgenerator;
+	Xapian::Stem stem("en");
+	termgenerator.set_stemmer(stem);
+	termgenerator.set_document(*doc2);
+
+	const char * h;
+	if(strcmp(field,"subject")==0) 
+	{
+		h="S";
+	}
+	else
+	{
+		h="XBDY";
+	}
+	std::string s;
+	data->toUTF8String(s);
+	termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
+	termgenerator.index_text(s, 1, h);
 	
-		long l = strlen(h);
-		long n = doc2.termlist_count();
-		Xapian::TermIterator ti = doc2.termlist_begin();
-		XNGram * ngram = new XNGram(p,f,h);
-		const char * c;
-		while(n>0)
+	long l = strlen(h);
+	long n = doc2->termlist_count();
+	Xapian::TermIterator ti = doc2->termlist_begin();
+
+	XNGram * ngram = new XNGram(p,f,h);
+	const char * c;
+	while(n>0)
+	{
+		s = *ti;
+		c=s.c_str();	
+		if(strncmp(c,h,l)==0)
 		{
-			s = *ti;
-			c=s.c_str();	
-			if(strncmp(c,h,l)==0)
-			{
-				ngram->add(c+l);
-			}
-			ti++;
-			n--;
+			ngram->add(c+l);
 		}
-		if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
+		ti++;
+		n--;
+	}
 
-		backend->memory = backend->memory + ngram->memory;
+	if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
+	backend->memory = backend->memory + ngram->memory;
+	delete(doc2);
 
-		char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
-		for(n=0;n<ngram->size;n++)
+	char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
+	for(n=0;n<ngram->size;n++)
+	{
+		snprintf(t,ngram->maxlength+6,"%s%s",h,ngram->data[n]);
+                try
                 {
-                        snprintf(t,ngram->maxlength+6,"%s%s",h,ngram->data[n]);
-                        try
-                        {
-                                doc.add_term(t);
-                        }
-                        catch(Xapian::Error e)
-                        {
-                                i_error("FTS Xapian: %s",e.get_msg().c_str());
-                        }
-                }
-                i_free(t);
-                delete(ngram);
+			doc->add_term(t);
+		}
+		catch(Xapian::Error e)
+		{
+			i_error("FTS Xapian: xapian_index_text : %s - %s",e.get_type(),e.get_error_string());
+			ok=false;
+		}
+	}
+	i_free(t);
+	delete(ngram);
 
-                dbx->replace_document(docid,doc);
-          }
-          catch(Xapian::Error e)
-          {
-		i_error("FTS Xapian: fts_backend_xapian_index_text");
-		i_error("FTS Xapian: %s",e.get_msg().c_str());
-		return false;
-          }
-          return true;
+	if(ok) dbx->replace_document(docid,*doc);
+
+	delete(doc);
+
+	return ok;
 }
 
 static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct stat *sb, int typeflag)

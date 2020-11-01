@@ -82,6 +82,13 @@ plugin {
 	fts_autoindex_exclude = \Trash
 (...)
 }
+
+(...)
+service indexer-worker {
+	vsz_limit = 2G // or above !
+}
+(...)
+
 ```
 Partial & full parameters : 3 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between 3 and 20 chars long.
 Full words are also added by default (if not longer than 245 chars, which is the limit of Xapian capability).
@@ -91,15 +98,6 @@ Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and f
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
 Set "attachments=1" if you want to index attachments (this works only for text attachments)
 
-
-If you face memory issues, you may set :
-```
-default_vsz_limit = 0
-
-service indexer-worker {
-vsz_limit = 0
-}
-```
 Restart Dovecot:
 
 ```
