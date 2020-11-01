@@ -494,16 +494,10 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 		return false;
 	}
 
-	struct stat sb;
-	if(!((stat(backend->db, &sb) == 0) && S_ISDIR(sb.st_mode)))
-	{
-		return false;
-	}
-        
 	try
 	{
 		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
-		*dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN);
+		*dbr = new Xapian::Database(backend->db,Xapian::DB_CREATE_OR_OPEN);
 	}
 	catch(Xapian::Error e)
 	{

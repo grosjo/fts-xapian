@@ -209,8 +209,8 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 
         if(!fts_backend_xapian_open_readonly(backend, &dbr))
         {
-                i_error("FTS Xapian: GetLastUID: Can not open db RO");
-                return -1;
+		if(verbose>0) i_info("FTS Xapian: GetLastUID: Can not open db RO (%s)",backend->db);
+                return 0;
         }
 
     	try
@@ -590,7 +590,6 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if(!fts_backend_xapian_open_readonly(backend, &dbr))
         {
-                i_error("FTS Xapian: Lookup: Can not open db RO");
 		i_array_init(&(result->definite_uids),0);
                 return 0;
         }
