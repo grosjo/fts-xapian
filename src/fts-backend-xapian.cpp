@@ -13,7 +13,7 @@ extern "C" {
 #define XAPIAN_TERM_SIZELIMIT 245
 #define XAPIAN_COMMIT_ENTRIES 1000000L
 #define XAPIAN_COMMIT_TIMEOUT 300L
-#define XAPIAN_COMMIT_MEMORY 10240
+#define XAPIAN_COMMIT_MEMORY 102400
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_SIZE 3
 #define XAPIAN_EXPUNGE_HEADER 9
@@ -524,7 +524,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	if( (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (!fts_backend_xapian_test_memory()))
+	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (!fts_backend_xapian_test_memory()))
 	{
 		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) and %ld KB ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES, backend->memory/1024);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
