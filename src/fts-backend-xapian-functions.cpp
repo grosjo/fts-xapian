@@ -992,10 +992,10 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	if(!ok) return false;
 
 	Xapian::Document * doc2 = new Xapian::Document();
-	Xapian::TermGenerator termgenerator;
+	Xapian::TermGenerator * termgenerator = new Xapian::TermGenerator();;
 	Xapian::Stem stem("en");
-	termgenerator.set_stemmer(stem);
-	termgenerator.set_document(*doc2);
+	termgenerator->set_stemmer(stem);
+	termgenerator->set_document(*doc2);
 
 	const char * h;
 	if(strcmp(field,"subject")==0) 
@@ -1008,30 +1008,29 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	}
 	std::string s;
 	data->toUTF8String(s);
-	termgenerator.set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
-	termgenerator.index_text(s, 1, h);
+	termgenerator->set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
+	termgenerator->index_text(s, 1, h);
 	
 	long l = strlen(h);
 	long n = doc2->termlist_count();
-	Xapian::TermIterator ti = doc2->termlist_begin();
+	Xapian::TermIterator * ti = new Xapian::TermIterator(doc2->termlist_begin());
 
 	XNGram * ngram = new XNGram(p,f,h);
 	const char * c;
 	while(n>0)
 	{
-		s = *ti;
+		s = *(*ti);
 		c=s.c_str();	
 		if(strncmp(c,h,l)==0)
 		{
 			ngram->add(c+l);
 		}
-		ti++;
+		(*ti)++;
 		n--;
 	}
 
 	if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
 	backend->memory = backend->memory + ngram->memory;
-	delete(doc2);
 
 	char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 	for(n=0;n<ngram->size;n++)
@@ -1049,6 +1048,9 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	}
 	i_free(t);
 	delete(ngram);
+	delete(ti);
+	delete(termgenerator);
+	delete(doc2);
 
 	if(ok) 
 	{
