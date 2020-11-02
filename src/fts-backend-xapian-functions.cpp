@@ -945,7 +945,18 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 	}
 	delete(ngram);
 
-	if(ok) dbx->replace_document(docid,*doc);
+	if(ok)
+	{
+		try
+		{
+			dbx->replace_document(docid,*doc);
+		}
+		catch (std::bad_alloc& ba)
+		{
+			i_error("FTS Xapian: Memory error '%s'",ba.what());
+			ok = false;
+		}
+	}
 
 	delete(doc);
 

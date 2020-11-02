@@ -506,6 +506,20 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		i_error("FTS Xapian: Buildmore: Can not open db");
 		return -1;
 	}
+	
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	
+	if(!fts_backend_xapian_test_memory())
+	{
+		fts_backend_xapian_release(backend,"Low memory indexing", current_time);
+		if(!fts_backend_xapian_check_access(backend))
+		{
+			i_error("FTS Xapian: Buildmore: Can not open db (2)");
+			return -1;
+		}
+	}
 
 	bool ok=true;
 
@@ -520,11 +534,10 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	backend->commit_updates++;
 
-	struct timeval tp;
 	gettimeofday(&tp, NULL);
-	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) || (!fts_backend_xapian_test_memory()))
+	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
 		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) and %ld KB ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES, backend->memory/1024);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
