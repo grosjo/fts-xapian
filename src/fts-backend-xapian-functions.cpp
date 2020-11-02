@@ -472,9 +472,20 @@ class XNGram
 
 static bool fts_backend_xapian_test_memory()
 {
-	void* p = malloc(XAPIAN_COMMIT_MEMORY * 1024);
+	void* p = NULL;
+
+	try
+	{
+		p = malloc(XAPIAN_COMMIT_MEMORY * 1024);
+	}
+	catch (std::bad_alloc& ba)
+	{
+		p = NULL;
+        }
+
 	if(p == NULL)
 	{
+		if(verbose>0) i_info("FTS Xapian: Low memory");
 		return false;
 	}
 	else
