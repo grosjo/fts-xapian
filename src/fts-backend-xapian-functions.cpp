@@ -494,7 +494,6 @@ static long fts_backend_xapian_memory_used() // KB
 
 static bool fts_backend_xapian_test_memory(long m)
 {
-	void* p = NULL;
 	m = m * 1024;
 	long n = long(m*2/3.0);
 
@@ -502,7 +501,9 @@ static bool fts_backend_xapian_test_memory(long m)
 
 	long used = fts_backend_xapian_memory_used();
 
-	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld KB, Limit = %ld ( 66%% of %ld) KB",used,n,m);
+	long p = long(used*100.0/m);
+
+	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB (66%% of %ld MB)",used/1024,p,n/1024,m/1024);
 
 	return (m>used);
 }

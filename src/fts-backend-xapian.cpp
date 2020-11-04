@@ -120,7 +120,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 		else if (strncmp(*tmp,"maxmem=",7)==0)
 		{
-			len=long(atof(*tmp+7)*1024);
+			len=long(long(atof(*tmp+7)*100)*10.24);
 			if(len>0) backend->maxmem=len;
 		}
 		else if (strncmp(*tmp,"attachments=",12)==0)
@@ -168,7 +168,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d verbose=%d",backend->partial,backend->full,backend->attachments,verbose);
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d maxmem=%.2f verbose=%d",backend->partial,backend->full,backend->attachments,backend->maxmem/1024.0,verbose);
 
 	return 0;
 }
