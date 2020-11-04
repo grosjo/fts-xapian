@@ -470,13 +470,16 @@ class XNGram
 	}
 };
 
-static bool fts_backend_xapian_test_memory()
+static bool fts_backend_xapian_test_memory(long m)
 {
 	void* p = NULL;
+	m = long(m*1024*1024.0/3.0);
+
+	if(m<1) return true;
 
 	try
 	{
-		p = malloc(XAPIAN_COMMIT_MEMORY * 1024);
+		p = malloc(m);
 	}
 	catch (std::bad_alloc& ba)
 	{
@@ -485,7 +488,7 @@ static bool fts_backend_xapian_test_memory()
 
 	if(p == NULL)
 	{
-		if(verbose>0) i_info("FTS Xapian: Low memory");
+		if(verbose>0) i_info("FTS Xapian: Low memory (below %ld MB)",m);
 		return false;
 	}
 	else
@@ -588,7 +591,6 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
                 backend->dbw = NULL;
 		backend->commit_updates = 0;
 		backend->commit_time = commit_time;
-		backend->memory = 0;
 	}
 
 	if(verbose>0)
@@ -781,7 +783,6 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
-	backend->memory = 0;
 	
         /* Performance calculator*/
         backend->perf_dt = current_time;
@@ -927,8 +928,6 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 		i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024); 
 	}
 
-	backend->memory = backend->memory + ngram->memory;
-	
 	for(i=0;i<ngram->size;i++)
 	{
 		u = i_strdup_printf("%s%s",h,ngram->data[i]);
@@ -1052,7 +1051,6 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	}
 
 	if(verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
-	backend->memory = backend->memory + ngram->memory;
 
 	char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 	for(n=0;n<ngram->size;n++)

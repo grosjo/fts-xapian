@@ -10,10 +10,9 @@ extern "C" {
 #include <sys/time.h>
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
-#define XAPIAN_TERM_SIZELIMIT 245
+#define XAPIAN_TERM_SIZELIMIT 245L
 #define XAPIAN_COMMIT_ENTRIES 1000000L
 #define XAPIAN_COMMIT_TIMEOUT 300L
-#define XAPIAN_COMMIT_MEMORY 102400
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_SIZE 3
 #define XAPIAN_EXPUNGE_HEADER 9
@@ -44,7 +43,7 @@ struct xapian_fts_backend
 	long commit_updates;
 	long commit_time;
 
-	long memory;
+	long maxmem;
 
 	long perf_pt;
 	long perf_nb;
@@ -93,6 +92,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
+	backend->maxmem = 0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL) 
@@ -117,6 +117,11 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		{
 			len=atol(*tmp + 8);
 			if(len>0) verbose=len;
+		}
+		else if (strncmp(*tmp,"maxmem=",7)==0)
+		{
+			len=long(atof(*tmp+7)*1024);
+			if(len>0) backend->maxmem=len;
 		}
 		else if (strncmp(*tmp,"attachments=",12)==0)
 		{
@@ -511,7 +516,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	
-	if(!fts_backend_xapian_test_memory())
+	if(!fts_backend_xapian_test_memory(backend->maxmem))
 	{
 		fts_backend_xapian_release(backend,"Low memory indexing", current_time);
 		if(!fts_backend_xapian_check_access(backend))
@@ -539,7 +544,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
-		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) and %ld KB ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES, backend->memory/1024);
+		if(verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES);
 		fts_backend_xapian_release(backend,"refreshing", current_time);
 	}
     	
