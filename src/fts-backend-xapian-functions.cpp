@@ -495,11 +495,16 @@ static long fts_backend_xapian_memory_used() // KB
 static bool fts_backend_xapian_test_memory(long m)
 {
 	void* p = NULL;
-	m = long(m*1024*2/3.0);
+	m = m * 1024;
+	long n = long(m*2/3.0);
 
 	if(m<1) return true;
 
-	return (m>fts_backend_xapian_memory_used());
+	long used = fts_backend_xapian_memory_used();
+
+	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld KB, Limit = %ld ( 66%% of %ld) KB",used,n,m);
+
+	return (m>used);
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
