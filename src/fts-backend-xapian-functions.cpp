@@ -470,32 +470,36 @@ class XNGram
 	}
 };
 
+static long fts_backend_xapian_memory_used() // KB
+{
+	FILE* file = fopen("/proc/self/status", "r");
+	int i,result = -1;
+	char line[128];
+	const char* p;
+
+	while (fgets(line, 128, file) != NULL)
+	{
+		if (strncmp(line, "VmSize:", 7) == 0)
+		{
+			i = strlen(line);
+			p = line;
+			while (*p <'0' || *p > '9') p++;
+			line[i-3] = '\0';
+			return atol(p);
+		}
+	}	
+	fclose(file);
+	return 0;
+}
+
 static bool fts_backend_xapian_test_memory(long m)
 {
 	void* p = NULL;
-	m = long(m*1024*1024.0/3.0);
+	m = long(m*1024*2/3.0);
 
 	if(m<1) return true;
 
-	try
-	{
-		p = malloc(m);
-	}
-	catch (std::bad_alloc& ba)
-	{
-		p = NULL;
-        }
-
-	if(p == NULL)
-	{
-		if(verbose>0) i_info("FTS Xapian: Low memory (below %ld MB)",m);
-		return false;
-	}
-	else
-	{
-		free(p);
-		return true;
-	}
+	return (m>fts_backend_xapian_memory_used());
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)

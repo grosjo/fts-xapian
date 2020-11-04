@@ -178,7 +178,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *)_backend;
 
-	if(verbose>0) i_info("FTS Xapian: Deinit %s",backend->path);
+	if(verbose>0) i_info("FTS Xapian: Deinit %s)",backend->path);
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
