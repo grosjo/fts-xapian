@@ -85,7 +85,7 @@ plugin {
 
 (...)
 service indexer-worker {
-	vsz_limit = 1 G // or above !
+	vsz_limit = 0
 }
 (...)
 
