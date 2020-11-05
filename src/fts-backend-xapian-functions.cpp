@@ -474,21 +474,25 @@ static long fts_backend_xapian_memory_used() // KB
 {
 	FILE* file = fopen("/proc/self/status", "r");
 	int i,result = -1;
-	char line[128];
+	char line[129];
 	const char* p;
-
-	while (fgets(line, 128, file) != NULL)
+	
+	if(file != NULL)
 	{
-		if (strncmp(line, "VmSize:", 7) == 0)
+		while (fgets(line, 128, file) != NULL)
 		{
-			i = strlen(line);
-			p = line;
-			while (*p <'0' || *p > '9') p++;
-			line[i-3] = '\0';
-			return atol(p);
-		}
-	}	
-	fclose(file);
+			if (strncmp(line, "VmSize:", 7) == 0)
+			{
+				i = strlen(line);
+				p = line;
+				while (*p <'0' || *p > '9') p++;
+				line[i-3] = '\0';
+				fclose(file);
+				return atol(p);
+			}
+		}	
+		fclose(file);
+	}
 	return 0;
 }
 
