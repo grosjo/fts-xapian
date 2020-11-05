@@ -484,7 +484,7 @@ static long fts_backend_xapian_memory_used() // KB
 			if (strncmp(line, "VmSize:", 7) == 0)
 			{
 				i = strlen(line);
-				p = line;
+				p = line+7;
 				while (*p <'0' || *p > '9') p++;
 				line[i-3] = '\0';
 				fclose(file);
