@@ -495,13 +495,20 @@ static long fts_backend_xapian_memory_used() // KB
 static bool fts_backend_xapian_test_memory(long m)
 {
 	m = m * 1024;
-	long n = long(m*2/3.0);
+	long used,p, n = long(m*2/3.0);
 
-	if(m<1) return true;
+	if(m<1) 
+	{
+		if(verbose>0)
+		{
+			used = fts_backend_xapian_memory_used();
+			i_info("FTS Xapian: Memory stats : Used = %ld MB",used/1024);
+		}
+		return true;
+	}
 
-	long used = fts_backend_xapian_memory_used();
-
-	long p = long(used*100.0/m);
+	used = fts_backend_xapian_memory_used();
+	p = long(used*100.0/m);
 
 	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB (66%% of %ld MB)",used/1024,p,n/1024,m/1024);
 
