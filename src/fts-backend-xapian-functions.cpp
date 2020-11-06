@@ -477,13 +477,6 @@ static long fts_backend_xapian_memory_used() // KB
 	char line[129];
 	const char* p;
 
-	struct rusage use;
-        getrusage(RUSAGE_SELF, &use);
-	long mem = long(use.ru_maxrss/1024.0);
-
-	i_info("MEMOUSED %ld",mem);
-
-	
 	if(file != NULL)
 	{
 		while (fgets(line, 128, file) != NULL)
