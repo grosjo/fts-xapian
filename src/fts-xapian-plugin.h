@@ -12,6 +12,7 @@
 #include "module-context.h"
 #include "mail-user.h"
 #include "fts-api-private.h"
+#include "restrict-process-size.h"
 
 extern const char *fts_xapian_plugin_dependencies[];
 extern struct fts_backend fts_backend_xapian;
