@@ -43,8 +43,6 @@ struct xapian_fts_backend
 	long commit_updates;
 	long commit_time;
 
-	long maxmem;
-
 	long perf_pt;
 	long perf_nb;
 	long perf_uid;
@@ -92,7 +90,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
-	backend->maxmem = 0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL) 
@@ -117,11 +114,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		{
 			len=atol(*tmp + 8);
 			if(len>0) verbose=len;
-		}
-		else if (strncmp(*tmp,"maxmem=",7)==0)
-		{
-			len=long(long(atof(*tmp+7)*100)*10.24);
-			if(len>0) backend->maxmem=len;
 		}
 		else if (strncmp(*tmp,"attachments=",12)==0)
 		{
@@ -168,7 +160,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d maxmem=%.2f verbose=%d",backend->partial,backend->full,backend->attachments,backend->maxmem/1024.0,verbose);
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d verbose=%d",backend->partial,backend->full,backend->attachments,verbose);
 
 	return 0;
 }
@@ -516,7 +508,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	
-	if(!fts_backend_xapian_test_memory(backend->maxmem))
+	if(!fts_backend_xapian_test_memory())
 	{
 		fts_backend_xapian_release(backend,"Low memory indexing", current_time);
 		if(!fts_backend_xapian_check_access(backend))

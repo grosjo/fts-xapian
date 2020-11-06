@@ -476,6 +476,13 @@ static long fts_backend_xapian_memory_used() // KB
 	int i,result = -1;
 	char line[129];
 	const char* p;
+
+	struct rusage use;
+        getrusage(RUSAGE_SELF, &use);
+	long mem = long(use.ru_maxrss/1024.0);
+
+	i_info("MEMOUSED %ld",mem);
+
 	
 	if(file != NULL)
 	{
@@ -496,9 +503,13 @@ static long fts_backend_xapian_memory_used() // KB
 	return 0;
 }
 
-static bool fts_backend_xapian_test_memory(long m)
+static bool fts_backend_xapian_test_memory()
 {
-	m = m * 1024;
+	rlim_t limit;
+
+        restrict_get_process_size(&limit);
+        long m = long((long)limit / 1024.0);
+
 	long used,p, n = long(m*2/3.0);
 
 	if(m<1) 
