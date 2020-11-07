@@ -74,7 +74,7 @@ plugin {
 	plugin = fts fts_xapian (...)
 
 	fts = xapian
-	fts_xapian = partial=3 full=20 attachments=0 maxmem=0 verbose=0
+	fts_xapian = partial=3 full=20 attachments=0 verbose=0
 
 	fts_autoindex = yes
 	fts_enforced = yes
@@ -85,7 +85,7 @@ plugin {
 
 (...)
 service indexer-worker {
-	vsz_limit = 0
+	vsz_limit = 1G // or above (or 0 if you have rather large memory usable n your server, which is preferred for performance) 
 }
 (...)
 
@@ -97,8 +97,6 @@ Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and f
 
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
 Set "attachments=1" if you want to index attachments (this works only for text attachments)
-
-Memory usage : maxmem is the number of GB to be used by the indexer. It can be a fraction (e.g. maxmem=3.2). 0 means no limit is considered (preferred for performance)
 
 Restart Dovecot:
 
