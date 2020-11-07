@@ -536,7 +536,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 	try
 	{
 		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
-		*dbr = new Xapian::Database(backend->db,Xapian::DB_CREATE_OR_OPEN);
+		*dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN);
 	}
 	catch(Xapian::Error e)
 	{
@@ -808,7 +808,26 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
-	
+
+	char * t = i_strdup_printf("%s/termlist.glass",backend->db);
+	struct stat sb;
+	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
+	{
+		if(verbose>0) i_info("FTS Xapian: '%s' (%s) indexes do not exist, creating empty DB",backend->boxname,backend->db);
+		try
+		{
+			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK);
+			db->close();
+			delete(db);
+		}
+		catch(Xapian::Error e)
+		{
+			i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
+        	}
+	}
+	i_free(t);
+
+
         /* Performance calculator*/
         backend->perf_dt = current_time;
         backend->perf_uid=0;
