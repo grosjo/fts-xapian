@@ -510,7 +510,7 @@ static bool fts_backend_xapian_test_memory()
 		if(verbose>0)
 		{
 			used = fts_backend_xapian_memory_used();
-			i_info("FTS Xapian: Memory stats : Used = %ld MB",used/1024);
+			i_info("FTS Xapian: Memory stats : Used = %ld MB",long(used/1024));
 		}
 		return true;
 	}
@@ -518,7 +518,7 @@ static bool fts_backend_xapian_test_memory()
 	used = fts_backend_xapian_memory_used();
 	p = long(used*100.0/m);
 
-	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB (66%% of %ld MB)",used/1024,p,n/1024,m/1024);
+	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB (66%% of %ld MB)",long(used/1024),p,long(n/1024),long(m/1024));
 
 	return (m>used);
 }
@@ -561,7 +561,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 	try
 	{
 		if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
-		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK);
+		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
 	}
 	catch(Xapian::Error e)
 	{
@@ -813,10 +813,10 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	struct stat sb;
 	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
 	{
-		if(verbose>0) i_info("FTS Xapian: '%s' (%s) indexes do not exist, creating empty DB",backend->boxname,backend->db);
+		i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->db);
 		try
 		{
-			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK);
+			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
 			db->close();
 			delete(db);
 		}
