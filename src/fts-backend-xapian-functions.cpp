@@ -473,7 +473,7 @@ class XNGram
 static long fts_backend_xapian_memory_used() // KB
 {
 	FILE* file = fopen("/proc/self/status", "r");
-	int i,result = -1;
+	int i;
 	char line[129];
 	const char* p;
 
@@ -496,31 +496,50 @@ static long fts_backend_xapian_memory_used() // KB
 	return 0;
 }
 
+static long fts_backend_xapian_memory_free() // KB
+{
+        FILE* file = fopen("/proc/meminfo", "r");
+        int i;
+        char line[129];
+        const char* p;
+
+        if(file != NULL)
+        {
+                while (fgets(line, 128, file) != NULL)
+                {
+                        if (strncmp(line, "MemFree:", 8) == 0)
+                        {
+                                i = strlen(line);
+                                p = line+8;
+                                while (*p <'0' || *p > '9') p++;
+                                line[i-3] = '\0';
+                                fclose(file);
+                                return atol(p);
+                        }
+                }
+                fclose(file);
+        }
+        return 0;
+}
+
 static bool fts_backend_xapian_test_memory()
 {
 	rlim_t limit;
 
         restrict_get_process_size(&limit);
-        long m = long((long)limit / 1024.0);
-
-	long used,p, n = long(m*2/3.0);
+        long m = long((long)limit / 1024.0); // vsz_limit of dovecot.conf
+	long used = fts_backend_xapian_memory_used();
+	long fri = fts_backend_xapian_memory_free(); // Free RAM
 
 	if(m<1) 
 	{
-		if(verbose>0)
-		{
-			used = fts_backend_xapian_memory_used();
-			i_info("FTS Xapian: Memory stats : Used = %ld MB",long(used/1024));
-		}
-		return true;
+		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB, Free = %ld MB",long(used/1024),long(fri/1024));
+		return (fri>used/2);
 	}
 
-	used = fts_backend_xapian_memory_used();
-	p = long(used*100.0/m);
+	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB, Free = %ld MB",long(used/1024),long(used*100.0/m),long(m/1024),long(fri/1024));
 
-	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB (66%% of %ld MB)",long(used/1024),p,long(n/1024),long(m/1024));
-
-	return (m>used);
+	return ((m>used*3.0/2)&&(fri>used/2));
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
