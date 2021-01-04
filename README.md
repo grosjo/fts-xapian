@@ -38,6 +38,11 @@ apt-get install git xapian-core libicu-dev
 Archlinux:
 pacman -S dovecot
 pacman -S xapian-core icu
+
+FreeBSD:
+pkg install xapian-core
+pkg install xapian-bindings
+pkg install icu
 ```
 
 Clone this project:
