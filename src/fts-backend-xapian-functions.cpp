@@ -618,7 +618,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
 {
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
+	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(backend->dbw !=NULL)
         {
@@ -685,78 +685,71 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 	return set;
 }
 
-static void fts_backend_xapian_do_expunge(struct xapian_fts_backend *backend, const char * reason, int limit)
+static void fts_backend_xapian_do_expunge(const char *fpath)
 {
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_do_expunge");
-
-	if(!fts_backend_xapian_check_access(backend))
-        {
-		if(verbose>0) i_info("FTS Xapian: Expunge on an empty box (%s)",reason);
-		return;
-	}
+	Xapian::WritableDatabase * dbw;
 
 	struct timeval tp;
         gettimeofday(&tp, NULL);
-        long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+        long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+	try
+	{
+		dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+	}
+	catch(Xapian::Error e)
+	{
+		i_error("FTS Xapian: Can't open Xapian DB %s : %s - %s",fpath,e.get_type(),e.get_error_string());
+		return;
+	}
 
 	XResultSet * result;
 
-        try
-        {
-                if(verbose>0) i_info("FTS Xapian: Do expunge '%s'",backend->boxname);
-
-                XQuerySet * xq = new XQuerySet();
-                xq->add(hdrs_emails[XAPIAN_EXPUNGE_HEADER],"1");
-                result=fts_backend_xapian_query(backend->dbw,xq,1);
+	try
+	{
+		XQuerySet * xq = new XQuerySet();
+		xq->add(hdrs_emails[XAPIAN_EXPUNGE_HEADER],"1");
+		result=fts_backend_xapian_query(dbw,xq,1);
 		delete(xq);
 	}
-        catch(Xapian::Error e)
-        {
-                i_error("FTS Xapian: Expunging '%s' : %s - %s",backend->boxname,e.get_type(),e.get_error_string());
-		fts_backend_xapian_release(backend,"do_expunge",current_time);
+	catch(Xapian::Error e)
+	{
+		i_error("FTS Xapian: Expunging '%s' : %s - %s",fpath,e.get_type(),e.get_error_string());
+		dbw->close();
+		delete(dbw);
 		return;
-        }
-	long i=0,j,k=0;
+	}
+	
 	Xapian::docid docid;
 	char * s;
 
-	j=result->size;
-	if((limit>0) && (j>limit)) 
-	{
-		j=limit;
-	}
+	long j=result->size;
+	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %ld to do",fpath,j);
 
-	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %ld to do, doing %ld",backend->boxname,result->size,j);
-
-	while(i<j)
+	while(j>0)
 	{
-		docid=result->data[i];
-                if((docid>0) && fts_backend_xapian_check_access(backend))
-                {
+		docid=result->data[j-1];
+		if(docid>0)
+		{
 			try
 			{
-				if(verbose>0) i_info("FTS Xapian: Expunging UID=%d '%s'",docid,backend->boxname);
-				backend->dbw->delete_document(docid);
+				if(verbose>0) i_info("FTS Xapian: Expunging UID=%d '%s'",docid,fpath);
+				dbw->delete_document(docid);
 			}
 			catch(Xapian::Error e)
 			{
-				i_error("FTS Xapian: Expunging UID=%d '%s' : %s - %s",docid,backend->boxname,e.get_type(),e.get_error_string());
+				i_error("FTS Xapian: Expunging UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
 			}
 		}
-		k++;
-		if(k>XAPIAN_EXPUNGE_SIZE)
-		{
-			s = i_strdup_printf("Expunging UID=%u '%s': Committing changes",docid,backend->boxname);
-			fts_backend_xapian_release(backend,s,current_time);
-			i_free(s);
-			k=0;
-		}
-		i++;
-        }
+		j--;
+	}
 	delete(result);
-	s = i_strdup_printf("Expunging '%s' done",backend->boxname);
-	fts_backend_xapian_release(backend,s,current_time);
-	i_free(s);
+	dbw->commit();
+	dbw->close();
+	delete(dbw);
+	gettimeofday(&tp, NULL);
+	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
+	i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
 }	
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
@@ -766,8 +759,6 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	struct timeval tp;
         gettimeofday(&tp, NULL);
         long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-	if(backend->doexpunge) { fts_backend_xapian_do_expunge(backend,"unset_box",XAPIAN_EXPUNGE_SIZE); }
 
 	fts_backend_xapian_oldbox(backend);
 
@@ -1153,39 +1144,3 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	return ok;
 }
 
-static int fts_backend_xapian_empty_db_remove(const char *fpath, const struct stat *sb, int typeflag)
-{
-	if(typeflag == FTW_F)
-	{
-		if(verbose>0) i_info("FTS Xapian: Removing file %s",fpath);
-		remove(fpath);
-	}
-	return 0;
-}
-
-static int fts_backend_xapian_empty_db(const char *fpath, const struct stat *sb, int typeflag)
-{
-	const char * s = fpath;
-	const char * sl = fpath;
-
-	while(sl !=NULL)
-	{
-		s=sl;
-		sl=strstr(sl,"/");
-		if(sl != NULL) sl = sl + 1;
-	}
-
-	if((typeflag == FTW_D) && (strncmp(s,"db_",3)==0))
-	{
-		if(verbose>0) i_info("FTS Xapian: Emptying %s",fpath);
-		ftw(fpath,fts_backend_xapian_empty_db_remove,100);
-		if(verbose>0) i_info("FTS Xapian: Removing directory %s",fpath);
-		rmdir(fpath);
-	}
-	else if((typeflag == FTW_F) && (strncmp(s,"expunge_",8)==0))
-	{
-		if(verbose>0) i_info("FTS Xapian: Removing file %s",fpath);
-		remove(fpath);
-	}
-        return 0;
-}

@@ -120,6 +120,12 @@ doveadm index -A -q \*
 
 
 
+You shall put in a cron the following command (for daily run for instance) :
+```
+doveadm fts optimize -A
+```
+
+
 Debugging/Support
 -----------------
 

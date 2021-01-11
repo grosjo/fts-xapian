@@ -5,7 +5,7 @@
 extern "C" {
 #include "fts-xapian-plugin.h"
 }
-#include <ftw.h>
+#include <dirent.h>
 #include <unicode/unistr.h>
 #include <sys/time.h>
 
@@ -14,7 +14,6 @@ extern "C" {
 #define XAPIAN_COMMIT_ENTRIES 1000000L
 #define XAPIAN_COMMIT_TIMEOUT 300L
 #define XAPIAN_WILDCARD "wldcrd"
-#define XAPIAN_EXPUNGE_SIZE 3
 #define XAPIAN_EXPUNGE_HEADER 9
 
 #define HDRS_NB 11
@@ -29,7 +28,6 @@ struct xapian_fts_backend
         char * path;
 	long partial,full;
 	bool attachments;
-	bool doexpunge;
 
 	char * guid;
 	char * boxname;
@@ -86,7 +84,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
 	backend->attachments = false;
-	backend->doexpunge = false;
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
@@ -350,8 +347,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		return FALSE;
 	}
 
-	backend->doexpunge = true;
-
 	if((backend->old_guid == NULL) || (strcmp(backend->old_guid,backend->guid)!=0))
         {
 		fts_backend_xapian_oldbox(backend);
@@ -546,18 +541,38 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize");
-
 	struct xapian_fts_backend *backend =
 		(struct xapian_fts_backend *) _backend;
 
-	struct timeval tp;
-        gettimeofday(&tp, NULL);
-        long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-	
-	fts_backend_xapian_do_expunge(backend,"optimize",0);
-        fts_backend_xapian_release(backend,"optimize",current_time);
+	i_info("FTS Xapian: fts_backend_xapian_optimize '%s'",backend->path);
 
+	struct stat sb;
+	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
+	{
+		i_error("FTS Xapian: Index folder inexistent");
+		return -1;
+	}
+
+	DIR* dirp = opendir(backend->path);
+	struct dirent * dp;
+	char *s;
+    	while ((dp = readdir(dirp)) != NULL)
+	{
+		s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+	
+		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
+		{
+			i_info("Removing %s",s);
+			remove(s);
+		}
+		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
+		{
+			i_info("Expunging %s",s);
+			fts_backend_xapian_do_expunge(s);
+		}
+		i_free(s);
+	}
+	closedir(dirp);
 	return 0;
 }
 
@@ -575,7 +590,41 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 		return -1;
 	}
 
-	return ftw(backend->path,fts_backend_xapian_empty_db,512);
+	DIR* dirp = opendir(backend->path);
+	struct dirent * dp;
+	char *s,*s2;
+	while ((dp = readdir(dirp)) != NULL)
+	{
+		s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+
+		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
+		{
+			i_info("Removing[1] %s",s);
+			remove(s);
+		}
+		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
+		{
+			DIR * d2 = opendir(s);
+			struct dirent *dp2;
+			while ((dp2 = readdir(d2)) != NULL)
+			{
+				s2 = i_strdup_printf("%s/%s",s,dp2->d_name);
+				if(dp2->d_type == DT_REG)
+				{
+					i_info("Removing[2] %s",s2);
+					remove(s2);
+				}
+				i_free(s2);
+			}
+			closedir(d2);
+			i_info("Removing dir %s",s);
+			remove(s);
+		}
+		i_free(s);
+	}
+	closedir(dirp);
+
+	return 0;
 }
 
 static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbox *box, struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_result *result)
