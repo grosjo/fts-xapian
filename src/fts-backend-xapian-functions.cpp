@@ -1068,7 +1068,8 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 
 	Xapian::Document * doc2 = new Xapian::Document();
 	Xapian::TermGenerator * termgenerator = new Xapian::TermGenerator();;
-	Xapian::Stem stem("en");
+//	Xapian::Stem stem("en");
+	Xapian::Stem stem("none");
 	termgenerator->set_stemmer(stem);
 	termgenerator->set_document(*doc2);
 
@@ -1083,8 +1084,8 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	}
 	std::string s;
 	data->toUTF8String(s);
-	termgenerator->set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
-	termgenerator->index_text(s, 1, h);
+//	termgenerator->set_stemming_strategy(Xapian::TermGenerator::STEM_ALL);
+	termgenerator->index_text_without_positions(s, 1, h);
 	
 	long l = strlen(h);
 	long n = doc2->termlist_count();
@@ -1098,6 +1099,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		c=s.c_str();	
 		if(strncmp(c,h,l)==0)
 		{
+	//		i_info("STem=%s",c+l);
 			ngram->add(c+l);
 		}
 		(*ti)++;
