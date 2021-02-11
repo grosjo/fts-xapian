@@ -27,7 +27,6 @@ struct xapian_fts_backend
         struct fts_backend backend;
         char * path;
 	long partial,full;
-	bool attachments;
 
 	char * guid;
 	char * boxname;
@@ -51,6 +50,7 @@ struct xapian_fts_backend_update_context
 {
         struct fts_backend_update_context ctx;
         char * tbi_field=NULL;
+	bool isattachment=false;
         bool tbi_isfield;
         uint32_t tbi_uid=0;
 };
@@ -83,7 +83,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	backend->attachments = false;
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
@@ -114,7 +113,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 		else if (strncmp(*tmp,"attachments=",12)==0)
 		{
-			if(atol(*tmp + 12)>0) backend->attachments=true;
+			// Legacy
 		}
 		else 
 		{
@@ -157,7 +156,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld attachments=%d verbose=%d",backend->partial,backend->full,backend->attachments,verbose);
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d",backend->partial,backend->full,verbose);
 
 	return 0;
 }
@@ -381,22 +380,44 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+	if(verbose>0) 
+	{
+		i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+		struct message_part * p = key->part;
+		if(p!=NULL)
+		{
+			long l = p->body_size.physical_size;
+			i_info("Part is not null size=%ld",l);
+			struct message_part_data * pd = p->data;
+			if(pd!=NULL)
+				i_info("DataType=%s,Env='%s'",pd->content_type,pd->envelope);
+		}
+	}
 
 	// Verify content-type
-	if((type != NULL) && (strncmp(type,"text",4)!=0))
+
+	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
 	{
-		if(verbose>0) i_info("FTS Xapian: Skipping part of type '%s'",type);
+		if(verbose>0) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
+		return FALSE;
+	}
+
+	if((type != NULL) && (strncmp(type,"text",4)!=0) && ((disposition==NULL) || ((strstr(disposition,"filename=")==NULL) && (strstr(disposition,"attachment")==NULL))))
+	{
+		if(verbose>0) i_info("FTS Xapian: Non-binary & non-text part of type '%s'",type);
 		return FALSE;
 	}
 
 	// Verify content-disposition
-	if((disposition != NULL) && (!backend->attachments) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
+	ctx->isattachment=false;
+	if((disposition != NULL) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
 	{
-		if(verbose>0) i_info("FTS Xapian: Skipping part of type '%s' and disposition '%s'",type,disposition);
-		return FALSE;
+		if(verbose>0)
+			i_info("FTS Xapian: Found attachment JOJO of type '%s' and disposition '%s'",type,disposition);
+		ctx->isattachment=true;		
 	}
 
+	
 	// Fill-in field
 	if(field==NULL)
 	{
@@ -478,12 +499,13 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 static int fts_backend_xapian_update_build_more(struct fts_backend_update_context *_ctx, const unsigned char *data, size_t size)
 {
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_build_more");
-
-	struct xapian_fts_backend_update_context *ctx =
-		(struct xapian_fts_backend_update_context *)_ctx;
-	struct xapian_fts_backend *backend =
-                (struct xapian_fts_backend *) ctx->ctx.backend;
+	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
+	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
+	
+	if(verbose>0 && ctx->isattachment) 
+	{
+		i_info("FTS Xapian: Indexing attachment");
+	}
 
 	if(ctx->tbi_uid<1) return 0;
 

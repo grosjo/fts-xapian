@@ -79,18 +79,28 @@ plugin {
 	plugin = fts fts_xapian (...)
 
 	fts = xapian
-	fts_xapian = partial=3 full=20 attachments=0 verbose=0
+	fts_xapian = partial=3 full=20 verbose=0
 
 	fts_autoindex = yes
 	fts_enforced = yes
 	
 	fts_autoindex_exclude = \Trash
+
+	fts_decoder = decode2text // To index attachements
 (...)
 }
 
 (...)
 service indexer-worker {
 	vsz_limit = 2G // or above (or 0 if you have rather large memory usable on your server, which is preferred for performance) 
+}
+
+service decode2text {
+   executable = script /usr/libexec/dovecot/decode2text.sh
+   user = dovecot
+   unix_listener decode2text {
+     mode = 0666
+   }
 }
 (...)
 
@@ -101,7 +111,6 @@ Full words are also added by default (if not longer than 245 chars, which is the
 Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
 Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
-Set "attachments=1" if you want to index attachments (this works only for text attachments)
 
 Restart Dovecot:
 

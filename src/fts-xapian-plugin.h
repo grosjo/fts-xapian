@@ -7,6 +7,7 @@
 #include "lib.h"
 #include "mail-storage-private.h"
 #include "mailbox-list-private.h"
+#include "message-part-data.h"
 #include "mail-search.h"
 #include "fts-api.h"
 #include "module-context.h"
