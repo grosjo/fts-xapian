@@ -725,7 +725,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	return 0;
 }
 
-static int fts_backend_xapian_lookup_multi (struct fts_backend *_backend, struct mailbox *const boxes[], struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_multi_result *result)
+static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct mailbox *const boxes[], struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_multi_result *result)
 {
 	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_lookup_multi");
 
@@ -741,8 +741,12 @@ static int fts_backend_xapian_lookup_multi (struct fts_backend *_backend, struct
 	{
 		box_result = array_append_space(&box_results);
 		box_result->box = boxes[i];
-		if(fts_backend_xapian_lookup(_backend, boxes[i], args, flags, box_result)<1) return -1;
+		if(fts_backend_xapian_lookup(_backend, boxes[i], args, flags, box_result)<0) return -1;
 	}
+
+	array_append_zero(&box_results);
+	result->box_results = array_front_modifiable(&box_results);
+
 	return 0;
 }
 
