@@ -733,6 +733,7 @@ static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct 
                 (struct xapian_fts_backend *) _backend;
 
 	ARRAY(struct fts_result) box_results;
+
 	struct fts_result *box_result;
 	int i;
 
@@ -741,7 +742,12 @@ static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct 
 	{
 		box_result = array_append_space(&box_results);
 		box_result->box = boxes[i];
-		if(fts_backend_xapian_lookup(_backend, boxes[i], args, flags, box_result)<0) return -1;
+		if(fts_backend_xapian_lookup(_backend, boxes[i], args, flags, box_result)<0) 
+		{
+			void* p=&box_results;
+			p_free(result->pool, p);
+			return -1;
+		}
 	}
 
 	array_append_zero(&box_results);
