@@ -15,6 +15,7 @@ extern "C" {
 #define XAPIAN_COMMIT_TIMEOUT 300L
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
+#define XAPIAN_MIN_RAM 200L
 
 #define HDRS_NB 11
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "expungeheader",	""  };
@@ -44,6 +45,9 @@ struct xapian_fts_backend
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
+
+	long nb_pushes;
+	long max_push;
 };
 
 struct xapian_fts_backend_update_context
@@ -86,6 +90,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
+
+	backend->nb_pushes=0;
+	backend->max_push=0;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL) 
@@ -382,7 +389,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(verbose>0) 
 	{
-		i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+		i_info("FTS Xapian: (AAA) New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 		struct message_part * p = key->part;
 		if(p!=NULL)
 		{
@@ -390,7 +397,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			i_info("Part is not null size=%ld",l);
 			struct message_part_data * pd = p->data;
 			if(pd!=NULL)
-				i_info("DataType=%s,Env='%s'",pd->content_type,pd->envelope);
+				i_info(" (AAA) DataType=%s,Env='%s'",pd->content_type,pd->envelope);
 		}
 	}
 
@@ -523,8 +530,9 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	gettimeofday(&tp, NULL);
 	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	
-	if(!fts_backend_xapian_test_memory())
+	if(!fts_backend_xapian_test_memory(backend))
 	{
+		if(verbose>0) i_info("FTS Xapian: Warning Low memory");
 		fts_backend_xapian_release(backend,"Low memory indexing", current_time);
 		if(!fts_backend_xapian_check_access(backend))
 		{

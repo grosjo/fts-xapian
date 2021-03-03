@@ -522,7 +522,7 @@ static long fts_backend_xapian_memory_free() // KB
         return 0;
 }
 
-static bool fts_backend_xapian_test_memory()
+static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend)
 {
 	rlim_t limit;
 
@@ -531,15 +531,21 @@ static bool fts_backend_xapian_test_memory()
 	long used = fts_backend_xapian_memory_used();
 	long fri = fts_backend_xapian_memory_free(); // Free RAM
 
+	backend->nb_pushes++;
+	long m2 = 2*used/backend->nb_pushes;
+	if(backend->max_push < m2) backend->max_push=m2;
+	m2=backend->max_push;
+
 	if(m<1) 
 	{
-		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB, Free = %ld MB",long(used/1024),long(fri/1024));
-		return (fri>used/2);
+		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld pushes), Free = %ld MB, Estimated required = %ld MB",long(used/1024), backend->nb_pushes, long(fri/1024), long(m2/1024));
+		return ((fri>XAPIAN_MIN_RAM*1024)&&(fri>m2));
 	}
-
-	if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%), Limit = %ld MB, Free = %ld MB",long(used/1024),long(used*100.0/m),long(m/1024),long(fri/1024));
-
-	return ((m>used*3.0/2)&&(fri>used/2));
+	else
+	{
+		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%) (%ld pushes), Limit = %ld MB, Free = %ld MB, Estimated required = %ld MB",long(used/1024),long(used*100.0/m),backend->nb_pushes,long(m/1024),long(fri/1024), long(m2/1024));
+		return ((fri>XAPIAN_MIN_RAM*1024)&&(m>(used+m2))&&(fri>m2));
+	}
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
@@ -618,6 +624,8 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
 {
+	bool err=false;
+
 	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(backend->dbw !=NULL)
@@ -630,12 +638,31 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
                 catch(Xapian::Error e)
                 {
                         i_error("FTS Xapian: %s : %s - %s",reason,e.get_type(),e.get_error_string());
+			err=true;
                 }
                 delete(backend->dbw);
                 backend->dbw = NULL;
 		backend->commit_updates = 0;
 		backend->commit_time = commit_time;
 	}
+
+	if(err)
+	{
+		if(verbose>0) i_info("FTS Xapian: Re-creating index database due to error");
+		try
+        	{
+                        Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+                        db->close();
+                        delete(db);
+                }
+                catch(Xapian::Error e)
+                {
+                        i_error("FTS Xapian: Can't re-create Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
+                }
+	}
+
+	backend->nb_pushes=0;
+	backend->max_push=0;
 
 	if(verbose>0)
 	{
