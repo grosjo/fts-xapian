@@ -398,13 +398,13 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
 	{
-		if(verbose>0) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
+		if(verbose>0) i_info("FTS Xapian: Skipping binary part (AAA) of type '%s'",type);
 		return FALSE;
 	}
 
 	if((type != NULL) && (strncmp(type,"text",4)!=0) && ((disposition==NULL) || ((strstr(disposition,"filename=")==NULL) && (strstr(disposition,"attachment")==NULL))))
 	{
-		if(verbose>0) i_info("FTS Xapian: Non-binary & non-text part of type '%s'",type);
+		if(verbose>0) i_info("FTS Xapian: Non-binary & non-text (AAA) part of type '%s'",type);
 		return FALSE;
 	}
 
@@ -412,12 +412,10 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	ctx->isattachment=false;
 	if((disposition != NULL) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
 	{
-		if(verbose>0)
-			i_info("FTS Xapian: Found attachment JOJO of type '%s' and disposition '%s'",type,disposition);
+		if(verbose>0) i_info("FTS Xapian: Found attachment (AAA) of type '%s' and disposition '%s'",type,disposition);
 		ctx->isattachment=true;		
 	}
 
-	
 	// Fill-in field
 	if(field==NULL)
 	{
