@@ -387,31 +387,19 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(verbose>0) 
-	{
-		i_info("FTS Xapian: (AAA) New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
-		struct message_part * p = key->part;
-		if(p!=NULL)
-		{
-			long l = p->body_size.physical_size;
-			i_info("Part is not null size=%ld",l);
-			struct message_part_data * pd = p->data;
-			if(pd!=NULL)
-				i_info(" (AAA) DataType=%s,Env='%s'",pd->content_type,pd->envelope);
-		}
-	}
+	if(verbose>0) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
 	// Verify content-type
 
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
 	{
-		if(verbose>0) i_info("FTS Xapian: Skipping binary part (AAA) of type '%s'",type);
+		if(verbose>0) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
 		return FALSE;
 	}
 
 	if((type != NULL) && (strncmp(type,"text",4)!=0) && ((disposition==NULL) || ((strstr(disposition,"filename=")==NULL) && (strstr(disposition,"attachment")==NULL))))
 	{
-		if(verbose>0) i_info("FTS Xapian: Non-binary & non-text (AAA) part of type '%s'",type);
+		if(verbose>0) i_info("FTS Xapian: Non-binary & non-text part of type '%s'",type);
 		return FALSE;
 	}
 
@@ -419,7 +407,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	ctx->isattachment=false;
 	if((disposition != NULL) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
 	{
-		if(verbose>0) i_info("FTS Xapian: Found attachment (AAA) of type '%s' and disposition '%s'",type,disposition);
+		if(verbose>0) i_info("FTS Xapian: Found part as attachment of type '%s' and disposition '%s'",type,disposition);
 		ctx->isattachment=true;		
 	}
 
@@ -448,7 +436,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB) 
 	{ 
-		if(verbose>1) i_info("FTS Xapian: Unknown header (indexing) '%s'",ctx->tbi_field); 
+		if(verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field); 
 		i_free(ctx->tbi_field); 
 		ctx->tbi_field=NULL;
 		return FALSE; 
@@ -507,9 +495,16 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
 	
-	if(verbose>0 && ctx->isattachment) 
+	if(verbose>0)
 	{
-		i_info("FTS Xapian: Indexing attachment");
+		if(ctx->isattachment) 
+		{
+			i_info("FTS Xapian: Indexing part as attachment");
+		}
+		else
+		{
+			i_info("FTS Xapian: Indexing part as text");
+		}
 	}
 
 	if(ctx->tbi_uid<1) return 0;
