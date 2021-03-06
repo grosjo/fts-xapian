@@ -758,7 +758,7 @@ static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct 
 	}
 
 	array_append_zero(&box_results);
-	result->box_results = array_front_modifiable(&box_results);
+	result->box_results = array_idx_modifiable(&box_results, 0);
 
 	return 0;
 }
