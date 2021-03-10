@@ -299,8 +299,6 @@ class XQuerySet
 
 		char *s = i_strdup(get_string().c_str());
 	
-		if(verbose>0) { i_info("FTS Xapian: Query= %s",s); }
-
 		qp->set_database(*db);
 	
 		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_DEFAULT));// | Xapian::QueryParser::FLAG_PARTIAL));

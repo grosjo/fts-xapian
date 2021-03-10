@@ -694,12 +694,10 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	XQuerySet * qs = new XQuerySet(is_and,false,backend->partial);
 	fts_backend_xapian_build_qs(qs,args);
 
-	if(verbose>0) { i_info("FTS Xapian: QUery '%s'",qs->get_string()); }
-
 	XResultSet * r=fts_backend_xapian_query(dbr,qs);
 
 	long n=r->size;
-	if(verbose>0) { i_info("FTS Xapian: QUery '%s' -> %ld results",qs->get_string(),n); }
+	if(verbose>0) { i_info("FTS Xapian: QUery '%s' -> %ld results",qs->get_string().c_str(),n); }
 
 	i_array_init(&(result->definite_uids),r->size);
 
