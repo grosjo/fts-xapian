@@ -113,6 +113,7 @@ Indexing options
 |----------------|--------------------------------|--------------------------------------|---------------|
 | partial & full | NGram values for header fields | between 3 and 20 characters          | 3 & 20        |
 | verbose        | Logs verbosity                 | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
+| attachments    | Index attachments or not       | 0 or 1                               | 0             |
 
 NGrams details
 --------------
