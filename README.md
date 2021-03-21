@@ -27,7 +27,7 @@ You will need to configure properly [Users Home Directories](https://wiki.doveco
 Installing the Dovecot plugin
 -----------------------------
 
-First install the following packages, or equivalent for your operating system. 
+First install the following packages, or equivalent for your operating system.
 
 ```
 Ubuntu:
@@ -52,7 +52,7 @@ git clone https://github.com/grosjo/fts-xapian
 cd fts-xapian
 ```
 
-Compile and install the plugin. 
+Compile and install the plugin.
 
 ```
 autoreconf -vi
@@ -62,7 +62,7 @@ sudo make install
 ```
 
 Replace /path/to/dovecot by the actual path to 'dovecot-config'.
-Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is /usr/lib/dovecot. 
+Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is /usr/lib/dovecot.
 
 For specific configuration, you may have to 'export PKG_CONFIG_PATH=...'. To check that, type 'pkg-config --cflags-only-I icu-uc icu-io icu-i18n', it shall return no error.
 
@@ -83,7 +83,7 @@ plugin {
 
 	fts_autoindex = yes
 	fts_enforced = yes
-	
+
 	fts_autoindex_exclude = \Trash
 
 	fts_decoder = decode2text // To index attachements
@@ -92,7 +92,7 @@ plugin {
 
 (...)
 service indexer-worker {
-	vsz_limit = 2G // or above (or 0 if you have rather large memory usable on your server, which is preferred for performance) 
+	vsz_limit = 2G // or above (or 0 if you have rather large memory usable on your server, which is preferred for performance)
 }
 
 service decode2text {
@@ -105,23 +105,37 @@ service decode2text {
 (...)
 
 ```
-Partial & full parameters : 3 and 20 are the NGram values for header fields, which means the keywords created for fields (To, Cc, ...) are between 3 and 20 chars long.
-Full words are also added by default (if not longer than 245 chars, which is the limit of Xapian capability).
+
+Indexing options
+----------------
+
+| Option         | Description                    | Possible values                      | Default value |
+|----------------|--------------------------------|--------------------------------------|---------------|
+| partial & full | NGram values for header fields | between 3 and 20 characters          | 3 & 20        |
+| verbose        | Logs verbosity                 | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
+
+NGrams details
+--------------
+
+The partial & full parameters are the NGram values for header fields, which means the keywords created for fields (To,
+Cc, ...) are between 3 and 20 chars long. Full words are also added by default (if not longer than 245 chars, which is
+the limit of Xapian capability).
 
 Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
-Set "verbose=1" to see verbose messages in the log, "verbose=2" for debug
+Index updating
+--------------
 
-Restart Dovecot:
+Just restart Dovecot:
 
-```
+```sh
 sudo servicectl restart dovecot
 ```
 
 
-If this is not a fresh install of dovecot, you need to re-index your mailboxes
+If this is not a fresh install of dovecot, you need to re-index your mailboxes:
 
-```
+```sh
 doveadm index -A -q \*
 ```
 
@@ -130,7 +144,8 @@ doveadm index -A -q \*
 
 
 You shall put in a cron the following command (for daily run for instance) :
-```
+
+```sh
 doveadm fts optimize -A
 ```
 
