@@ -117,7 +117,7 @@ Indexing options
 NGrams details
 --------------
 
-Yhe partial & full parameters are the NGram values for header fields, which means the keywords created for fields (To,
+The partial & full parameters are the NGram values for header fields, which means the keywords created for fields (To,
 Cc, ...) are between 3 and 20 chars long. Full words are also added by default (if not longer than 245 chars, which is
 the limit of Xapian capability).
 
