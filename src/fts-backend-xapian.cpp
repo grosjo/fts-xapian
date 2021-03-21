@@ -163,7 +163,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 	}
 
-	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d",backend->partial,backend->full,verbose);
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d path=%s",backend->partial,backend->full,verbose,backend->path);
 
 	return 0;
 }
