@@ -779,7 +779,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
-	if(verbose>1) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
+	if(verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
 
 	struct timeval tp;
         gettimeofday(&tp, NULL);
@@ -816,7 +816,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	if(verbose>1) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
+	if(verbose>0) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
 
 	if((mb == NULL) || (strlen(mb)<3))
 	{
@@ -843,6 +843,18 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
+
+	// DEBUG
+	if(verbose>0)
+	{
+		const char * q;
+		mailbox_get_path_to(box, MAILBOX_LIST_PATH_TYPE_INDEX, &q);
+		i_info("MAILBOX (1) PATH=%s vs InitPath=%s",q,backend->path);
+		mailbox_list_get_path(backend->backend.ns->list, backend->boxname,MAILBOX_LIST_PATH_TYPE_INDEX,&q);
+		i_info("MAILBOX (2) %s",q);
+		q= mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
+		i_info("MAILBOX (3) %s",q);
+	}
 
 	char * t = i_strdup_printf("%s/termlist.glass",backend->db);
 	struct stat sb;
