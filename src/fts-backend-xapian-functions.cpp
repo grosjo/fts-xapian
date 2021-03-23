@@ -852,7 +852,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		i_info("MAILBOX (1) PATH=%s vs InitPath=%s",q,backend->path);
 		mailbox_list_get_path(backend->backend.ns->list, backend->boxname,MAILBOX_LIST_PATH_TYPE_INDEX,&q);
 		i_info("MAILBOX (2) %s",q);
-		q= mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
+		q= mailbox_list_get_root_forced(backend->backend.ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
 		i_info("MAILBOX (3) %s",q);
 	}
 
