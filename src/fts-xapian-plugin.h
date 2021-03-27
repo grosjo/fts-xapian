@@ -5,13 +5,12 @@
 #define FTS_XAPIAN_PLUGIN_H
 
 #include "lib.h"
-#include "mail-storage-private.h"
-#include "mailbox-list-private.h"
-#include "mail-search.h"
-#include "fts-api.h"
-#include "module-context.h"
-#include "mail-user.h"
 #include "fts-api-private.h"
+#include "fts-api.h"
+#include "mail-search.h"
+#include "mail-storage-private.h"
+#include "mail-user.h"
+#include "module-context.h"
 #include "restrict-process-size.h"
 
 extern const char *fts_xapian_plugin_dependencies[];

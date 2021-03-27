@@ -19,14 +19,14 @@ extern "C" {
 
 #define HDRS_NB 11
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "expungeheader",	""  };
-static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XEXP",		"XBDY" }; 
+static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XEXP",		"XBDY" };
 
 static int verbose = 0;
 
 struct xapian_fts_backend
 {
-        struct fts_backend backend;
-        char * path;
+	struct fts_backend backend;
+	char * path;
 	long partial,full;
 
 	char * guid;
@@ -52,11 +52,11 @@ struct xapian_fts_backend
 
 struct xapian_fts_backend_update_context
 {
-        struct fts_backend_update_context ctx;
-        char * tbi_field=NULL;
+	struct fts_backend_update_context ctx;
+	char * tbi_field=NULL;
 	bool isattachment=false;
-        bool tbi_isfield;
-        uint32_t tbi_uid=0;
+	bool tbi_isfield;
+	uint32_t tbi_uid=0;
 };
 
 #include "fts-backend-xapian-functions.cpp"
@@ -64,11 +64,11 @@ struct xapian_fts_backend_update_context
 
 static struct fts_backend *fts_backend_xapian_alloc(void)
 {
-        struct xapian_fts_backend *backend;
+	struct xapian_fts_backend *backend;
 
-        backend = i_new(struct xapian_fts_backend, 1);
-        backend->backend = fts_backend_xapian;
-        return &backend->backend;
+	backend = i_new(struct xapian_fts_backend, 1);
+	backend->backend = fts_backend_xapian;
+	return &backend->backend;
 }
 
 static int fts_backend_xapian_init(struct fts_backend *_backend, const char **error_r)
@@ -108,7 +108,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 			len=atol(*tmp + 8);
 			if(len>0) backend->partial=len;
 		}
-        	else if (strncmp(*tmp,"full=",5)==0)
+		else if (strncmp(*tmp,"full=",5)==0)
 		{
 			len=atol(*tmp + 5);
 			if(len>0) backend->full=len;
@@ -124,31 +124,31 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		}
 		else 
 		{
-            		i_error("FTS Xapian: Invalid setting: %s", *tmp);
-            		return -1;
-        	}
-    	}
+			i_error("FTS Xapian: Invalid setting: %s", *tmp);
+			return -1;
+		}
+	}
 
-    	if(backend->partial < 2)
-    	{
-        	i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=2'",backend->partial);
-        	return -1;
-    	}
+	if(backend->partial < 2)
+	{
+		i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=2'",backend->partial);
+		return -1;
+	}
     	if(backend->full<1)
     	{
-        	i_error("FTS Xapian: 'full' parameter is incorrect (%ld). Try 'full=20'",backend->full);
-        	return -1;
-    	}
-    	if(backend->partial > backend->full)
-    	{
-        	i_error("FTS Xapian: 'full' parameter must be equal or greater than 'partial'");
-        	return -1;
-    	}
-    	if(backend->full > 50)
-    	{
-        	i_error("FTS Xapian: 'full' parameter above 50 is not realistic");
-        	return -1;
-    	}
+		i_error("FTS Xapian: 'full' parameter is incorrect (%ld). Try 'full=20'",backend->full);
+		return -1;
+	}
+	if(backend->partial > backend->full)
+	{
+		i_error("FTS Xapian: 'full' parameter must be equal or greater than 'partial'");
+		return -1;
+	}
+	if(backend->full > 50)
+	{
+		i_error("FTS Xapian: 'full' parameter above 50 is not realistic");
+		return -1;
+	}
 
 	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
 	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, NULL);
