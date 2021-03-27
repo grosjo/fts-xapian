@@ -1,0 +1,24 @@
+---
+
+language: cpp
+sudo: required
+dist: bionic
+compiler:
+  - gcc
+os:
+  - linux
+before_install:
+  - echo $LANG
+  - echo $LC_ALL
+  - apt-get build-dep dovecot-core
+  - apt-get install dovecot-dev
+  - apt-get install pkg-config libtool-bin valgrind
+  - apt-get install libicu-dev icu-devtools
+  - apt-get install git xapian-core libicu-dev
+script:
+  - autoreconf -vi
+  - ./configure --with-dovecot=/usr/lib/dovecot
+  - make
+  - sudo make install
+notifications:
+  email: true
