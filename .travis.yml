@@ -10,11 +10,11 @@ os:
 before_install:
   - echo $LANG
   - echo $LC_ALL
-  - sudo apt-get build-dep dovecot-core
-  - sudo apt-get install dovecot-dev
+  - sudo apt-get git build-dep
+  - sudo apt-get install dovecot-core dovecot-dev
   - sudo apt-get install pkg-config libtool-bin valgrind
   - sudo apt-get install libicu-dev icu-devtools
-  - sudo apt-get install git xapian-tools libicu-dev
+  - sudo apt-get install xapian-tools libxapian-dev
 script:
   - autoreconf -vi
   - ./configure --with-dovecot=/usr/lib/dovecot
