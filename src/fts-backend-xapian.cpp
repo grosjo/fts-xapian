@@ -3,7 +3,7 @@
 #include <xapian.h>
 #include <cstdio>
 extern "C" {
-#include "./fts-xapian-plugin.h"
+#include "fts-xapian-plugin.h"
 }
 #include <dirent.h>
 #include <unicode/unistr.h>
