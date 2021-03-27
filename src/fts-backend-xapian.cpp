@@ -770,4 +770,3 @@ struct fts_backend fts_backend_xapian =
 		NULL
 	}
 };
-
