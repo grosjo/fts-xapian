@@ -4,9 +4,11 @@ FTS Xapian plugin for Dovecot
 What is this?
 -------------
 
-This project intends to provide a straightforward, simple and maintenance free, way to configure FTS plugin for [Dovecot](https://github.com/dovecot/), leveraging the efforts by the [Xapian.org](https://xapian.org/) team.
+This project intends to provide a straightforward, simple and maintenance free, way to configure FTS plugin for
+[Dovecot](https://github.com/dovecot/), leveraging the efforts by the [Xapian.org](https://xapian.org/) team.
 
-This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
+This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the
+complexity of the Solr plugin capabilitles, un-needed for most users.
 
 
 
@@ -21,7 +23,8 @@ You are going to need the following things to get this going:
 * ICU 60.x (or above)
 ```
 
-You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
+You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot
+configuration
 
 
 Installing the Dovecot plugin
@@ -29,17 +32,26 @@ Installing the Dovecot plugin
 
 First install the following packages, or equivalent for your operating system.
 
-```
-Ubuntu:
-apt-get build-dep dovecot-core
-apt-get install dovecot-dev
-apt-get install git xapian-core libicu-dev
+### Debian / Ubuntu
 
-Archlinux:
+```sh
+sudo apt-get build-dep dovecot-core
+sudo apt-get install dovecot-dev
+sudo apt-get install pkg-config libtool-bin valgrind
+sudo apt-get install libicu-dev icu-devtools
+sudo apt-get install git xapian-core libicu-dev
+```
+
+### Archlinux
+
+```sh
 pacman -S dovecot
 pacman -S xapian-core icu
+```
 
-FreeBSD:
+### FreeBSD
+
+```sh
 pkg install xapian-core
 pkg install xapian-bindings
 pkg install icu
@@ -64,7 +76,8 @@ sudo make install
 Replace /path/to/dovecot by the actual path to 'dovecot-config'.
 Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is /usr/lib/dovecot.
 
-For specific configuration, you may have to 'export PKG_CONFIG_PATH=...'. To check that, type 'pkg-config --cflags-only-I icu-uc icu-io icu-i18n', it shall return no error.
+For specific configuration, you may have to `export PKG_CONFIG_PATH=...`. To check that, type
+`pkg-config --cflags-only-I icu-uc icu-io icu-i18n`, it shall return no error.
 
 The module will be placed into the module directory of your dovecot configuration
 
