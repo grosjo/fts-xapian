@@ -14,7 +14,7 @@ before_install:
   - sudo apt-get install dovecot-dev
   - sudo apt-get install pkg-config libtool-bin valgrind
   - sudo apt-get install libicu-dev icu-devtools
-  - sudo apt-get install git xapian-core libicu-dev
+  - sudo apt-get install git xapian-tools libicu-dev
 script:
   - autoreconf -vi
   - ./configure --with-dovecot=/usr/lib/dovecot
