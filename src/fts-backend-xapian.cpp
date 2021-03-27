@@ -718,9 +718,6 @@ static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct 
 {
 	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_lookup_multi");
 
-	struct xapian_fts_backend *backend =
-					 (struct xapian_fts_backend *) _backend;
-
 	ARRAY(struct fts_result) box_results;
 
 	struct fts_result *box_result;
@@ -770,4 +767,3 @@ struct fts_backend fts_backend_xapian =
 		NULL
 	}
 };
-
