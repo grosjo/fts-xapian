@@ -27,14 +27,14 @@ class XResultSet
 class XQuerySet
 {
 	public:
-	char * header;
-	char * text;
-	XQuerySet ** qs;
-	bool global_and; // global
-	bool global_neg; // global
-	bool item_neg; // for the term
-	long qsize;
-	long limit;
+		char * header;
+		char * text;
+		XQuerySet ** qs;
+		bool global_and; // global
+		bool global_neg; // global
+		bool item_neg; // for the term
+		long qsize;
+		long limit;
 
 	XQuerySet()
 	{
@@ -715,8 +715,8 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	Xapian::WritableDatabase * dbw;
 
 	struct timeval tp;
-		  gettimeofday(&tp, NULL);
-		  long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	gettimeofday(&tp, NULL);
+	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 	try
 	{
@@ -782,11 +782,10 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	if(verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
 
 	struct timeval tp;
-		  gettimeofday(&tp, NULL);
-		  long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	gettimeofday(&tp, NULL);
+	long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 	fts_backend_xapian_oldbox(backend);
-
 	fts_backend_xapian_release(backend,"unset_box",commit_time);
 
 	if(backend->db != NULL)
@@ -810,7 +809,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	{
 		if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 		if(verbose>0) i_info("FTS Xapian: Box is empty");
-					 return 0;
+		return 0;
 	}
 
 	const char * mb;
@@ -832,14 +831,14 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
-		  struct timeval tp;
-		  long current_time;
+	struct timeval tp;
+	long current_time;
 
-		  gettimeofday(&tp, NULL);
-		  current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	gettimeofday(&tp, NULL);
+	current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-		  backend->commit_updates = 0;
-		  backend->commit_time = current_time;
+	backend->commit_updates = 0;
+	backend->commit_time = current_time;
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
@@ -874,15 +873,14 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	}
 	i_free(t);
 
+	/* Performance calculator*/
+	backend->perf_dt = current_time;
+	backend->perf_uid=0;
+	backend->perf_nb=0;
+	backend->perf_pt=0;
+	/* End Performance calculator*/
 
-		  /* Performance calculator*/
-		  backend->perf_dt = current_time;
-		  backend->perf_uid=0;
-		  backend->perf_nb=0;
-		  backend->perf_pt=0;
-		  /* End Performance calculator*/
-
-		  return 0;
+	return 0;
 }
 
 static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *a)
@@ -1060,8 +1058,8 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
-		  long p = backend->partial;
-		  long f = backend->full;
+	long p = backend->partial;
+	long f = backend->full;
 
 	if(data->length()<p) return true;
 

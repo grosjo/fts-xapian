@@ -103,7 +103,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
 	{
-			if (strncmp(*tmp, "partial=",8)==0)
+		if (strncmp(*tmp, "partial=",8)==0)
 		{
 			len=atol(*tmp + 8);
 			if(len>0) backend->partial=len;
