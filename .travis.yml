@@ -10,7 +10,7 @@ os:
 before_install:
   - echo $LANG
   - echo $LC_ALL
-  - sudo apt-get git build-dep
+  - sudo apt-get install git build-dep
   - sudo apt-get install dovecot-core dovecot-dev
   - sudo apt-get install pkg-config libtool-bin valgrind
   - sudo apt-get install libicu-dev icu-devtools
