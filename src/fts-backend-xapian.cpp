@@ -335,7 +335,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
 
 	ctx->tbi_isfield=false;
-		  ctx->tbi_uid=0;
+	ctx->tbi_uid=0;
 
 	if(backend->guid == NULL)
 	{
@@ -569,7 +569,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	DIR* dirp = opendir(backend->path);
 	struct dirent * dp;
 	char *s;
-		while ((dp = readdir(dirp)) != NULL)
+	while ((dp = readdir(dirp)) != NULL)
 	{
 		s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
 
@@ -702,13 +702,13 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	delete(qs);
 
 	dbr->close();
-		  delete(dbr);
+	delete(dbr);
 
 	/* Performance calc */
-		  if(verbose>0)
+	if(verbose>0)
 	{
 		gettimeofday(&tp, NULL);
-			long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time;
+		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time;
 		i_info("FTS Xapian: %ld results in %ld ms",n,dt);
 	}
 	return 0;
@@ -745,7 +745,7 @@ static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct 
 	return 0;
 }
 
-struct fts_backend fts_backend_xapian = 
+struct fts_backend fts_backend_xapian =
 {
 	.name = "xapian",
 	.flags = FTS_BACKEND_FLAG_BUILD_FULL_WORDS,
