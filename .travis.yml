@@ -10,9 +10,9 @@ os:
 before_install:
   - echo $LANG
   - echo $LC_ALL
-  - sudo apt-get install git build-dep
+  - sudo apt-get build-dep dovecot-core
   - sudo apt-get install dovecot-core dovecot-dev
-  - sudo apt-get install pkg-config libtool-bin valgrind
+  - sudo apt-get install git pkg-config libtool-bin valgrind
   - sudo apt-get install libicu-dev icu-devtools
   - sudo apt-get install xapian-tools libxapian-dev
 script:
