@@ -1,5 +1,8 @@
 ---
 
+# Travis continuous integration file
+# This file describes the steps to build the package from scratch on Ubuntu.
+
 language: cpp
 sudo: required
 dist: bionic
