@@ -569,7 +569,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	DIR* dirp = opendir(backend->path);
 	struct dirent * dp;
 	char *s;
-		while ((dp = readdir(dirp)) != NULL)
+	while ((dp = readdir(dirp)) != NULL)
 	{
 		s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
 
