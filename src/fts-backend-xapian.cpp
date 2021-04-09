@@ -26,7 +26,7 @@ static int verbose = 0;
 struct xapian_fts_backend
 {
 	struct fts_backend backend;
-	char * path;
+	char * path = NULL;
 	long partial,full;
 
 	char * guid;
@@ -73,10 +73,10 @@ static struct fts_backend *fts_backend_xapian_alloc(void)
 
 static int fts_backend_xapian_init(struct fts_backend *_backend, const char **error_r)
 {
-	if(verbose>0) i_info("fts_backend_xapian_init");
+	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
-	struct xapian_fts_backend *backend =
-		(struct xapian_fts_backend *)_backend;
+	if(verbose>0) i_info("fts_backend_xapian_init : %s",_backend->name);
+
 	const char *const *tmp, *env;
 	long len;
 
@@ -150,20 +150,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		return -1;
 	}
 
-	const char * path = mailbox_list_get_root_forced(_backend->ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
-	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, NULL);
+	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
-	struct stat sb;
-	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
-	{
-		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
-		{
-			i_error("FTS Xapian: can not create '%s'",backend->path);
-			return -1;
-		}
-	}
-
-	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d path=%s",backend->partial,backend->full,verbose,backend->path);
+	if(verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d",backend->partial,backend->full,verbose);
 
 	return 0;
 }
@@ -377,7 +366,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(verbose>0) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+	if(verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
 	// Verify content-type
 
