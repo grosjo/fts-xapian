@@ -178,7 +178,7 @@ class XQuerySet
 		}
 		if(i>=HDRS_NB)
 		{
-			i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
+			if(verbose>1) i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
 			i_free(h2); i_free(t2);
 			return;
 		}
@@ -803,6 +803,34 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	return 0;
 }
 
+static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
+{
+	struct mail_namespace * ns = backend->backend.ns;
+	if(ns->alias_for != NULL)
+	{
+		if(verbose>0) i_info("Switching namespace");
+		ns = ns->alias_for;
+	}
+
+	const char * path = mailbox_list_get_root_forced(ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
+
+	if(backend->path != NULL) i_free(backend->path);
+	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, NULL);
+
+	if(verbose>0) i_info("FTS Xapian: Index path = %s",backend->path);
+
+	struct stat sb;
+	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
+	{
+		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
+		{
+			i_error("FTS Xapian: can not create '%s'",backend->path);
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct mailbox *box)
 {
 	if (box == NULL)
@@ -831,6 +859,8 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
+	if(fts_backend_xapian_set_path(backend)<0) return -1;
+
 	struct timeval tp;
 	long current_time;
 
@@ -842,18 +872,6 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
-
-	// DEBUG
-	if(verbose>0)
-	{
-		const char * q;
-		mailbox_get_path_to(box, MAILBOX_LIST_PATH_TYPE_INDEX, &q);
-		i_info("MAILBOX (1) PATH=%s vs InitPath=%s",q,backend->path);
-		mailbox_list_get_path(backend->backend.ns->list, backend->boxname,MAILBOX_LIST_PATH_TYPE_INDEX,&q);
-		i_info("MAILBOX (2) %s",q);
-		q= mailbox_list_get_root_forced(backend->backend.ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
-		i_info("MAILBOX (3) %s",q);
-	}
 
 	char * t = i_strdup_printf("%s/termlist.glass",backend->db);
 	struct stat sb;
@@ -869,7 +887,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		catch(Xapian::Error e)
 		{
 			i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
-			}
+		}
 	}
 	i_free(t);
 
