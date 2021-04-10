@@ -1,0 +1,27 @@
+---
+
+# Travis continuous integration file
+# This file describes the steps to build the package from scratch on Ubuntu.
+
+language: cpp
+sudo: required
+dist: bionic
+compiler:
+  - gcc
+os:
+  - linux
+before_install:
+  - echo $LANG
+  - echo $LC_ALL
+  - sudo apt-get build-dep dovecot-core
+  - sudo apt-get install dovecot-core dovecot-dev
+  - sudo apt-get install git pkg-config libtool-bin valgrind
+  - sudo apt-get install libicu-dev icu-devtools
+  - sudo apt-get install xapian-tools libxapian-dev
+script:
+  - autoreconf -vi
+  - ./configure --with-dovecot=/usr/lib/dovecot
+  - make
+  - sudo make install
+notifications:
+  email: true
