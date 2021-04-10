@@ -468,6 +468,13 @@ class XNGram
 	}
 };
 
+static long fts_backend_xapian_current_time()
+{
+	struct timeval tp;
+	gettimeofday(&tp, NULL);
+	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
+}
+
 static long fts_backend_xapian_memory_used() // KB
 {
 	FILE* file = fopen("/proc/self/status", "r");
@@ -520,7 +527,7 @@ static long fts_backend_xapian_memory_free() // KB
 	return 0;
 }
 
-static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend)
+static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend, long add)
 {
 	rlim_t limit;
 
@@ -534,14 +541,16 @@ static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend)
 	if(backend->max_push < m2) backend->max_push=m2;
 	m2=backend->max_push;
 
+	add = long(add/1024.0);
+
 	if(m<1)
 	{
-		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld pushes), Free = %ld MB, Estimated required = %ld MB",long(used/1024), backend->nb_pushes, long(fri/1024), long(m2/1024));
+		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld pushes), Free = %ld MB, Additional data %ld KB, Estimated required = %ld MB",long(used/1024), backend->nb_pushes, long(fri/1024), add, long(m2/1024));
 		return ((fri>XAPIAN_MIN_RAM*1024)&&(fri>m2));
 	}
 	else
 	{
-		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%) (%ld pushes), Limit = %ld MB, Free = %ld MB, Estimated required = %ld MB",long(used/1024),long(used*100.0/m),backend->nb_pushes,long(m/1024),long(fri/1024), long(m2/1024));
+		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%) (%ld pushes), Limit = %ld MB, Free = %ld MB, Additional data %ld KB, Estimated required = %ld MB",long(used/1024),long(used*100.0/m),backend->nb_pushes,long(m/1024),long(fri/1024), add, long(m2/1024));
 		return ((fri>XAPIAN_MIN_RAM*1024)&&(m>(used+m2))&&(fri>m2));
 	}
 }
@@ -602,9 +611,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(backend->old_guid != NULL)
 	{
 		/* Performance calculator*/
-		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+		long dt = fts_backend_xapian_current_time() - backend->perf_dt;
 		double r=0;
 		if(dt>0)
 		{
@@ -625,6 +632,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	bool err=false;
 
 	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
+
+	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
 
 	if(backend->dbw !=NULL)
 	{
@@ -664,10 +673,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(verbose>0)
 	{
-		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-		i_info("FTS Xapian: Committed '%s' in %ld ms",reason,current_time - commit_time);
+		i_info("FTS Xapian: Committed '%s' in %ld ms",reason,fts_backend_xapian_current_time() - commit_time);
 	}
 }
 
@@ -714,9 +720,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 {
 	Xapian::WritableDatabase * dbw;
 
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	long dt = fts_backend_xapian_current_time();
 
 	try
 	{
@@ -772,8 +776,8 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	dbw->commit();
 	dbw->close();
 	delete(dbw);
-	gettimeofday(&tp, NULL);
-	dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - dt;
+	
+	dt = fts_backend_xapian_current_time() - dt;
 	i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
 }
 
@@ -781,9 +785,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	if(verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
 
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long commit_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	long commit_time = fts_backend_xapian_current_time();
 
 	fts_backend_xapian_oldbox(backend);
 	fts_backend_xapian_release(backend,"unset_box",commit_time);
@@ -808,7 +810,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 	struct mail_namespace * ns = backend->backend.ns;
 	if(ns->alias_for != NULL)
 	{
-		if(verbose>0) i_info("Switching namespace");
+		if(verbose>0) i_info("FTS Xapian: Switching namespace");
 		ns = ns->alias_for;
 	}
 
@@ -836,14 +838,14 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if (box == NULL)
 	{
 		if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
-		if(verbose>0) i_info("FTS Xapian: Box is empty");
+		if(verbose>1) i_info("FTS Xapian: Box is empty");
 		return 0;
 	}
 
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 
-	if(verbose>0) i_info("FTX Xapian: Set box '%s' (%s)",box->name,mb);
+	if(verbose>0) i_info("FTS Xapian: Set box '%s' (%s)",box->name,mb);
 
 	if((mb == NULL) || (strlen(mb)<3))
 	{
@@ -864,8 +866,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	struct timeval tp;
 	long current_time;
 
-	gettimeofday(&tp, NULL);
-	current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	current_time = fts_backend_xapian_current_time();
 
 	backend->commit_updates = 0;
 	backend->commit_time = current_time;
@@ -970,7 +971,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 {
 	bool ok=true;
 
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_hdr");
+	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_index_hdr");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
 	long p = backend->partial;
@@ -1059,7 +1060,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 		}
 		catch (std::bad_alloc& ba)
 		{
-			i_error("FTS Xapian: Memory error '%s'",ba.what());
+			i_info("FTS Xapian: Memory too low (hdr) '%s'",ba.what());
 			ok = false;
 		}
 	}
@@ -1073,7 +1074,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 {
 	bool ok = true;
 
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
+	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_index_text");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
 	long p = backend->partial;
@@ -1187,7 +1188,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		}
 		catch (std::bad_alloc& ba)
 		{
-			i_error("FTS Xapian: Memory error '%s'",ba.what());
+			i_info("FTS Xapian: Memory too low (text) '%s'",ba.what());
 			ok = false;
 		}
 	}
