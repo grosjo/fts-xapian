@@ -240,11 +240,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 
 	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-	fts_backend_xapian_release(backend,"update_deinit", current_time);
+	fts_backend_xapian_release(backend,"update_deinit",0);
 
 	i_free(ctx);
 
@@ -349,9 +345,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	if((backend->perf_nb - backend->perf_pt)>=200)
 	{
 		backend->perf_pt = backend->perf_nb;
-		struct timeval tp;
-		gettimeofday(&tp, NULL);
-		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - backend->perf_dt;
+		long dt = fts_backend_xapian_current_time() - backend->perf_dt;
 		double r=0;
 		if(dt>0)
 		{
@@ -415,7 +409,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB)
 	{
-		if(verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+		if(verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
 		i_free(ctx->tbi_field);
 		ctx->tbi_field=NULL;
 		return FALSE;
@@ -440,7 +434,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_context *_ctx)
 {
-	if(verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
+	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
@@ -458,11 +452,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-	fts_backend_xapian_release(backend,"refresh", current_time);
+	fts_backend_xapian_release(backend,"refresh", 0);
 
 	return 0;
 }
@@ -472,7 +462,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
 
-	if(verbose>0)
+	if(verbose>1)
 	{
 		if(ctx->isattachment)
 		{
@@ -501,14 +491,10 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		return -1;
 	}
 
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-	if(!fts_backend_xapian_test_memory(backend))
+	if(!fts_backend_xapian_test_memory(backend,d2.length()))
 	{
 		if(verbose>0) i_info("FTS Xapian: Warning Low memory");
-		fts_backend_xapian_release(backend,"Low memory indexing", current_time);
+		fts_backend_xapian_release(backend,"Low memory indexing", 0);
 		if(!fts_backend_xapian_check_access(backend))
 		{
 			i_error("FTS Xapian: Buildmore: Can not open db (2)");
@@ -521,16 +507,41 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(ctx->tbi_isfield)
 	{
 		ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+		if(!ok)
+		{
+			if(verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
+			fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0);
+                	if(fts_backend_xapian_check_access(backend))
+			{
+				ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+			}
+			else
+                	{
+                        	i_error("FTS Xapian: Buildmore: Can not open db (3)");
+                	}
+		}
 	}
 	else
 	{
 		ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+		if(!ok)
+		{
+			if(verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
+			fts_backend_xapian_release(backend,"Flushing memory indexing text", 0);
+			if(fts_backend_xapian_check_access(backend))
+			{
+				ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+			}
+			else
+			{
+				i_error("FTS Xapian: Buildmore: Can not open db (4)");
+			}
+		}
 	}
 
 	backend->commit_updates++;
 
-	gettimeofday(&tp, NULL);
-	current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	long current_time = fts_backend_xapian_current_time();
 
 	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
@@ -636,10 +647,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 	if(fts_backend_xapian_set_box(backend, box)<0) return -1;
 
-	/* Performance calc */
-	struct timeval tp;
-	gettimeofday(&tp, NULL);
-	long current_time = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	long current_time = fts_backend_xapian_current_time();
 
 	Xapian::Database * dbr;
 
@@ -696,9 +704,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	/* Performance calc */
 	if(verbose>0)
 	{
-		gettimeofday(&tp, NULL);
-		long dt = tp.tv_sec * 1000 + tp.tv_usec / 1000 - current_time;
-		i_info("FTS Xapian: %ld results in %ld ms",n,dt);
+		i_info("FTS Xapian: %ld results in %ld ms",n,fts_backend_xapian_current_time() - current_time);
 	}
 	return 0;
 }
