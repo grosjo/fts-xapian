@@ -80,11 +80,8 @@ class XQuerySet
 		if(h==NULL) return;
 		if(t==NULL) return;
 
-		icu::StringPiece sp_h(h);
-		icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(sp_h);
-
-		icu::StringPiece sp_t(t);
-		icu::UnicodeString t2 = icu::UnicodeString::fromUTF8(sp_t);
+		icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(icu::StringPiece(h));
+		icu::UnicodeString t2 = icu::UnicodeString::fromUTF8(icu::StringPiece(t));
 
 		add(&h2,&t2,is_neg);
 	}
@@ -106,6 +103,9 @@ class XQuerySet
 		t->findAndReplace("\r"," ");
 		t->findAndReplace("@"," ");
 		t->findAndReplace("-","_");
+		UErrorCode status = U_ZERO_ERROR;
+		icu::Transliterator *accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+		accentsConverter->transliterate(*t);
 
 		h->trim();
 		t->trim();
@@ -352,8 +352,7 @@ class XNGram
 	{
 		if(s==NULL) return;
 
-		icu::StringPiece sp(s);
-		icu::UnicodeString d = icu::UnicodeString::fromUTF8(sp);
+		icu::UnicodeString d = icu::UnicodeString::fromUTF8(icu::StringPiece(s));
 		add(&d);
 	}
 
@@ -373,6 +372,9 @@ class XNGram
 		d->findAndReplace("\r"," ");
 		d->findAndReplace("@"," ");
 		d->findAndReplace("-","_");
+		UErrorCode status = U_ZERO_ERROR;
+		icu::Transliterator *accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+		accentsConverter->transliterate(*d);
 
 		long i = d->indexOf(".");
 		if(i>=0)

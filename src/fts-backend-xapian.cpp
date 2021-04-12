@@ -6,7 +6,9 @@ extern "C" {
 #include "fts-xapian-plugin.h"
 }
 #include <dirent.h>
+#include <unicode/utypes.h>
 #include <unicode/unistr.h>
+#include <unicode/translit.h>
 #include <sys/time.h>
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
