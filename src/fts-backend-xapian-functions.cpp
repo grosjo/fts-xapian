@@ -26,6 +26,8 @@ class XResultSet
 
 class XQuerySet
 {
+	private:
+		icu::Transliterator *accentsConverter;
 	public:
 		char * header;
 		char * text;
@@ -44,6 +46,7 @@ class XQuerySet
 		header=NULL;
 		text=NULL;
 		global_neg=false;
+		accentsConverter=NULL;
 	}
 
 	XQuerySet(bool is_and, bool is_neg, long l)
@@ -55,6 +58,7 @@ class XQuerySet
 		text=NULL;
 		global_and=is_and;
 		global_neg=is_neg;
+		accentsConverter=NULL;
 	}
 
 	~XQuerySet()
@@ -68,6 +72,7 @@ class XQuerySet
 		}
 		if(qsize>0) i_free(qs);
 		qsize=0; qs=NULL;
+		if(accentsConverter != NULL) delete(accentsConverter);
 	}
 
 	void add(const char * h,const char * t)
@@ -103,9 +108,6 @@ class XQuerySet
 		t->findAndReplace("\r"," ");
 		t->findAndReplace("@"," ");
 		t->findAndReplace("-","_");
-		UErrorCode status = U_ZERO_ERROR;
-		icu::Transliterator *accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
-		accentsConverter->transliterate(*t);
 
 		h->trim();
 		t->trim();
@@ -154,6 +156,19 @@ class XQuerySet
 		std::string tmp1;
 		h->toUTF8String(tmp1);
 		char * h2 = i_strdup(tmp1.c_str());
+
+		if(accentsConverter == NULL)
+		{
+			UErrorCode status = U_ZERO_ERROR;
+                	accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+                	if(U_FAILURE(status))
+                	{
+                	        i_error("FTS Xapian: Can not allocate ICU translator (2)");
+                	        accentsConverter = NULL;
+                	}
+		}
+		if(accentsConverter != NULL) accentsConverter->transliterate(*t);
+
 		std::string tmp2;
 		t->toUTF8String(tmp2);
 		char * t2 = i_strdup(tmp2.c_str());
@@ -315,6 +330,7 @@ class XNGram
 		long partial,full,hardlimit;
 		const char * prefix;
 		bool onlyone;
+		icu::Transliterator *accentsConverter;
 
 	public:
 		char ** data;
@@ -332,6 +348,7 @@ class XNGram
 		hardlimit=XAPIAN_TERM_SIZELIMIT-strlen(prefix);
 		onlyone=false;
 		if(strcmp(prefix,"XMID")==0) onlyone=true;
+		accentsConverter = NULL;
 	}
 
 	~XNGram()
@@ -346,6 +363,7 @@ class XNGram
 			i_free(data);
 		}
 		data=NULL;
+		if(accentsConverter != NULL) delete(accentsConverter);
 	}
 
 	void add(const char * s)
@@ -372,10 +390,7 @@ class XNGram
 		d->findAndReplace("\r"," ");
 		d->findAndReplace("@"," ");
 		d->findAndReplace("-","_");
-		UErrorCode status = U_ZERO_ERROR;
-		icu::Transliterator *accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
-		accentsConverter->transliterate(*d);
-
+		
 		long i = d->indexOf(".");
 		if(i>=0)
 		{
@@ -400,6 +415,18 @@ class XNGram
 
 		long l = d->length();
 		if(l<partial) return;
+
+		if(accentsConverter == NULL)
+		{
+			UErrorCode status = U_ZERO_ERROR;
+			accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+			if(U_FAILURE(status))
+			{
+				i_error("FTS Xapian: Can not allocate ICU translator (1)");
+				accentsConverter = NULL;
+			}
+		}
+		if(accentsConverter != NULL) accentsConverter->transliterate(*d);
 
 		if(onlyone)
 		{
