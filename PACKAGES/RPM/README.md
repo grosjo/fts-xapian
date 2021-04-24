@@ -12,7 +12,7 @@ As a normal user:
     Place the spec file under:
     ~/rpmbuild/SPECS/fts-xapian.spec
     Place the tar.gz sources under:
-    ~/rpmbuild/SOURCES/fts-xapian-1.4.8.tar.gz
+    ~/rpmbuild/SOURCES/fts-xapian-1.4.9a.tar.gz
     Generate the binary rpm with:
     -- QA_RPATHS=$(( 0x0001|0x0010 )) rpmbuild -bb ~/rpmbuild/SPECS/fts-xapian.spec
 

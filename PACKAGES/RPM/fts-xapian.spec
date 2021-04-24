@@ -1,11 +1,11 @@
 Name:           fts-xapian
-Version:        1.4.8
+Version:        1.4.9a
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
 License:        LGPL-2.1
 URL:            https://github.com/grosjo/fts-xapian
-Source0:        fts-xapian-1.4.8.tar.gz
+Source0:        fts-xapian-1.4.9a.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
 Requires:       xapian-core, xapian-core-libs, dovecot
