@@ -2,7 +2,7 @@ As root:
 
     Install the development environment and required devel packages:
     -- dnf groupinstall "Development Tools"
-    -- dnf install rpm-build rpm-devel rpmlint make coreutils diffutils patch rpmdevtools
+    -- dnf install rpm-build rpm-devel rpmlint make coreutils diffutils patch rpmdevtools autoconf automake m4 libtool
     -- dnf install dovecot-devel dovecot libicu-devel icu xapian-core xapian-core-devel
 
 As a normal user:

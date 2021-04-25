@@ -779,7 +779,6 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	}
 
 	Xapian::docid docid;
-	char * s;
 
 	long j=result->size;
 	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %ld to do",fpath,j);
@@ -892,10 +891,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
-	struct timeval tp;
-	long current_time;
-
-	current_time = fts_backend_xapian_current_time();
+	long current_time = fts_backend_xapian_current_time();
 
 	backend->commit_updates = 0;
 	backend->commit_time = current_time;

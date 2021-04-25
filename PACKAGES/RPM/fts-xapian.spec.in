@@ -1,5 +1,5 @@
 Name:           dovecot-fts-xapian
-Version:        1.4.9a
+Version:        FTSVERSION
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
