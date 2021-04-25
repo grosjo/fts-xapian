@@ -1,4 +1,4 @@
-VERSION=1.4.9a
+VERSION=1.4.9b
 REP=`pwd`
 rpmdev-setuptree
 cat fts-xapian.spec.in | sed -e s/FTSVERSION/${VERSION}/g > fts-xapian.spec
