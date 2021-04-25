@@ -7,14 +7,19 @@ License:        LGPLv2
 URL:            https://github.com/grosjo/fts-xapian
 Source0:        %{url}/archive/refs/tags/fts-xapian-%{version}.tar.gz
 
-BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel, automake, autoconf, libtool
+BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
 BuildRequires:  gcc, gcc-c++
+BuildRequires:  automake, autoconf, libtool
 Requires:       xapian-core, dovecot
 
 %description
-This project intends to provide a straightforward, simple and maintenance free, way to configure FTS plugin for Dovecot, leveraging the efforts by the Xapian.org team.
+This project intends to provide a straightforward, simple and
+maintenance free, way to configure FTS plugin for Dovecot, 
+leveraging the efforts by the Xapian.org team.
 
-This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
+This effort came after Dovecot team decided to deprecate 
+"fts_squat" included in the dovecot core, and due to the 
+complexity of the Solr plugin capabilitles, un-needed for most users.
 
 
 %prep
