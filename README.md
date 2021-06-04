@@ -71,39 +71,36 @@ The module will be placed into the module directory of your dovecot configuratio
 Update your dovecot.conf file with something similar to:
 
 ```
-mail_plugins = fts fts_xapian (...)
+mail_plugins = (...) fts fts_xapian
 
 (...)
 
 plugin {
-	plugin = fts fts_xapian (...)
+    fts = xapian
+    fts_xapian = partial=3 full=20 verbose=0
 
-	fts = xapian
-	fts_xapian = partial=3 full=20 verbose=0
+    fts_autoindex = yes
+    fts_enforced = yes
 
-	fts_autoindex = yes
-	fts_enforced = yes
+    fts_autoindex_exclude = \Trash
 
-	fts_autoindex_exclude = \Trash
-
-	fts_decoder = decode2text // To index attachements
-(...)
+    # Index attachements
+    fts_decoder = decode2text
 }
 
-(...)
 service indexer-worker {
-	vsz_limit = 2G // or above (or 0 if you have rather large memory usable on your server, which is preferred for performance)
+    # Increase vsz_limit to 2GB or above.
+    # Or 0 if you have rather large memory usable on your server, which is preferred for performance)
+    vsz_limit = 2G
 }
 
 service decode2text {
-   executable = script /usr/libexec/dovecot/decode2text.sh
-   user = dovecot
-   unix_listener decode2text {
-     mode = 0666
-   }
+    executable = script /usr/libexec/dovecot/decode2text.sh
+    user = dovecot
+    unix_listener decode2text {
+        mode = 0666
+    }
 }
-(...)
-
 ```
 
 Indexing options
@@ -129,9 +126,8 @@ Index updating
 Just restart Dovecot:
 
 ```sh
-sudo servicectl restart dovecot
+sudo service restart dovecot
 ```
-
 
 If this is not a fresh install of dovecot, you need to re-index your mailboxes:
 
@@ -139,9 +135,9 @@ If this is not a fresh install of dovecot, you need to re-index your mailboxes:
 doveadm index -A -q \*
 ```
 
-*The first index will re-index all emails, therefore may take a while.*
-
-
+- With argument `-A`, it will re-index all mailboxes, therefore may take a while.
+- With argument `-q`, doveadm queues the indexing to be run by indexer process.
+  Remove `-q` if you want to index immediately.
 
 You shall put in a cron the following command (for daily run for instance) :
 
