@@ -84,7 +84,8 @@ plugin {
 
     fts_autoindex_exclude = \Trash
 
-    fts_decoder = decode2text // To index attachements
+    # Index attachements
+    fts_decoder = decode2text
 }
 
 service indexer-worker {
