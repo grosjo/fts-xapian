@@ -1,0 +1,9 @@
+[Unit]
+Description=Optimize Dovecot FTS Index
+
+[Timer]
+OnCalendar=@@index_frequency@@
+Persistent=true
+
+[Install]
+WantedBy=timers.target
