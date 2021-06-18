@@ -1,0 +1,11 @@
+[Unit]
+Description=Optimize Dovecot FTS Index
+Requires=dovecot.service
+After=dovecot.service
+
+[Service]
+Type=oneshot
+ExecStart=@@prefix@@/doveadm fts optimize -A
+
+[Install]
+WantedBy=multi-user.target
