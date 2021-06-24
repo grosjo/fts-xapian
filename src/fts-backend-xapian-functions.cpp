@@ -597,7 +597,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 	try
 	{
 		if(verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
-		*dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN);
+		*dbr = new Xapian::Database(backend->db,Xapian::DB_OPEN | Xapian::DB_NO_SYNC);
 	}
 	catch(Xapian::Error e)
 	{
@@ -622,7 +622,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 	try
 	{
 		if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s",backend->db);
-		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+		backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
 	}
 	catch(Xapian::Error e)
 	{
@@ -753,7 +753,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 
 	try
 	{
-		dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+		dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
 	}
 	catch(Xapian::Error e)
 	{
@@ -785,6 +785,19 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 
 	while(j>0)
 	{
+		if(dbw == NULL)
+		{
+			try
+        		{
+				dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
+			}
+			catch(Xapian::Error e)
+			{
+				i_error("FTS Xapian: Can't reopen Xapian DB %s : %s - %s",fpath,e.get_type(),e.get_error_string());
+				return;
+			}
+		}
+
 		docid=result->data[j-1];
 		if(docid>0)
 		{
@@ -797,14 +810,24 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 			{
 				i_error("FTS Xapian: Expunging UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
 			}
+			catch(const std::bad_alloc&)
+			{
+				dbw->close();
+				delete(dbw);
+				dbw=NULL;
+			}
 		}
 		j--;
 	}
 	delete(result);
-	dbw->commit();
-	dbw->close();
-	delete(dbw);
 	
+	if(dbw != NULL)
+	{
+		dbw->commit();
+		dbw->close();
+		delete(dbw);
+	}
+
 	dt = fts_backend_xapian_current_time() - dt;
 	i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
 }
