@@ -687,7 +687,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		if(verbose>0) i_info("FTS Xapian: Re-creating index database due to error");
 		try
 		{
-			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
 			db->close();
 			delete(db);
 		}

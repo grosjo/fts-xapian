@@ -5,7 +5,7 @@ Summary:        Dovecot FTS plugin based on Xapian
 
 License:        LGPLv2
 URL:            https://github.com/grosjo/fts-xapian
-Source0:        %{url}/archive/refs/tags/fts-xapian-%{version}.tar.gz
+Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
 BuildRequires:  gcc, gcc-c++
@@ -19,7 +19,8 @@ leveraging the efforts by the Xapian.org team.
 
 This effort came after Dovecot team decided to deprecate 
 "fts_squat" included in the dovecot core, and due to the 
-complexity of the Solr plugin capabilitles, un-needed for most users.
+complexity of the Solr plugin capabilitles, un-needed for most
+users.
 
 
 %prep
@@ -39,9 +40,13 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %files
+%license COPYING
+%doc AUTHORS README.md
 %{_libdir}/dovecot/lib21_fts_xapian_plugin.so
 
 
 %changelog
-* Tue Apr  6 2021 xapian
+* Tue Apr  6 2021 Joan Moreau <jom@grosjo.net> - 1.4.9b-1
 - Initial RPM
+* Sat Jun 26 2021 Joan Moreau <jom@grosjo.net> - 1.4.10-1
+- cf Github
