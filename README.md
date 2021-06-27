@@ -31,9 +31,8 @@ First install the following packages, or equivalent for your operating system.
 
 ```
 Ubuntu:
-apt-get build-dep dovecot-core
-apt-get install dovecot-dev
-apt-get install git xapian-core libicu-dev
+apt-get build-dep dovecot-core 
+apt-get install dovecot-dev git xapian-core libicu-dev
 
 Archlinux:
 pacman -S dovecot
