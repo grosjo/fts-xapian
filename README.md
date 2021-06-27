@@ -32,16 +32,17 @@ First install the following packages, or equivalent for your operating system.
 ```
 Ubuntu:
 apt-get build-dep dovecot-core 
-apt-get install dovecot-dev git xapian-core libicu-dev
+apt-get install dovecot-dev git libxapian-dev libicu-dev
 
 Archlinux:
 pacman -S dovecot
-pacman -S xapian-core icu
+pacman -S xapian-core icu git
 
 FreeBSD:
 pkg install xapian-core
 pkg install xapian-bindings
 pkg install icu
+pkg install git
 ```
 
 Clone this project:
