@@ -868,7 +868,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 	const char * path = mailbox_list_get_root_forced(ns->list, MAILBOX_LIST_PATH_TYPE_INDEX);
 
 	if(backend->path != NULL) i_free(backend->path);
-	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, NULL);
+	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, static_cast<const char*>(NULL));
 
 	if(verbose>0) i_info("FTS Xapian: Index path = %s",backend->path);
 
