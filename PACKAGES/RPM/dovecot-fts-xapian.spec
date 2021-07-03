@@ -1,5 +1,5 @@
 Name:           dovecot-fts-xapian
-Version:        1.4.10
+Version:        1.4.10a
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
@@ -46,6 +46,8 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %changelog
+* Sat Jul 03 2021 Joan Moreau <jom@grosjo.net> - 1.4.10a-1
+- cf Github
 * Sat Jun 26 2021 Joan Moreau <jom@grosjo.net> - 1.4.10-1
 - cf Github
 * Tue Apr  6 2021 Joan Moreau <jom@grosjo.net> - 1.4.9b-1
