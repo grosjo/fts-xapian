@@ -70,6 +70,8 @@ The module will be placed into the module directory of your dovecot configuratio
 
 Update your dovecot.conf file with something similar to:
 
+(Example in [conf.d/90-fts.conf](https://github.com/grosjo/fts-xapian/blob/master/contrib/conf.d/90-fts.conf) )
+
 ```
 mail_plugins = (...) fts fts_xapian
 
