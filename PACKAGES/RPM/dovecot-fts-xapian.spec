@@ -9,7 +9,7 @@ Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
 BuildRequires:  gcc, gcc-c++
-BuildRequires:  automake, autoconf, libtool
+BuildRequires:  make, automake, autoconf, libtool
 Requires:       xapian-core, dovecot
 
 %description
