@@ -1,4 +1,4 @@
-VERSION=1.4.10a
+VERSION=1.4.11
 REP=`pwd`
 rpmdev-setuptree
 cat dovecot-fts-xapian.spec.in | sed -e s/FTSVERSION/${VERSION}/g > dovecot-fts-xapian.spec
