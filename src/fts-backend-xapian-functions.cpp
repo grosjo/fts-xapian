@@ -537,18 +537,37 @@ static long fts_backend_xapian_memory_free() // KB
 	char line[129];
 	const char* p;
 
+	bool ok1=false;
+	bool ok2=false;
+	long f=0;
+	long a=0;
+
 	if(file != NULL)
 	{
 		while (fgets(line, 128, file) != NULL)
 		{
-			if (strncmp(line, "MemFree:", 8) == 0)
+			if (strncmp(line, "MemAvailable:", 13) == 0)
 			{
+				i = strlen(line);
+				p = line+13;
+				while (*p <'0' || *p > '9') p++;
+				line[i-3] = '\0';
+				a = atol(p);
+				ok1=true;
+			}
+			else if (strncmp(line, "MemFree:", 8) == 0)
+                        {
 				i = strlen(line);
 				p = line+8;
 				while (*p <'0' || *p > '9') p++;
 				line[i-3] = '\0';
+				f = atol(p);
+				ok2=true;
+			}
+			if(ok1 && ok2)
+			{
 				fclose(file);
-				return atol(p);
+				return (4*a+f)/5;
 			}
 		}
 		fclose(file);
@@ -626,10 +645,14 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can't open Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
+		i_error("FTS Xapian: Can't open Xapian DB (RW) (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
 		return false;
 	}
-	if(verbose>0) i_info("FTS Xapian: Opening DB (RW) %s : Done",backend->db);
+	if(verbose>0) 
+	{
+		long n = backend->dbw->get_doccount();
+		i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,n);
+	}
 	return true;
 }
 
@@ -664,8 +687,10 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
 
+	long n = 0;
 	if(backend->dbw !=NULL)
 	{
+		if(verbose>0) n = backend->dbw->get_doccount();
 		try
 		{
 			backend->dbw->commit();
@@ -702,7 +727,14 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(verbose>0)
 	{
-		i_info("FTS Xapian: Committed '%s' in %ld ms",reason,fts_backend_xapian_current_time() - commit_time);
+		if(n>0)
+		{
+			i_info("FTS Xapian: Committed '%s' in %ld ms (%ld docs in index)",reason,fts_backend_xapian_current_time() - commit_time,n);
+		}
+		else
+		{
+			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,fts_backend_xapian_current_time() - commit_time);
+		}
 	}
 }
 

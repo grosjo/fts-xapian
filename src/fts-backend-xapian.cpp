@@ -436,9 +436,26 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_context *_ctx)
 {
-	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
-
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
+
+	if(verbose>0) 
+	{
+		long n = 0;
+		if( ctx->ctx.backend != NULL )
+		{
+			struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
+			if( backend->dbw != NULL) n = backend->dbw->get_doccount();
+		}
+
+		if(n>0)
+		{
+			i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key with %ld docs in the index",n);
+		}
+		else
+		{
+			i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
+		}
+	}
 
 	if(ctx->tbi_field!=NULL)
 	{
