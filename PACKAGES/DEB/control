@@ -1,15 +1,15 @@
-Source: dovecot-fts-xapian-1.4.11-4
+Source: dovecot-fts-xapian-1.4.11-6
 Section: mail
 Priority: optional
 Maintainer: Joan Moreau <jom@grosjo.net>
-Build-Depends: debhelper-compat (= 13), autotools-dev, dovecot-dev, libxapian-dev, libicu-dev
+Build-Depends: autotools-dev, dovecot-dev, libxapian-dev, libicu-dev
 Standards-Version: 4.5.1
 Homepage: https://github.com/grosjo/fts-xapian
 Vcs-Browser: https://github.com/grosjo/fts-xapian
 Vcs-Git: https://github.com/grosjo/fts-xapian.git
 Rules-Requires-Root: no
 
-Package: dovecot-fts-xapian-1.4.11-4
+Package: dovecot-fts-xapian-1.4.11-6
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: full-text search for dovecot using xapian
