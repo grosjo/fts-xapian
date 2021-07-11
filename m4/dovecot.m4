@@ -488,24 +488,6 @@ AS_VAR_POPDEF([gl_Flags])dnl
 AS_VAR_POPDEF([gl_Warn])dnl
 ])
 
-# gl_WARN_ADD(OPTION, [VARIABLE = WARN_CFLAGS],
-#             [PROGRAM = AC_LANG_PROGRAM()])
-# ---------------------------------------------
-# Adds parameter to WARN_CFLAGS if the compiler supports it when
-# compiling PROGRAM.  For example, gl_WARN_ADD([-Wparentheses]).
-#
-# If VARIABLE is a variable name, AC_SUBST it.
-AC_DEFUN([gl_WARN_ADD],
-[AC_REQUIRE([gl_UNKNOWN_WARNINGS_ARE_ERRORS])
-gl_COMPILER_OPTION_IF([$1],
-  [gl_AS_VAR_APPEND(m4_if([$2], [], [[WARN_CFLAGS]], [[$2]]), [" $1"])],
-  [],
-  [$3])
-m4_ifval([$2],
-         [AS_LITERAL_IF([$2], [AC_SUBST([$2])])],
-         [AC_SUBST([WARN_CFLAGS])])dnl
-])
-
 # Local Variables:
 # mode: autoconf
 # End:
