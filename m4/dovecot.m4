@@ -447,14 +447,6 @@ dnl with or without modifications, as long as this notice is preserved.
 
 dnl From Simon Josefsson
 
-# gl_AS_VAR_APPEND(VAR, VALUE)
-# ----------------------------
-# Provide the functionality of AS_VAR_APPEND if Autoconf does not have it.
-m4_ifdef([AS_VAR_APPEND],
-[m4_copy([AS_VAR_APPEND], [gl_AS_VAR_APPEND])],
-[m4_define([gl_AS_VAR_APPEND],
-[AS_VAR_SET([$1], [AS_VAR_GET([$1])$2])])])
-
 
 # gl_COMPILER_OPTION_IF(OPTION, [IF-SUPPORTED], [IF-NOT-SUPPORTED],
 #                       [PROGRAM = AC_LANG_PROGRAM()])
@@ -475,8 +467,6 @@ esac
 m4_pushdef([gl_Positive], [$gl_positive])])dnl
 AC_CACHE_CHECK([whether _AC_LANG compiler handles $1], m4_defn([gl_Warn]), [
   gl_save_compiler_FLAGS="$gl_Flags"
-  gl_AS_VAR_APPEND(m4_defn([gl_Flags]),
-    [" $gl_unknown_warnings_are_errors ]m4_defn([gl_Positive])["])
   AC_LINK_IFELSE([m4_default([$4], [AC_LANG_PROGRAM([])])],
                  [AS_VAR_SET(gl_Warn, [yes])],
                  [AS_VAR_SET(gl_Warn, [no])])
