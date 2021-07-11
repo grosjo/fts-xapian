@@ -2,10 +2,8 @@
 #HELP : https://saveriomiroddi.github.io/Building-a-debian-deb-source-package-and-publishing-it-on-an-ubuntu-ppa/#the-procedure
 export VERSION=1.4.11
 rm dovecot*
-wget https://github.com/grosjo/fts-xapian/archive/refs/tags/${VERSION}.tar.gz -O dovecot-fts-xapian-${VERSION}.tar.gz
-tar -zxf dovecot-fts-xapian-${VERSION}.tar.gz
-rm -rf dovecot-fts-xapian-${VERSION}
-mv fts-xapian-${VERSION} dovecot-fts-xapian-${VERSION}
+git clone https://github.com/grosjo/fts-xapian.git
+mv fts-xapian dovecot-fts-xapian-${VERSION}
 cd dovecot-fts-xapian-${VERSION}
 autoreconf -vi
 ./configure --with-dovecot=/usr/lib/dovecot
