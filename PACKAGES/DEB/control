@@ -1,4 +1,4 @@
-Source: dovecot-fts-xapian-1.4.11-3
+Source: dovecot-fts-xapian-1.4.11-4
 Section: mail
 Priority: optional
 Maintainer: Joan Moreau <jom@grosjo.net>
@@ -9,7 +9,7 @@ Vcs-Browser: https://github.com/grosjo/fts-xapian
 Vcs-Git: https://github.com/grosjo/fts-xapian.git
 Rules-Requires-Root: no
 
-Package: dovecot-fts-xapian-1.4.11-3
+Package: dovecot-fts-xapian-1.4.11-4
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: full-text search for dovecot using xapian

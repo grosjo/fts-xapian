@@ -488,15 +488,6 @@ AS_VAR_POPDEF([gl_Flags])dnl
 AS_VAR_POPDEF([gl_Warn])dnl
 ])
 
-# gl_UNKNOWN_WARNINGS_ARE_ERRORS
-# ------------------------------
-# Clang doesn't complain about unknown warning options unless one also
-# specifies -Wunknown-warning-option -Werror.  Detect this.
-AC_DEFUN([gl_UNKNOWN_WARNINGS_ARE_ERRORS],
-[gl_COMPILER_OPTION_IF([-Werror -Wunknown-warning-option],
-   [gl_unknown_warnings_are_errors='-Wunknown-warning-option -Werror'],
-   [gl_unknown_warnings_are_errors=])])
-
 # gl_WARN_ADD(OPTION, [VARIABLE = WARN_CFLAGS],
 #             [PROGRAM = AC_LANG_PROGRAM()])
 # ---------------------------------------------
