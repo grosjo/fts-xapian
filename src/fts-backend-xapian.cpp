@@ -576,12 +576,12 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	i_info("FTS Xapian: fts_backend_xapian_optimize '%s'",backend->path);
+	if(verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize '%s'",backend->path);
 
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
 	{
-		i_error("FTS Xapian: Index folder inexistent");
+		if(verbose>0) i_error("FTS Xapian: Index folder inexistent");
 		return -1;
 	}
 
@@ -594,12 +594,12 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 
 		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
 		{
-			i_info("Removing %s",s);
+			if(verbose>0) i_info("Removing %s",s);
 			remove(s);
 		}
 		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
-			i_info("Expunging %s",s);
+			if(verbose>0) i_info("Expunging %s",s);
 			fts_backend_xapian_do_expunge(s);
 		}
 		i_free(s);
@@ -630,7 +630,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 
 		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
 		{
-			i_info("Removing[1] %s",s);
+			if(verbose>0) i_info("Removing[1] %s",s);
 			remove(s);
 		}
 		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
@@ -642,13 +642,13 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 				s2 = i_strdup_printf("%s/%s",s,dp2->d_name);
 				if(dp2->d_type == DT_REG)
 				{
-					i_info("Removing[2] %s",s2);
+					if(verbose>0) i_info("Removing[2] %s",s2);
 					remove(s2);
 				}
 				i_free(s2);
 			}
 			closedir(d2);
-			i_info("Removing dir %s",s);
+			if(verbose>0) i_info("Removing dir %s",s);
 			remove(s);
 		}
 		i_free(s);
@@ -721,10 +721,8 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	delete(dbr);
 
 	/* Performance calc */
-	if(verbose>0)
-	{
-		i_info("FTS Xapian: %ld results in %ld ms",n,fts_backend_xapian_current_time() - current_time);
-	}
+	if(verbose>0) i_info("FTS Xapian: %ld results in %ld ms",n,fts_backend_xapian_current_time() - current_time);
+
 	return 0;
 }
 
