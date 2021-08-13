@@ -861,7 +861,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	}
 
 	dt = fts_backend_xapian_current_time() - dt;
-	i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
+	if(verbose>0) i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
 }
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
