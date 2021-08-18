@@ -55,6 +55,7 @@ cd fts-xapian
 Compile and install the plugin.
 
 ```
+autoupdate
 autoreconf -vi
 ./configure --with-dovecot=/path/to/dovecot
 make
