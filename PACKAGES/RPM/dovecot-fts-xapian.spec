@@ -1,5 +1,5 @@
 Name:           dovecot-fts-xapian
-Version:        1.4.11
+Version:        1.4.12
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
@@ -8,8 +8,7 @@ URL:            https://github.com/grosjo/fts-xapian
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
-BuildRequires:  gcc, gcc-c++
-BuildRequires:  make, automake, autoconf, libtool
+BuildRequires:  gcc, gcc-c++, make, automake, autoconf, libtool
 Requires:       xapian-core, dovecot
 
 %description
@@ -46,7 +45,9 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %changelog
-* Sat Jul 04 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
+* Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-1
+- cf Github
+* Sun Jul  4 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
 - cf Github
 * Sat Jun 26 2021 Joan Moreau <jom@grosjo.net> - 1.4.10-1
 - cf Github
