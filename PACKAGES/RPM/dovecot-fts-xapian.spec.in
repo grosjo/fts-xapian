@@ -46,7 +46,7 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %changelog
-* Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
+* Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-1
 - cf Github
 * Sat Jul 04 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
 - cf Github
