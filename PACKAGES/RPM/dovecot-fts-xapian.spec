@@ -8,8 +8,7 @@ URL:            https://github.com/grosjo/fts-xapian
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
-BuildRequires:  gcc, gcc-c++
-BuildRequires:  make, automake, autoconf, libtool
+BuildRequires:  gcc-c++, make, automake, autoconf, libtool
 Requires:       xapian-core, dovecot
 
 %description
@@ -46,9 +45,9 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %changelog
-* Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
+* Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-1
 - cf Github
-* Sat Jul 04 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
+* Sun Jul  4 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
 - cf Github
 * Sat Jun 26 2021 Joan Moreau <jom@grosjo.net> - 1.4.10-1
 - cf Github
