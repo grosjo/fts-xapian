@@ -8,7 +8,7 @@ URL:            https://github.com/grosjo/fts-xapian
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
 BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
-BuildRequires:  gcc-c++, make, automake, autoconf, libtool
+BuildRequires:  gcc, gcc-c++, make, automake, autoconf, libtool
 Requires:       xapian-core, dovecot
 
 %description
