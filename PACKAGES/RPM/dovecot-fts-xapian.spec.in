@@ -1,3 +1,4 @@
+%global __brp_check_rpaths %{nil}
 Name:           dovecot-fts-xapian
 Version:        FTSVERSION
 Release:        1%{?dist}
