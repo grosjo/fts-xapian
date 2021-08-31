@@ -18,8 +18,8 @@ THis plugin is readly available in major distributions under the name "dovecot-f
 - Fedora : https://src.fedoraproject.org/rpms/dovecot-fts-xapian
 
 
-Configuration of Dovecot to use the plugin
-------------------------------------------
+Configuration - dovecot.conf file
+---------------------------------
 
 Update your dovecot.conf file with something similar to:
 
@@ -58,16 +58,18 @@ service decode2text {
 }
 ```
 
-Indexing options
-----------------
+
+Configuration - Indexing options
+--------------------------------
 
 | Option         | Description                    | Possible values                      | Default value |
 |----------------|--------------------------------|--------------------------------------|---------------|
 | partial & full | NGram values for header fields | between 3 and 20 characters          | 3 & 20        |
 | verbose        | Logs verbosity                 | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
 
-NGrams details
---------------
+
+Configuration - NGrams details
+------------------------------
 
 The partial & full parameters are the NGram values for header fields, which means the keywords created for fields (To,
 Cc, ...) are between 3 and 20 chars long. Full words are also added by default (if not longer than 245 chars, which is
@@ -75,8 +77,8 @@ the limit of Xapian capability).
 
 Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
 
-Index updating
---------------
+Configuration - Index updating
+------------------------------
 
 Just restart Dovecot:
 
