@@ -1,4 +1,4 @@
-AC_INIT([Dovecot FTS Xapian],[1.4.12],[jom@grosjo.net],[dovecot-fts-xapian])
+AC_INIT([Dovecot FTS Xapian],[1.4.13],[jom@grosjo.net],[dovecot-fts-xapian])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([m4])
@@ -58,11 +58,6 @@ AS_IF([test "x$XAPIAN_CONFIG" = "xno"],[
    *** If you compiled it yourself, you should ensure that xapian-config
    *** is in your PATH.])],
    [XAPIAN_VERSION=$($XAPIAN_CONFIG --version | sed -e 's/.* //')])
-
-AS_CASE([$XAPIAN_VERSION],
-    [[1-2].[[2-9]].[[0-9]]*],
-      [AC_DEFINE([XAPIAN_HAVE_OP_WILDCARD],[1],[Xapian::Query::OP_WILDCARD?])],
-      [AC_MSG_ERROR([*** xapian version >= 1.2 needed, but version $XAPIAN_VERSION found.])])
 
 XAPIAN_CXXFLAGS="$($XAPIAN_CONFIG --cxxflags)"
 XAPIAN_LIBS="$($XAPIAN_CONFIG --libs)"
