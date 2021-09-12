@@ -46,8 +46,9 @@ echo ">>> Inside post <<<"
 
 
 %changelog
-* Sun Sep 12 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-2
+* Sun Sep 12 2021 Joan Moreau <jom@grosjo.net> - 1.4.13-1
 - Rebuild for dovecot 2.3.16
+- Epel7 comptability
 * Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-1
 - cf Github
 * Sun Jul  4 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
