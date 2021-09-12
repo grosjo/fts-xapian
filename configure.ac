@@ -49,7 +49,6 @@ AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
 
-# xapian checking - we need 1.4 at least
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
 AS_IF([test "x$XAPIAN_CONFIG" = "xno"],[
@@ -61,9 +60,9 @@ AS_IF([test "x$XAPIAN_CONFIG" = "xno"],[
    [XAPIAN_VERSION=$($XAPIAN_CONFIG --version | sed -e 's/.* //')])
 
 AS_CASE([$XAPIAN_VERSION],
-    [1.[[4-9]].[[0-9]]*],
+    [[1-2].[[2-9]].[[0-9]]*],
       [AC_DEFINE([XAPIAN_HAVE_OP_WILDCARD],[1],[Xapian::Query::OP_WILDCARD?])],
-      [AC_MSG_ERROR([*** xapian version >= 1.4 needed, but version $XAPIAN_VERSION found.])])
+      [AC_MSG_ERROR([*** xapian version >= 1.2 needed, but version $XAPIAN_VERSION found.])])
 
 XAPIAN_CXXFLAGS="$($XAPIAN_CONFIG --cxxflags)"
 XAPIAN_LIBS="$($XAPIAN_CONFIG --libs)"

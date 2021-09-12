@@ -1,7 +1,7 @@
 %global __brp_check_rpaths %{nil}
 Name:           dovecot-fts-xapian
 Version:        FTSVERSION
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
 License:        LGPLv2
@@ -34,10 +34,10 @@ autoreconf -vi
 
 %install
 %make_install
-
-# We do not want the libtool archive or static library
 rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
+%post
+echo ">>> Inside post <<<"
 
 %files
 %license COPYING
@@ -46,6 +46,8 @@ rm %{buildroot}%{_libdir}/dovecot/lib21_fts_xapian_plugin.la
 
 
 %changelog
+* Sun Sep 12 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-2
+- Rebuild for dovecot 2.3.16
 * Sat Aug 14 2021 Joan Moreau <jom@grosjo.net> - 1.4.12-1
 - cf Github
 * Sun Jul  4 2021 Joan Moreau <jom@grosjo.net> - 1.4.11-1
