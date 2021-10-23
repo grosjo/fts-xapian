@@ -571,8 +571,9 @@ static long fts_backend_xapian_memory_free() // KB
 			}
 		}
 		fclose(file);
+		return -2;
 	}
-	return 0;
+	return -1;
 }
 
 static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend, long add)
@@ -585,9 +586,9 @@ static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend, l
 	long fri = fts_backend_xapian_memory_free(); // Free RAM
 
 	backend->nb_pushes++;
-	long m2 = 2*used/backend->nb_pushes;
+	long m2 = used/backend->nb_pushes;
 	if(backend->max_push < m2) backend->max_push=m2;
-	m2=backend->max_push;
+	m2= 2 * backend->max_push;
 
 	add = long(add/1024.0);
 
