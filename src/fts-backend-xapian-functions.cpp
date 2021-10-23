@@ -804,7 +804,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Expunging '%s' : %s - %s",fpath,e.get_type(),e.get_error_string());
+		i_error("FTS Xapian: Expunging (1) '%s' : %s - %s",fpath,e.get_type(),e.get_error_string());
 		dbw->close();
 		delete(dbw);
 		return;
@@ -813,7 +813,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	Xapian::docid docid;
 
 	long j=result->size;
-	if(verbose>0) i_info("FTS Xapian: Expunging '%s' : %ld to do",fpath,j);
+	if(verbose>0) i_info("FTS Xapian: Expunging (2) '%s' : %ld to do",fpath,j);
 
 	while(j>0)
 	{
@@ -835,12 +835,12 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 		{
 			try
 			{
-				if(verbose>0) i_info("FTS Xapian: Expunging UID=%d '%s'",docid,fpath);
+				if(verbose>0) i_info("FTS Xapian: Expunging (3) UID=%d '%s'",docid,fpath);
 				dbw->delete_document(docid);
 			}
 			catch(Xapian::Error e)
 			{
-				i_error("FTS Xapian: Expunging UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
+				i_error("FTS Xapian: Expunging (4) UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
 			}
 			catch(const std::bad_alloc&)
 			{
@@ -861,7 +861,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 	}
 
 	dt = fts_backend_xapian_current_time() - dt;
-	if(verbose>0) i_info("FTS Xapian: Expunging '%s' done in %.2f secs",fpath,dt/1000.0);
+	if(verbose>0) i_info("FTS Xapian: Expunging (5) '%s' done in %.2f secs",fpath,dt/1000.0);
 }
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)

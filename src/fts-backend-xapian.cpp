@@ -309,7 +309,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Expunging UID=%d %s",uid,e.get_msg().c_str());
+		i_error("FTS Xapian: Expunging (6) UID=%d %s",uid,e.get_msg().c_str());
 	}
 }
 
@@ -599,7 +599,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 		}
 		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
-			if(verbose>0) i_info("Expunging %s",s);
+			if(verbose>0) i_info("Expunging (7) %s",s);
 			fts_backend_xapian_do_expunge(s);
 		}
 		i_free(s);
