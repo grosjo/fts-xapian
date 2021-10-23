@@ -32,7 +32,7 @@ mail_plugins = (...) fts fts_xapian
 
 plugin {
     fts = xapian
-    fts_xapian = partial=3 full=20 verbose=0
+    fts_xapian = partial=3 full=20
 
     fts_autoindex = yes
     fts_enforced = yes
@@ -62,10 +62,11 @@ service decode2text {
 Configuration - Indexing options
 --------------------------------
 
-| Option         | Description                    | Possible values                      | Default value |
-|----------------|--------------------------------|--------------------------------------|---------------|
-| partial & full | NGram values for header fields | between 3 and 20 characters          | 3 & 20        |
-| verbose        | Logs verbosity                 | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
+| Option         | Optional | Description                     | Possible values                      | Default value |
+|----------------|----------|---------------------------------|--------------------------------------|---------------|
+| partial & full |   no     | NGram values for header fields  | between 3 and 20 characters          | 3 & 20        |
+| verbose        |   yes    | Logs verbosity                  | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
+| lowmemory      |   yes    | Memory limit before disk commit | 0 (default), or set value (in MB)    | 0             |
 
 
 Configuration - NGrams details
