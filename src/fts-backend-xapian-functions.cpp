@@ -504,104 +504,18 @@ static long fts_backend_xapian_current_time()
 	return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
-static long fts_backend_xapian_memory_used() // KB
+static long fts_backend_xapian_get_free_memory() // KB
 {
-	FILE* file = fopen("/proc/self/status", "r");
-	int i;
-	char line[129];
-	const char* p;
-
-	if(file != NULL)
-	{
-		while (fgets(line, 128, file) != NULL)
-		{
-			if (strncmp(line, "VmSize:", 7) == 0)
-			{
-				i = strlen(line);
-				p = line+7;
-				while (*p <'0' || *p > '9') p++;
-				line[i-3] = '\0';
-				fclose(file);
-				return atol(p);
-			}
-		}
-		fclose(file);
-	}
-	return 0;
+	return long(sysconf(_SC_AVPHYS_PAGES)*sysconf(_SC_PAGE_SIZE) / 1024.0);
 }
 
-static long fts_backend_xapian_memory_free() // KB
+static bool fts_backend_xapian_test_memory()
 {
-	FILE* file = fopen("/proc/meminfo", "r");
-	int i;
-	char line[129];
-	const char* p;
+	long fri = fts_backend_xapian_get_free_memory(); // KB
 
-	bool ok1=false;
-	bool ok2=false;
-	long f=0;
-	long a=0;
+	if(verbose>1) i_warning("FTS Xapian: Free memory %ld MB vs %ld MB minimum",long(fri/1024.0),lowmem);
 
-	if(file != NULL)
-	{
-		while (fgets(line, 128, file) != NULL)
-		{
-			if (strncmp(line, "MemAvailable:", 13) == 0)
-			{
-				i = strlen(line);
-				p = line+13;
-				while (*p <'0' || *p > '9') p++;
-				line[i-3] = '\0';
-				a = atol(p);
-				ok1=true;
-			}
-			else if (strncmp(line, "MemFree:", 8) == 0)
-                        {
-				i = strlen(line);
-				p = line+8;
-				while (*p <'0' || *p > '9') p++;
-				line[i-3] = '\0';
-				f = atol(p);
-				ok2=true;
-			}
-			if(ok1 && ok2)
-			{
-				fclose(file);
-				return (4*a+f)/5;
-			}
-		}
-		fclose(file);
-		return -2;
-	}
-	return -1;
-}
-
-static bool fts_backend_xapian_test_memory(struct xapian_fts_backend *backend, long add)
-{
-	rlim_t limit;
-
-	restrict_get_process_size(&limit);
-	long m = long((long)limit / 1024.0); // vsz_limit of dovecot.conf
-	long used = fts_backend_xapian_memory_used();
-	long fri = fts_backend_xapian_memory_free(); // Free RAM
-
-	backend->nb_pushes++;
-	long m2 = used/backend->nb_pushes;
-	if(backend->max_push < m2) backend->max_push=m2;
-	m2= 2 * backend->max_push;
-
-	add = long(add/1024.0);
-
-	if(m<1)
-	{
-		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld pushes), Free = %ld MB, Additional data %ld KB, Estimated required = %ld MB",long(used/1024), backend->nb_pushes, long(fri/1024), add, long(m2/1024));
-		return ((fri>XAPIAN_MIN_RAM*1024)&&(fri>m2));
-	}
-	else
-	{
-		if(verbose>0) i_info("FTS Xapian: Memory stats : Used = %ld MB (%ld%%) (%ld pushes), Limit = %ld MB, Free = %ld MB, Additional data %ld KB, Estimated required = %ld MB",long(used/1024),long(used*100.0/m),backend->nb_pushes,long(m/1024),long(fri/1024), add, long(m2/1024));
-		return ((fri>XAPIAN_MIN_RAM*1024)&&(m>(used+m2))&&(fri>m2));
-	}
+	return(fri > lowmem*1024);
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
@@ -723,9 +637,6 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		}
 	}
 
-	backend->nb_pushes=0;
-	backend->max_push=0;
-
 	if(verbose>0)
 	{
 		if(n>0)
@@ -780,7 +691,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 
 static void fts_backend_xapian_do_expunge(const char *fpath)
 {
-	Xapian::WritableDatabase * dbw;
+	Xapian::WritableDatabase * dbw = NULL;
 
 	long dt = fts_backend_xapian_current_time();
 
@@ -794,22 +705,23 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 		return;
 	}
 
-	XResultSet * result;
+	XResultSet * result = NULL;
+	XQuerySet * xq = new XQuerySet();
 
 	try
 	{
-		XQuerySet * xq = new XQuerySet();
 		xq->add(hdrs_emails[XAPIAN_EXPUNGE_HEADER],"1");
 		result=fts_backend_xapian_query(dbw,xq,1);
-		delete(xq);
 	}
 	catch(Xapian::Error e)
 	{
 		i_error("FTS Xapian: Expunging (1) '%s' : %s - %s",fpath,e.get_type(),e.get_error_string());
-		dbw->close();
-		delete(dbw);
-		return;
+		if(result != NULL) { delete(result); result = NULL; }
 	}
+
+	delete(xq);
+
+	if(result == NULL) { dbw->close(); delete(dbw); return; }
 
 	Xapian::docid docid;
 
@@ -818,6 +730,18 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 
 	while(j>0)
 	{
+		if(dbw != NULL) 
+		{
+			if(!fts_backend_xapian_test_memory())
+			{
+				if(verbose>0) i_warning("FTS Xapian: Expunging with low memory (%ld MB)-> Commiting on disk",long(fts_backend_xapian_get_free_memory()/1024.0));
+				dbw->commit();
+				dbw->close();
+				delete(dbw);
+				dbw=NULL;
+			}
+		}
+
 		if(dbw == NULL)
 		{
 			try
@@ -827,30 +751,41 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 			catch(Xapian::Error e)
 			{
 				i_error("FTS Xapian: Can't reopen Xapian DB %s : %s - %s",fpath,e.get_type(),e.get_error_string());
+				delete(result);
 				return;
 			}
+			catch(const std::exception &e)
+                        {
+				i_error("FTS Xapian: Can't reopen Xapian DB for expunging (%s) : Low memory (%s)",fpath, e.what());
+				delete(result);
+				return;
+                        }
 		}
 
 		docid=result->data[j-1];
-		if(docid>0)
+		try
 		{
-			try
-			{
-				if(verbose>0) i_info("FTS Xapian: Expunging (3) UID=%d '%s'",docid,fpath);
-				dbw->delete_document(docid);
-			}
-			catch(Xapian::Error e)
-			{
-				i_error("FTS Xapian: Expunging (4) UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
-			}
-			catch(const std::bad_alloc&)
-			{
-				dbw->close();
-				delete(dbw);
-				dbw=NULL;
-			}
+			if(verbose>0) i_info("FTS Xapian: Expunging (3a) UID=%d (Free mem= %ld MB) '%s'",docid,long(fts_backend_xapian_get_free_memory()/1024.0),fpath);
+			if(docid>0) dbw->delete_document(docid);
+			if(verbose>0) i_info("FTS Xapian: Expunging (3b) UID=%d (Free mem= %ld MB) done",docid,long(fts_backend_xapian_get_free_memory()/1024.0));
+			j--;
 		}
-		j--;
+		catch(Xapian::Error e)
+		{
+			i_error("FTS Xapian: Expunging (4a) UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
+			dbw->commit();
+			dbw->close();
+			delete(dbw);
+			dbw=NULL;
+		}
+		catch(const std::exception &e2)
+		{
+			i_error("FTS Xapian: Expunging (4b) UID=%d '%s' : %s",docid,fpath,e2.what());
+			dbw->commit();
+			dbw->close();
+			delete(dbw);
+			dbw=NULL;
+		}
 	}
 	delete(result);
 	
@@ -1139,9 +1074,9 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 		{
 			dbx->replace_document(docid,*doc);
 		}
-		catch (std::bad_alloc& ba)
+		catch (const std::exception &e)
 		{
-			i_info("FTS Xapian: Memory too low (hdr) '%s'",ba.what());
+			i_warning("FTS Xapian: Memory too low (hdr) '%s'",e.what());
 			ok = false;
 		}
 	}
@@ -1267,9 +1202,9 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		{
 			dbx->replace_document(docid,*doc);
 		}
-		catch (std::bad_alloc& ba)
+		catch (const std::exception &e)
 		{
-			i_info("FTS Xapian: Memory too low (text) '%s'",ba.what());
+			i_warning("FTS Xapian: Memory too low (text) '%s'",e.what());
 			ok = false;
 		}
 	}

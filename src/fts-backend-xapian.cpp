@@ -17,13 +17,14 @@ extern "C" {
 #define XAPIAN_COMMIT_TIMEOUT 300L
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
-#define XAPIAN_MIN_RAM 200L
+#define XAPIAN_MIN_RAM 200L // MB
 
 #define HDRS_NB 11
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "expungeheader",	""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XEXP",		"XBDY" };
 
 static int verbose = 0;
+static long lowmem = XAPIAN_MIN_RAM;
 
 struct xapian_fts_backend
 {
@@ -47,9 +48,6 @@ struct xapian_fts_backend
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
-
-	long nb_pushes;
-	long max_push;
 };
 
 struct xapian_fts_backend_update_context
@@ -92,9 +90,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	verbose = 0;
 	backend->partial = 0;
 	backend->full = 0;
-
-	backend->nb_pushes=0;
-	backend->max_push=0;
+	lowmem = XAPIAN_MIN_RAM;
 
 	env = mail_user_plugin_getenv(_backend->ns->user, "fts_xapian");
 	if (env == NULL)
@@ -108,17 +104,22 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 		if (strncmp(*tmp, "partial=",8)==0)
 		{
 			len=atol(*tmp + 8);
-			if(len>0) backend->partial=len;
+			if(len>0) { backend->partial = len; }
 		}
 		else if (strncmp(*tmp,"full=",5)==0)
 		{
 			len=atol(*tmp + 5);
-			if(len>0) backend->full=len;
+			if(len>0) { backend->full = len; }
 		}
 		else if (strncmp(*tmp,"verbose=",8)==0)
 		{
 			len=atol(*tmp + 8);
-			if(len>0) verbose=len;
+			if(len>0) { verbose = len; }
+		}
+		else if (strncmp(*tmp,"lowmemory=",10)==0)
+		{
+			len=atol(*tmp + 9);
+			if(len>0) { lowmem = len; }
 		}
 		else if (strncmp(*tmp,"attachments=",12)==0)
 		{
@@ -510,9 +511,9 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		return -1;
 	}
 
-	if(!fts_backend_xapian_test_memory(backend,d2.length()))
+	if(!fts_backend_xapian_test_memory())
 	{
-		if(verbose>0) i_info("FTS Xapian: Warning Low memory");
+		if(verbose>0) i_warning("FTS Xapian: Warning Low memory (%ld MB)",long(fts_backend_xapian_get_free_memory()/1024.0));
 		fts_backend_xapian_release(backend,"Low memory indexing", 0);
 		if(!fts_backend_xapian_check_access(backend))
 		{

@@ -7,11 +7,13 @@
 #include "lib.h"
 #include "fts-api-private.h"
 #include "fts-api.h"
+#include "fts-user.h"
 #include "mail-search.h"
 #include "mail-storage-private.h"
 #include "mail-user.h"
 #include "module-context.h"
 #include "restrict-process-size.h"
+#include "mail-storage-hooks.h"
 
 extern const char *fts_xapian_plugin_dependencies[];
 extern struct fts_backend fts_backend_xapian;
