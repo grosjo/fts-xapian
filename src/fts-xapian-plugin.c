@@ -36,54 +36,56 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         {
                 i_warning("FTS Xapian: missing configuration - Using default values");
         }
+	else
+	{
+		long len;
+		const char *const *tmp;
 
-	long len;
-	const char *const *tmp;
-
-        for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
-        {
-                if (strncmp(*tmp, "partial=",8)==0)
-                {
-                        len=atol(*tmp + 8);
-                        if(len<2)
-                        {
-                                i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=%ld'",len,XAPIAN_DEFAULT_PARTIAL);
-                                len=XAPIAN_DEFAULT_PARTIAL;
-                        }
-                        fuser->set.partial = len;
-                }
-                else if (strncmp(*tmp,"full=",5)==0)
-                {
-                        len=atol(*tmp + 5);
-                        if(len<1)
-                        {
-                                i_error("FTS Xapian: 'full' parameter is incorrect (%ld). Try 'full=%ld'",len,XAPIAN_DEFAULT_FULL);
-                        } 
-			else if(len>40)
-                        {
-                                i_error("FTS Xapian: 'full' parameter above 50 (%ld) is not realistic",len);
-                        }
-                        else fuser->set.full = len;
-                }
-                else if (strncmp(*tmp,"verbose=",8)==0)
-                {
-                        len=atol(*tmp + 8);
-                        if(len>0) { fuser->set.verbose = len; }
-                }
-                else if (strncmp(*tmp,"lowmemory=",10)==0)
-                {
-                        len=atol(*tmp + 9);
-                        if(len>0) { fuser->set.lowmemory = len; }
-                }
-                else if (strncmp(*tmp,"attachments=",12)==0)
-                {
-                        // Legacy
-                }
-                else
-                {
-                        i_error("FTS Xapian: Invalid setting: %s", *tmp);
-                }
-        }
+        	for (tmp = t_strsplit_spaces(env, " "); *tmp != NULL; tmp++)
+        	{
+                	if (strncmp(*tmp, "partial=",8)==0)
+                	{
+                	        len=atol(*tmp + 8);
+                	        if(len<2)
+                	        {
+                	                i_error("FTS Xapian: 'partial' parameter is incorrect (%ld). Try 'partial=%ld'",len,XAPIAN_DEFAULT_PARTIAL);
+                	                len=XAPIAN_DEFAULT_PARTIAL;
+                	        }
+                	        fuser->set.partial = len;
+                	}
+                	else if (strncmp(*tmp,"full=",5)==0)
+                	{
+                	        len=atol(*tmp + 5);
+                	        if(len<1)
+                	        {
+                	                i_error("FTS Xapian: 'full' parameter is incorrect (%ld). Try 'full=%ld'",len,XAPIAN_DEFAULT_FULL);
+                	        } 
+				else if(len>40)
+                	        {
+                	                i_error("FTS Xapian: 'full' parameter above 50 (%ld) is not realistic",len);
+                	        }
+                	        else fuser->set.full = len;
+                	}
+                	else if (strncmp(*tmp,"verbose=",8)==0)
+                	{
+                	        len=atol(*tmp + 8);
+                	        if(len>0) { fuser->set.verbose = len; }
+                	}
+                	else if (strncmp(*tmp,"lowmemory=",10)==0)
+                	{
+                	        len=atol(*tmp + 9);
+                	        if(len>0) { fuser->set.lowmemory = len; }
+                	}
+                	else if (strncmp(*tmp,"attachments=",12)==0)
+                	{
+                	        // Legacy
+                	}
+                	else
+                	{
+                	        i_error("FTS Xapian: Invalid setting: %s", *tmp);
+                	}
+        	}
+	}
 
         if(fuser->set.full < fuser->set.partial)
         {

@@ -1100,7 +1100,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 
 	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
 
-	Xapian::docid docid;
+	Xapian::docid docid = 0;
 	Xapian::Document * doc = NULL;
 
 	try
