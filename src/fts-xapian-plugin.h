@@ -5,6 +5,7 @@
 #define FTS_XAPIAN_PLUGIN_H
 
 #include "lib.h"
+#include "mail-user.h"
 #include "fts-api.h"
 #include "fts-user.h"
 #include "mail-search.h"
@@ -12,7 +13,6 @@
 #include "restrict-process-size.h"
 #include "mail-storage-hooks.h"
 #include "module-context.h"
-#include "mail-user.h"
 #include "fts-api-private.h"
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
