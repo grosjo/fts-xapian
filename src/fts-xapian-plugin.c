@@ -30,7 +30,18 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.lowmemory 	= XAPIAN_MIN_RAM;
         fuser->set.partial 	= XAPIAN_DEFAULT_PARTIAL;
         fuser->set.full 	= XAPIAN_DEFAULT_FULL;
+
+#ifdef __FreeBSD__
+	int mib[2];
+	mib[0] = CTL_HW;
+	mib[1] = HW_PAGESIZE;
 	
+	size_t len = sizeof(fuser->set.pagesize);
+	sysctl(mib, 2, &(fuser->set.pagesize), &len, NULL, 0);
+#else
+	fuser->set.pagesize = sysconf(_SC_PAGE_SIZE);
+#endif
+
 	const char * env = mail_user_plugin_getenv(user, "fts_xapian");
         if (env == NULL)
         {
@@ -93,7 +104,6 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 fuser->set.partial = XAPIAN_DEFAULT_PARTIAL;
                 fuser->set.full = XAPIAN_DEFAULT_FULL;
         }
-
 
 	if (fts_mail_user_init(user, FALSE, &error) < 0) i_error("FTS Xapian: %s", error);
 
