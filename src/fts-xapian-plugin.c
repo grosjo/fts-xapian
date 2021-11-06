@@ -32,12 +32,8 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.full 	= XAPIAN_DEFAULT_FULL;
 
 #ifdef __FreeBSD__
-	int mib[2];
-	mib[0] = CTL_HW;
-	mib[1] = HW_PAGESIZE;
-	
 	size_t len = sizeof(fuser->set.pagesize);
-	sysctl(mib, 2, &(fuser->set.pagesize), &len, NULL, 0);
+	sysctlbyname("hw.pagesize", &(fuser->set.pagesize), &len, NULL, 0);
 #else
 	fuser->set.pagesize = sysconf(_SC_PAGE_SIZE);
 #endif
