@@ -506,15 +506,10 @@ static long fts_backend_xapian_current_time()
 static long fts_backend_xapian_get_free_memory() // KB
 {
 #ifdef __FreeBSD__
-	struct vmtotal vmt;
-	size_t len = sizeof(vmt);
-	int mib[2];
-	mib[0] = CTL_VM;
-	mib[1] = VM_TOTAL;
-
-	size_t len = sizeof(vmt);
-	sysctl(mib, 2, &vmt, &len, NULL, 0);
-	return long( vmt.t_free * fts_xapian_settings.pagesize / 1024.0)
+	unsigned long m;
+	size_t len = sizeof(m);
+	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
+	return long( m * fts_xapian_settings.pagesize / 1024.0);
 #else
 	return long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
 #endif
