@@ -16,6 +16,8 @@
 #include "fts-api-private.h"
 
 #ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <vm/vm_param.h>
 #endif
 
