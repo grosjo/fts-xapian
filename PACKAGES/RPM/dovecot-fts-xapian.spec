@@ -1,6 +1,6 @@
 %global __brp_check_rpaths %{nil}
 Name:           dovecot-fts-xapian
-Version:        1.4.13
+Version:        1.4.14
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
@@ -46,6 +46,9 @@ echo ">>> Inside post <<<"
 
 
 %changelog
+* Mon Nov 1 2021 Joan Moreau <jom@grosjo.net> - 1.4.14-1
+- Alignment with Dovecot 2.3.17
+- Better memory management for FreeBSD
 * Sun Sep 12 2021 Joan Moreau <jom@grosjo.net> - 1.4.13-1
 - Rebuild for dovecot 2.3.16
 - Epel7 comptability
