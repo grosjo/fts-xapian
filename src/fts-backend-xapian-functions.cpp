@@ -505,7 +505,23 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB
 {
+<<<<<<< HEAD
 	return long(sysconf(_SC_AVPHYS_PAGES)*sysconf(_SC_PAGE_SIZE) / 1024.0);
+=======
+#ifdef __FreeBSD__
+	struct vmtotal vmt;
+	size_t len = sizeof(vmt);
+	int mib[2];
+	mib[0] = CTL_VM;
+	mib[1] = VM_TOTAL;
+
+	size_t len = sizeof(vmt);
+	sysctl(mib, 2, &vmt, &len, NULL, 0);
+	return long( vmt.t_free * fts_xapian_settings.pagesize / 1024.0)
+#else
+	return long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
+#endif
+>>>>>>> e56b2b486b9772532c5cfadd39f06a5f9f89acff
 }
 
 static bool fts_backend_xapian_test_memory()
