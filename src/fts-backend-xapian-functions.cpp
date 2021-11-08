@@ -506,11 +506,11 @@ static long fts_backend_xapian_current_time()
 static long fts_backend_xapian_get_free_memory() // KB
 {
 #ifdef __FreeBSD__
-	uint64_t m;
+	uint32_t m;
 	size_t len = sizeof(m);
 	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
 	m = m * fts_xapian_settings.pagesize / 1024.0;
-	if(fts_xapian_settings.verbose>1) i_info("Free memory %ld",m);
+	if(fts_xapian_settings.verbose>1) i_info("Free memory %ld kB",m);
 	return m;
 #else
 	return long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
