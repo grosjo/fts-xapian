@@ -509,9 +509,9 @@ static long fts_backend_xapian_get_free_memory() // KB
 	uint32_t m;
 	size_t len = sizeof(m);
 	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free pages %ld kB",long(m));
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free pages %ld",long(m));
 	m = m * fts_xapian_settings.pagesize / 1024.0;
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free memory %ld kB",m);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free memory %ld kB",long(m));
 	return long(m);
 #else
 	return long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
