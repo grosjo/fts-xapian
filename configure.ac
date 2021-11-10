@@ -14,6 +14,8 @@ AC_DEFINE_UNQUOTED(FTS_XAPIAN_NAME, "$PACKAGE_NAME",
 AC_DEFINE_UNQUOTED(FTS_XAPIAN_VERSION, "$PACKAGE_VERSION",
         [Define to the version of Dovecot FTS Xapian.])
 
+AC_DEFINE([DOVECOT_VERSION_MINOR_MINOR], regexp(AC_PACKAGE_VERSION, [^\([0-9]+\)\.\([0-9]+\).\([0-9]+\)], [\3]), [Dovecot minor2 version])
+
 AM_INIT_AUTOMAKE([no-define foreign tar-ustar])
 AM_MAINTAINER_MODE
 AC_PROG_CC
