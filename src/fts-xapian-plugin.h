@@ -51,6 +51,8 @@ struct fts_xapian_user {
 #define FTS_XAPIAN_USER_CONTEXT(obj) (struct fts_xapian_user *)MODULE_CONTEXT(obj, fts_xapian_user_module)
 #define FTS_XAPIAN_USER_CONTEXT_REQUIRE(obj) MODULE_CONTEXT_REQUIRE(obj, fts_xapian_user_module)
 
+#define CHECK_VERSION() (DOVECOT_VERSION_MAJOR > 2 || DOVECOT_VERSION_MINOR >3 || DOVECOT_VERSION_MINOR_MINOR > 16)
+
 extern const char *fts_xapian_plugin_dependencies[];
 extern MODULE_CONTEXT_DEFINE(fts_xapian_user_module, &mail_user_module_register);
 extern struct fts_backend fts_backend_xapian;
