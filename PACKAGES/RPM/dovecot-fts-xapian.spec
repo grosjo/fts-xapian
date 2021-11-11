@@ -47,6 +47,7 @@ echo ">>> Inside post <<<"
 
 %changelog
 <<<<<<< HEAD
+<<<<<<< HEAD
 * Sun Feb 20 2022 Joan Moreau <jom@grosjo.net> - 1.5.3
 - Issues 112, 115, 116
 * Tue Nov 23 2021 Joan Moreau <jom@grosjo.net> - 1.5.2
@@ -55,6 +56,10 @@ echo ">>> Inside post <<<"
 - Fixed preprocessor issue 
 =======
 >>>>>>> 8289d55 (Fedora 1.5.0)
+=======
+* Thu Nov 11 2021 Joan Moreau <jom@grosjo.net> - 1.5.1
+- Fixed preprocessor issue 
+>>>>>>> 82e112d (Feddora 1.5.1)
 * Wed Nov 10 2021 Joan Moreau <jom@grosjo.net> - 1.5.0
 - FreeBSD compatibility
 * Mon Nov 1 2021 Joan Moreau <jom@grosjo.net> - 1.4.14-1
