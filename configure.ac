@@ -14,8 +14,6 @@ AC_DEFINE_UNQUOTED(FTS_XAPIAN_NAME, "$PACKAGE_NAME",
 AC_DEFINE_UNQUOTED(FTS_XAPIAN_VERSION, "$PACKAGE_VERSION",
         [Define to the version of Dovecot FTS Xapian.])
 
-AC_DEFINE([DOVECOT_VERSION_MINOR_MINOR], regexp(AC_PACKAGE_VERSION, [^\([0-9]+\)\.\([0-9]+\).\([0-9]+\)], [\3]), [Dovecot minor2 version])
-
 AM_INIT_AUTOMAKE([no-define foreign tar-ustar])
 AM_MAINTAINER_MODE
 AC_PROG_CC
@@ -37,6 +35,7 @@ AC_SUBST(LIBDOVECOT_INCLUDE)
 PKG_PROG_PKG_CONFIG() # check and set $PKG_CONFIG
 PKG_CHECK_MODULES([ICU_UC], [icu-uc >= 50], [have_icu_uc=true], [have_icu_uc=false])
 PKG_CHECK_MODULES([ICU_I18N], [icu-i18n >= 50], [have_icu_i18n=true], [have_icu_i18n=false])
+
 if !($have_icu_uc && $have_icu_i18n); then
   AC_MSG_ERROR([icu 50 or higher is required, but was not found.])
 fi
@@ -45,11 +44,13 @@ ICU_LDFLAGS=$($PKG_CONFIG --libs-only-L icu-uc | sed 's/-L//g')
 ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
 ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
 ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
+FTS_DOVECOT_API=$(dovecot --version | sed 's/\./0/g' | awk '{print $1;}')
 
 AC_SUBST(ICU_CFLAGS)
 AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
+AC_SUBST(FTS_DOVECOT_API)
 
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")

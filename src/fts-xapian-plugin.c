@@ -101,10 +101,10 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 fuser->set.full = XAPIAN_DEFAULT_FULL;
         }
 
-#if CHECK_VERSION()
+#if DOVEAPI > 203016
 	if (fts_mail_user_init(user, FALSE, &error) < 0) i_error("FTS Xapian: %s", error);
-#elseif
-	if (fts_mail_user_init(user, &error) < 0) i_error("FTS Xapian: %s", error);
+#else
+ 	if (fts_mail_user_init(user, &error) < 0) i_error("FTS Xapian: %s", error);
 #endif
 
 	fuser->module_ctx.super = *v;
