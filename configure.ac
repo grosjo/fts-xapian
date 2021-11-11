@@ -39,7 +39,7 @@ ICU_LDFLAGS=$($PKG_CONFIG --libs-only-L icu-uc | sed 's/-L//g')
 ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
 ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
 ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
-FTS_DOVECOT_API=$(dovecot --version | sed 's/\./0/g' | awk '{print $1;}')
+FTS_DOVECOT_API=$(dovecot --version | sed 's/\./\ /g' | awk '{ a=$1; b=$2; c=$3; printf("%d%02d%03d",a,b,c); }')
 
 AC_MSG_CHECKING([for fts_mail_user_init])
  
