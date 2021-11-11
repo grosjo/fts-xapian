@@ -102,10 +102,13 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         }
 
 #if DOVEAPI > 203016
-	if (fts_mail_user_init(user, FALSE, &error) < 0) i_error("FTS Xapian: %s", error);
+	if (fts_mail_user_init(user, FALSE, &error) < 0) 
 #else
- 	if (fts_mail_user_init(user, &error) < 0) i_error("FTS Xapian: %s", error);
+	if (fts_mail_user_init(user, &error) < 0)
 #endif
+	{
+		if ( fuser->set.verbose > 0 ) i_warning("FTS Xapian: %s", error);
+	}
 
 	fuser->module_ctx.super = *v;
 	user->vlast = &fuser->module_ctx.super;
