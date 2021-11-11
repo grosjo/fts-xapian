@@ -5,12 +5,14 @@ AM_CPPFLAGS = -O2 \
 	$(LIBDOVECOT_LIBFTS_INCLUDE) \
 	$(LIBDOVECOT_FTS_INCLUDE) \
 	$(XAPIAN_INCLUDE) \
-	$(ICU_CFLAGS)
+	$(ICU_CFLAGS) \
+	-DDOVEAPI=$(FTS_DOVECOT_API)
 
 AM_CXXFLAGS = -std=gnu++11 -O2 \
 	$(AM_CPPFLAGS) \
 	$(XAPIAN_LIBS) \
 	$(ICU_LIBS) \
+	-DDOVEAPI=$(FTS_DOVECOT_API) \
 	-Wl,-rpath=$(ICU_LDFLAGS)
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
