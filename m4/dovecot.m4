@@ -30,14 +30,8 @@ AC_DEFUN([AC_CC_D_FORTIFY_SOURCE],[
 dnl * gcc specific options
 AC_DEFUN([DC_DOVECOT_CFLAGS],[
   AS_IF([test "x$ac_cv_c_compiler_gnu" = "xyes"], [
-        dnl -Wcast-qual -Wcast-align -Wconversion -Wunreachable-code # too many warnings
-        dnl -Wstrict-prototypes -Wredundant-decls # may give warnings in some systems
-        dnl -Wmissing-format-attribute -Wmissing-noreturn -Wwrite-strings # a couple of warnings
-        CFLAGS="$CFLAGS -Wall -W -Wmissing-prototypes -Wmissing-declarations -Wpointer-arith -Wchar-subscripts -Wformat=2 -Wbad-function-cast"
-
-        dnl Use std=gnu99 if we have new enough gcc
-        old_cflags=$CFLAGS
-        CFLAGS="-std=gnu99"
+        dnl Use gcc support for C99, available since 4.5.0 [2010-04-14]
+        CFLAGS="$CFLAGS -std=gnu99"
   ])
   AS_IF([test "$have_clang" = "yes"], [
     dnl clang specific options
