@@ -743,7 +743,7 @@ static void fts_backend_xapian_do_expunge(const char *fpath)
 		{
 			if(!fts_backend_xapian_test_memory())
 			{
-				if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Expunging with low memory (%ld MB)-> Commiting on disk",long(fts_backend_xapian_get_free_memory()/1024.0));
+				if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Expunging with low memory (%ld MB)-> Committing on disk",long(fts_backend_xapian_get_free_memory()/1024.0));
 				dbw->commit();
 				dbw->close();
 				delete(dbw);
