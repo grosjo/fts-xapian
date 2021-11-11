@@ -39,6 +39,7 @@ ICU_LDFLAGS=$($PKG_CONFIG --libs-only-L icu-uc | sed 's/-L//g')
 ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
 ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
 ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
+FTS_DOVECOT_API=$(dovecot --version | sed 's/\./0/g' | awk '{print $1;}')
 
 AC_MSG_CHECKING([for fts_mail_user_init])
  
@@ -87,12 +88,16 @@ AC_SUBST(ICU_CFLAGS)
 AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
+<<<<<<< HEAD
 AC_SUBST(THREE_ARGS)
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3], [have_sqlite=true], [have_sqlite=false]);
 if !($have_sqlite); then
   AC_MSG_ERROR([SQLite is required, but was not found.])
 fi
+=======
+AC_SUBST(FTS_DOVECOT_API)
+>>>>>>> e729fc3 (Issue #103)
 
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")

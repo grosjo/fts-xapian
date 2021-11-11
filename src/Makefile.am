@@ -14,6 +14,7 @@ AM_CXXFLAGS = -std=gnu++11
 	$(SQLITE3_LIBS) \
 	$(XAPIAN_LIBS) \
 	$(ICU_LIBS) \
+	-DDOVEAPI=$(FTS_DOVECOT_API) \
 	-Wl,-rpath=$(ICU_LDFLAGS)
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
