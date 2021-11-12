@@ -15,6 +15,7 @@ rm -rf fedora
 mkdir fedora
 cd fedora
 fedpkg clone dovecot-fts-xapian
+cd dovecot-fts-xapian
 fedpkg switch-branch rawhide
 cp ../../dovecot-fts-xapian.spec ./
 git add dovecot-fts-xapian.spec
@@ -22,13 +23,25 @@ git commit -m "Version $VERSION}"
 git push
 fedpkg import ../../dovecot-fts-xapian-${VERSION}-1.${FEDORA}.src.rpm
 fedpkg build
+fedpkh update
 fedpkg switch-branch f35
 git merge rawhide
+fedpkg push
 fedpkg build
+fedpkg update
 fedpkg switch-branch f34
 git merge rawhide
+fedpkg push
 fedpkg build
+fedpkg update
+fedpkg switch-branch f33
+git merge rawhide
+fedpkg push
+fedpkg build
+fedpkg update
 fedpkg switch-branch el8
 git merge rawhide
+fedpkg push
 fedpkg build
+fedpkg update
 
