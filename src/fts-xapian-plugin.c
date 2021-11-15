@@ -101,7 +101,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 fuser->set.full = XAPIAN_DEFAULT_FULL;
         }
 
-#if DOVEAPI > 203016
+#ifdef FTS_MAIL_USER_INIT_THREE_ARGS
 	if (fts_mail_user_init(user, FALSE, &error) < 0) 
 #else
 	if (fts_mail_user_init(user, &error) < 0)
