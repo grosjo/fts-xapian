@@ -39,7 +39,24 @@ ICU_LDFLAGS=$($PKG_CONFIG --libs-only-L icu-uc | sed 's/-L//g')
 ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
 ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
 ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
-FTS_DOVECOT_API=$(dovecot --version | sed 's/\./\ /g' | awk '{ a=$1; b=$2; c=$3; printf("%d%02d%03d",a,b,c); }')
+
+AC_MSG_CHECKING([Whether fts_mail_user_init has 3 args])
+
+AC_COMPILE_IFELSE(
+	[AC_LANG_PROGRAM([[
+                #include "dovecot/config.h"
+		#include "dovecot/lib.h"
+                #include "dovecot/mail-user.h"
+                void f(struct mail_user *s, const char **error) {
+                      fts_mail_user_init(s, 0, error);
+                    }
+                ]])], 
+	[
+		AC_MSG_RESULT([yes])
+		THREE_ARGS="-DFTS_MAIL_USER_INIT_THREE_ARGS=1"
+	],[
+		AC_MSG_RESULT([no])
+	])
 
 AC_MSG_CHECKING([for fts_mail_user_init])
  
@@ -88,16 +105,13 @@ AC_SUBST(ICU_CFLAGS)
 AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
-<<<<<<< HEAD
 AC_SUBST(THREE_ARGS)
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3], [have_sqlite=true], [have_sqlite=false]);
 if !($have_sqlite); then
   AC_MSG_ERROR([SQLite is required, but was not found.])
 fi
-=======
-AC_SUBST(FTS_DOVECOT_API)
->>>>>>> e729fc3 (Issue #103)
+AC_SUBST(THREE_ARGS)
 
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
