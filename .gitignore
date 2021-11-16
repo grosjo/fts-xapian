@@ -53,6 +53,8 @@ m4/lt~obsolete.m4
 # (which is called by configure script))
 Makefile
 
+configure~
+
 /dummy-config.h
 /dummy-config.h.in
 /fts-xapian-config.h
