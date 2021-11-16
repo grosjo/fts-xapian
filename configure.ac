@@ -40,7 +40,31 @@ ICU_LIBS=$($PKG_CONFIG --libs icu-uc icu-io icu-i18n)
 ICU_CFLAGS=$($PKG_CONFIG --cflags-only-I icu-uc icu-io icu-i18n)
 ICU_INCLUDE=$($PKG_CONFIG --variable=includedir icu-uc)
 
-AC_MSG_CHECKING([Whether fts_mail_user_init has 3 args])
+AC_MSG_CHECKING([for fts_mail_user_init])
+ 
+AC_COMPILE_IFELSE(
+ 	[AC_LANG_PROGRAM([[
+		#include "dovecot/config.h"
+		#include "dovecot/lib.h"
+		#include "dovecot/mail-user.h"
+		#include "dovecot/fts-user.h"
+		void f() 
+		{
+			void *ptr = &fts_mail_user_init;
+			(void)ptr;
+			return 0;
+		}
+	]])], 
+	[
+		AC_MSG_RESULT([yes])
+	],[
+		AC_MSG_RESULT([no])
+		AC_MSG_ERROR([fts_mail_user_init not found in
+			      dovecot/fts-user.h, dovecot is not installed
+			      correctly])
+	])
+
+AC_MSG_CHECKING([whether fts_mail_user_init has 3 args])
 
 AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM([[
