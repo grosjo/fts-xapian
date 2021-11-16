@@ -21,7 +21,7 @@ PKG_PROG_PKG_CONFIG
 DC_DOVECOT
 DC_DOVECOT_MODULEDIR
 LIBDOVECOT_INCLUDE="$LIBDOVECOT_INCLUDE"
-CFLAGS="$CFLAGS $EXTRA_CFLAGS"
+CFLAGS="$CFLAGS $EXTRA_CFLAGS $DOVECOT_FLAGS -O2"
 LIBS="$DOVECOT_LIBS"
 BINARY_LDFLAGS="$PIE_LDFLAGS $RELRO_LDFLAGS"
 BINARY_CFLAGS="$PIE_CFLAGS"
@@ -47,6 +47,7 @@ AC_COMPILE_IFELSE(
                 #include "dovecot/config.h"
 		#include "dovecot/lib.h"
                 #include "dovecot/mail-user.h"
+		#include "dovecot/fts-user.h"
                 void f(struct mail_user *s, const char **error) {
                       fts_mail_user_init(s, 0, error);
                     }
