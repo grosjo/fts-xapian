@@ -47,6 +47,7 @@ AC_COMPILE_IFELSE(
                 #include "dovecot/config.h"
 		#include "dovecot/lib.h"
                 #include "dovecot/mail-user.h"
+		#include "dovecot/fts-user.h"
                 void f(struct mail_user *s, const char **error) {
                       fts_mail_user_init(s, 0, error);
                     }
