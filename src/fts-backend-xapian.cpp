@@ -64,6 +64,8 @@ static struct fts_backend *fts_backend_xapian_alloc(void)
 
 static int fts_backend_xapian_init(struct fts_backend *_backend, const char **error_r)
 {
+	(void)error_r;
+
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
 	backend->db = NULL;
