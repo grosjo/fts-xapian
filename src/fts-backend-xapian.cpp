@@ -774,5 +774,4 @@ struct fts_backend fts_backend_xapian =
 		NULL
 	},
 	.ns = NULL,
-//	.updating = 0
 };
