@@ -505,16 +505,26 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB
 {
+	struct rlimit rl;
+	getrlimit(RLIMIT_AS,&rl);
+
+	long limit = rl.rlim_cur / 1024.0;
+//	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM=%ld",limit);
+
 #ifdef __FreeBSD__
 	uint32_t m;
 	size_t len = sizeof(m);
 	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free pages %ld",long(m));
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Free pages %ld",long(m));
 	m = m * fts_xapian_settings.pagesize / 1024.0;
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: (BSD) Free memory %ld kB",long(m));
+	if((limit>0) && (m>limit)) m = limit;
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Free memory %ld MB",long(m/1024.0));
 	return long(m);
 #else
-	return long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
+	long m = long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
+	if((limit>0) && (m>limit)) m = limit;
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
+	return m;
 #endif
 }
 
@@ -524,7 +534,7 @@ static bool fts_backend_xapian_test_memory()
 
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB vs %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
 
-	return(fri > fts_xapian_settings.lowmemory * 1024);
+	return(fri > ( fts_xapian_settings.lowmemory * 1024 ) );
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
