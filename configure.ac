@@ -60,8 +60,8 @@ AC_COMPILE_IFELSE(
 	],[
 		AC_MSG_RESULT([no])
 		AC_MSG_ERROR([fts_mail_user_init not found in
-			      dovecot/fts-user.h, dovecot is not installed
-			      correctly])
+			dovecot/fts-user.h, dovecot headers 
+			are not installed correctly])
 	])
 
 AC_MSG_CHECKING([whether fts_mail_user_init has 3 args])

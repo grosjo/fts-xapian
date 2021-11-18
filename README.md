@@ -62,11 +62,12 @@ service decode2text {
 Configuration - Indexing options
 --------------------------------
 
-| Option         | Optional | Description                     | Possible values                      | Default value |
-|----------------|----------|---------------------------------|--------------------------------------|---------------|
-| partial & full |   no     | NGram values for header fields  | between 3 and 20 characters          | 3 & 20        |
-| verbose        |   yes    | Logs verbosity                  | 0 (silent), 1 (verbose) or 2 (debug) | 0             |
-| lowmemory      |   yes    | Memory limit before disk commit | 0 (default), or set value (in MB)    | 0             |
+| Option         | Optional | Description                     | Possible values                                     | Default value |
+|----------------|----------|---------------------------------|-----------------------------------------------------|---------------|
+| partial & full |   no     | NGram values for header fields  | between 3 and 20 characters                         | 3 & 20        |
+| verbose        |   yes    | Logs verbosity                  | 0 (silent), 1 (verbose) or 2 (debug)                | 0             |
+| lowmemory      |   yes    | Memory limit before disk commit | 0 (default, meaning 250MB), or set value (in MB)    | 0             |
+
 
 
 Configuration - NGrams details
@@ -77,6 +78,8 @@ Cc, ...) are between 3 and 20 chars long. Full words are also added by default (
 the limit of Xapian capability).
 
 Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
+
+
 
 Configuration - Index updating
 ------------------------------
@@ -104,6 +107,7 @@ doveadm fts optimize -A
 ```
 
 
+
 Building yourself - Prerequisites
 ----------------------------------
 
@@ -116,6 +120,7 @@ You are going to need the following things to get this going:
 ```
 
 You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
+
 
 
 Building yourself - Installing the Dovecot plugin
@@ -162,6 +167,7 @@ Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is
 For specific configuration, you may have to 'export PKG_CONFIG_PATH=...'. To check that, type 'pkg-config --cflags-only-I icu-uc icu-io icu-i18n', it shall return no error.
 
 The module will be placed into the module directory of your dovecot configuration
+
 
 
 Debugging/Support

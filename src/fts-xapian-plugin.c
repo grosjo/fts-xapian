@@ -107,7 +107,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
 	if (fts_mail_user_init(user, &error) < 0)
 #endif
 	{
-		if ( fuser->set.verbose > 0 ) i_warning("FTS Xapian: %s", error);
+		if ( fuser->set.verbose > 1 ) i_warning("FTS Xapian: %s", error);
 	}
 
 	fuser->module_ctx.super = *v;
