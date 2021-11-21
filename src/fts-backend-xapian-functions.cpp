@@ -509,8 +509,14 @@ static long fts_backend_xapian_get_free_memory() // KB
 	getrlimit(RLIMIT_AS,&rl);
 
 	long limit = rl.rlim_cur / 1024.0;
-//	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM=%ld",limit);
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM AS =%ld",limit);
 
+	getrlimit(RLIMIT_DATA,&rl);
+	long l2 = rl.rlim_cur / 1024.0;
+        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM DATA =%ld",l2);
+
+	if((l2>0) && ((limit>l2) || (limit<1))) limit=l2;
+	
 #ifdef __FreeBSD__
 	uint32_t m;
 	size_t len = sizeof(m);
