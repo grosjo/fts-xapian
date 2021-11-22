@@ -399,10 +399,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	{
 		if(ctx->isattachment)
 		{
-			//char * t = i_strdup("NODATA");
-			//if(data != NULL) { i_free(t); t = i_strndup(data,40); }
 			i_info("FTS Xapian: Indexing part as attachment");
-			//i_free(t);
 		}
 		else
 		{
