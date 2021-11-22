@@ -44,11 +44,11 @@ AC_MSG_CHECKING([for fts_mail_user_init])
  
 AC_COMPILE_IFELSE(
  	[AC_LANG_PROGRAM([[
-		#include "dovecot/config.h"
-		#include "dovecot/lib.h"
-		#include "dovecot/mail-user.h"
-		#include "dovecot/fts-user.h"
-		void f() 
+		#include "$dovecot_pkgincludedir/config.h"
+		#include "$dovecot_pkgincludedir/lib.h"
+		#include "$dovecot_pkgincludedir/mail-user.h"
+		#include "$dovecot_pkgincludedir/fts-user.h"
+		int f() 
 		{
 			void *ptr = &fts_mail_user_init;
 			(void)ptr;
@@ -59,8 +59,8 @@ AC_COMPILE_IFELSE(
 		AC_MSG_RESULT([yes])
 	],[
 		AC_MSG_RESULT([no])
-		AC_MSG_ERROR([fts_mail_user_init not found in
-			dovecot/fts-user.h, dovecot headers 
+		AC_MSG_ERROR([fts_mail_user_init not found 
+			dovecot headers 
 			are not installed correctly])
 	])
 
@@ -68,10 +68,10 @@ AC_MSG_CHECKING([whether fts_mail_user_init has 3 args])
 
 AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM([[
-                #include "dovecot/config.h"
-		#include "dovecot/lib.h"
-                #include "dovecot/mail-user.h"
-		#include "dovecot/fts-user.h"
+		#include "$dovecot_pkgincludedir/config.h"
+		#include "$dovecot_pkgincludedir/lib.h"
+		#include "$dovecot_pkgincludedir/mail-user.h"
+		#include "$dovecot_pkgincludedir/fts-user.h"
                 void f(struct mail_user *s, const char **error) {
                       fts_mail_user_init(s, 0, error);
                     }
