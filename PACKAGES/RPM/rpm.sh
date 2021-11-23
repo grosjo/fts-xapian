@@ -22,6 +22,9 @@ git add dovecot-fts-xapian.spec
 git commit -m "Version $VERSION}"
 git push
 fedpkg import ../../dovecot-fts-xapian-${VERSION}-1.${FEDORA}.src.rpm
+git add .gitignore sources
+git commit -m "Version $VERSION}"
+git push
 fedpkg build
 fedpkh update
 fedpkg switch-branch f35
