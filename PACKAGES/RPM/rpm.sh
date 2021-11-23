@@ -38,24 +38,13 @@ fedpkg push
 fedpkg build
 fedpkg update
 fedpkg switch-branch f33
-<<<<<<< HEAD
-=======
 git merge rawhide
 fedpkg push
 fedpkg build
 fedpkg update
-fedpkg switch-branch el8
->>>>>>> 709e1d0 (Fedaora 1.5.1)
-git merge rawhide
-fedpkg push
-fedpkg build
-fedpkg update
-<<<<<<< HEAD
 fedpkg switch-branch epel8
 git merge rawhide
 fedpkg push
 fedpkg build
 fedpkg update
-=======
->>>>>>> 709e1d0 (Fedaora 1.5.1)
 
