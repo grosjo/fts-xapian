@@ -26,7 +26,7 @@ git add .gitignore sources
 git commit -m "Version $VERSION}"
 git push
 fedpkg build
-fedpkh update
+fedpkg update
 fedpkg switch-branch f35
 git merge rawhide
 fedpkg push
