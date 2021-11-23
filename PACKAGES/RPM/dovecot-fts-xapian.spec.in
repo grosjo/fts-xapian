@@ -46,6 +46,8 @@ echo ">>> Inside post <<<"
 
 
 %changelog
+* Tue Nov 23 2021 Joan Moreau <jom@grosjo.net> - 1.5.2
+- Issues 103, 106, 109, 110
 * Thu Nov 11 2021 Joan Moreau <jom@grosjo.net> - 1.5.1
 - Fixed preprocessor issue 
 * Wed Nov 10 2021 Joan Moreau <jom@grosjo.net> - 1.5.0
