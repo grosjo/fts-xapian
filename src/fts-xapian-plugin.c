@@ -31,7 +31,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.partial 	= XAPIAN_DEFAULT_PARTIAL;
         fuser->set.full 	= XAPIAN_DEFAULT_FULL;
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
 	size_t len = sizeof(fuser->set.pagesize);
 	sysctlbyname("hw.pagesize", &(fuser->set.pagesize), &len, NULL, 0);
 #else

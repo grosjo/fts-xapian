@@ -516,8 +516,8 @@ static long fts_backend_xapian_get_free_memory() // KB
         if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM DATA =%ld",l2);
 
 	if((l2>0) && ((limit>l2) || (limit<1))) limit=l2;
-	
-#ifdef __FreeBSD__
+
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__)	
 	uint32_t m;
 	size_t len = sizeof(m);
 	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);

@@ -15,7 +15,7 @@
 #include "module-context.h"
 #include "fts-api-private.h"
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <vm/vm_param.h>
