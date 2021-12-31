@@ -871,6 +871,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
 		{
 			i_error("FTS Xapian: can not create '%s'",backend->path);
+			i_error("FTS Xapian: You need to set mail_uid and mail_gid in your dovecot.conf according to the user of mail_location (%s)", path);
 			return -1;
 		}
 	}
