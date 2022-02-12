@@ -136,7 +136,6 @@ PKG_CHECK_MODULES([SQLITE], [sqlite3], [have_sqlite=true], [have_sqlite=false]);
 if !($have_sqlite); then
   AC_MSG_ERROR([SQLite is required, but was not found.])
 fi
-AC_SUBST(THREE_ARGS)
 
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
