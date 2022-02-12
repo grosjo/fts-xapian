@@ -11,10 +11,9 @@ extern "C" {
 #include <unicode/translit.h>
 #include <sys/time.h>
 
-#define HDRS_NB 11
-static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "expungeheader",	""  };
-static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XEXP",		"XBDY" };
-#define XAPIAN_EXPUNGE_HEADER 9
+#define HDRS_NB 10
+static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
+static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
 
 struct xapian_fts_backend
 {
@@ -24,6 +23,7 @@ struct xapian_fts_backend
 	char * guid;
 	char * boxname;
 	char * db;
+	char * expdb;
 
 	char * old_guid;
 	char * old_boxname;
@@ -46,6 +46,11 @@ struct xapian_fts_backend_update_context
 	bool isattachment=false;
 	bool tbi_isfield;
 	uint32_t tbi_uid=0;
+};
+
+struct xapian_fts_optimize
+{
+	ARRAY(uint32_t) uids;
 };
 
 static struct fts_xapian_settings fts_xapian_settings;
@@ -193,51 +198,32 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(!fts_backend_xapian_check_access(backend))
+	sqlite3 * expdb = NULL;
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening expunge DB(%s)",backend->expdb);
+
+	if(sqlite3_open(backend->expdb,&expdb))
 	{
-		i_error("FTS Xapian: Flagging UID=%d for expunge: Can not open db",uid);
-		return ;
+		i_error("FTS Xapian: Expunging (1) UID=%d : Can not open %s",uid,backend->expdb);
+		return;
 	}
-
-	try
+	const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
+	char *zErrMsg = 0;
+	if(sqlite3_exec(expdb,createTable,NULL,0,&zErrMsg) != SQLITE_OK )
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flagging UID=%d for expunge",uid);
-
-		XQuerySet * xq = new XQuerySet();
-		char *u = i_strdup_printf("%d",uid);
-		xq->add("uid",u);
-
-		XResultSet * result=fts_backend_xapian_query(backend->dbw,xq,1);
-
-		i_free(u);
-
-		if(result->size>0)
+		i_error("FTS Xapian: Expunging (2) UID=%d : Can not create table (%s) : %s",uid,createTable,zErrMsg);
+		sqlite3_free(zErrMsg);
+	}
+	else
+	{
+		char * u = i_strdup_printf("replace into docs values (%d)",uid);
+		if(sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK)
 		{
-			Xapian::docid docid=result->data[0];
-			if(docid>0)
-			{
-				Xapian::Document doc = backend->dbw->get_document(docid);
-				try
-				{
-					doc.remove_term(hdrs_xapian[XAPIAN_EXPUNGE_HEADER]);
-				}
-				catch(Xapian::InvalidArgumentError e2)
-				{
-				}
-				u = i_strdup_printf("%s1",hdrs_xapian[XAPIAN_EXPUNGE_HEADER]);
-				doc.add_term(u);
-				backend->dbw->replace_document(docid,doc);
-				i_free(u);
-			}
+			i_error("FTS Xapian: Expunging (3) UID=%d : Can not add UID : %s",uid,zErrMsg);
+			sqlite3_free(zErrMsg);
 		}
-
-		delete(result);
-		delete(xq);
+		i_free(u);
 	}
-	catch(Xapian::Error e)
-	{
-		i_error("FTS Xapian: Expunging (6) UID=%d %s",uid,e.get_msg().c_str());
-	}
+	sqlite3_close(expdb);
 }
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
@@ -499,6 +485,15 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	return 0;
 }
 
+static int fts_backend_xapian_optimize_callback(void *data, int argc, char **argv, char **azColName)
+{
+	uint32_t uid = atol(argv[0]);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize_callback : Adding %d",uid);
+	struct xapian_fts_optimize * uids = (struct xapian_fts_optimize *)data;
+	array_push_back(&uids->uids,&uid);
+	return 0;
+}
+	
 static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
@@ -508,31 +503,105 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
 	{
-		if(fts_xapian_settings.verbose>0) i_error("FTS Xapian: Index folder inexistent");
+		if(fts_xapian_settings.verbose>0) i_error("FTS Xapian: Optimize(0) Index folder inexistent");
 		return -1;
 	}
 
+	Xapian::WritableDatabase * db = NULL;
+	sqlite3 * expdb = NULL;
 	DIR* dirp = opendir(backend->path);
 	struct dirent * dp;
 	char *s;
+	uint32_t uid;
+	int ret=0;
+	struct xapian_fts_optimize uids;	
+	const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
+	const char * selectUIDs = "select ID from docs;";
+	char *zErrMsg = 0;
 	while ((dp = readdir(dirp)) != NULL)
 	{
-		s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
-
-		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
+		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("Removing %s",s);
-			remove(s);
+			i_array_init(&(uids.uids),0);
+			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
+			if(fts_xapian_settings.verbose>0) i_info("Optimize (1) %s : Checking expunges",s);
+			if(sqlite3_open(s,&expdb) == SQLITE_OK)
+			{
+				array_clear(&(uids.uids));
+				if(fts_xapian_settings.verbose>0) i_info("Optimize (1b) Executing %s",createTable);
+				if(sqlite3_exec(expdb,createTable,NULL,0,&zErrMsg) != SQLITE_OK )
+				{
+					i_error("FTS Xapian: Optimize (2) Can not create table (%s) : %s",createTable,zErrMsg);
+					sqlite3_free(zErrMsg);
+					ret=-1;
+				}
+				else
+				{
+					if(fts_xapian_settings.verbose>0) i_info("Optimize (1c) Executing %s",selectUIDs);
+					if(sqlite3_exec(expdb,selectUIDs,fts_backend_xapian_optimize_callback,&uids,&zErrMsg) != SQLITE_OK)	
+					{
+						i_error("FTS Xapian: Optimize (3) Can not select IDs : %s",selectUIDs,zErrMsg);
+						sqlite3_free(zErrMsg);
+						ret =-1;
+					}
+				}
+				i_free(s);
+				s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+				if(fts_xapian_settings.verbose>0) i_info("Optimize (5a) Opening Xapian DB (%s)",s);
+				try
+				{
+					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
+					array_foreach_elem(&(uids.uids), uid)
+					{
+						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
+						char * d = i_strdup_printf("delete from docs where ID=%d",uid);
+						try
+						{
+							XQuerySet * xq = new XQuerySet();
+        						char *u = i_strdup_printf("%d",uid);
+        						xq->add("uid",u);
+        						XResultSet * result=fts_backend_xapian_query(db,xq,1);
+							if(result->size>0)
+							{
+								Xapian::docid docid = result->data[0];
+								if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d (%s) DOCID=%d",uid,d,docid);
+								db->delete_document(docid);
+								if (sqlite3_exec(expdb,d,NULL,0,&zErrMsg) != SQLITE_OK )
+								{
+									i_error("FTS Xapian : Optimize Sqlite error %s",zErrMsg);
+									sqlite3_free(zErrMsg);
+								}
+							}
+							else
+							{
+								i_error("FTS Xapian: Optimize UID=%d inexistant",uid);
+							}
+							delete(result);
+							i_free(u);
+							delete(xq);
+						}
+						catch(Xapian::Error e)
+						{
+							i_error("FTS Xapian: Optimize (5a) %s",e.get_msg().c_str());
+						}
+						i_free(d);	
+					}
+					db->commit();
+					db->close();
+					delete(db);
+				}
+				catch(Xapian::Error e)
+				{
+					i_error("FTS Xapian: Optimize (6) %s",e.get_msg().c_str());
+				}
+				sqlite3_close(expdb);
+			}
+			array_free(&(uids.uids));
+			i_free(s);
 		}
-		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
-		{
-			if(fts_xapian_settings.verbose>0) i_info("Expunging (7) %s",s);
-			fts_backend_xapian_do_expunge(s);
-		}
-		i_free(s);
 	}
 	closedir(dirp);
-	return 0;
+	return ret;
 }
 
 static int fts_backend_xapian_rescan(struct fts_backend *_backend)

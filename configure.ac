@@ -89,6 +89,11 @@ AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
 AC_SUBST(THREE_ARGS)
 
+PKG_CHECK_MODULES([SQLITE3], [sqlite3], [have_sqlite3=true], [have_sqlite3=false]);
+if !($have_sqlite3); then
+  AC_MSG_ERROR([SQLite3 is required, but was not found.])
+fi
+
 AC_CHECK_PROG(XAPIAN_CONFIG,xapian-config,xapian-config,no)
 AM_CONDITIONAL(HAVE_XAPIAN,test "x$XAPIAN_CONFIG" != "xno")
 AS_IF([test "x$XAPIAN_CONFIG" = "xno"],[

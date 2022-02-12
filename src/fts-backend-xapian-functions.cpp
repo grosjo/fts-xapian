@@ -714,117 +714,6 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 	return set;
 }
 
-static void fts_backend_xapian_do_expunge(const char *fpath)
-{
-	Xapian::WritableDatabase * dbw = NULL;
-
-	long dt = fts_backend_xapian_current_time();
-
-	try
-	{
-		dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
-	}
-	catch(Xapian::Error e)
-	{
-		i_error("FTS Xapian: Can't open Xapian DB %s : %s - %s",fpath,e.get_type(),e.get_error_string());
-		return;
-	}
-
-	XResultSet * result = NULL;
-	XQuerySet * xq = new XQuerySet();
-
-	try
-	{
-		xq->add(hdrs_emails[XAPIAN_EXPUNGE_HEADER],"1");
-		result=fts_backend_xapian_query(dbw,xq,1);
-	}
-	catch(Xapian::Error e)
-	{
-		i_error("FTS Xapian: Expunging (1) '%s' : %s - %s",fpath,e.get_type(),e.get_error_string());
-		if(result != NULL) { delete(result); result = NULL; }
-	}
-
-	delete(xq);
-
-	if(result == NULL) { dbw->close(); delete(dbw); return; }
-
-	Xapian::docid docid;
-
-	long j=result->size;
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Expunging (2) '%s' : %ld to do",fpath,j);
-
-	while(j>0)
-	{
-		if(dbw != NULL) 
-		{
-			if(!fts_backend_xapian_test_memory())
-			{
-				if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Expunging with low memory (%ld MB)-> Committing on disk",long(fts_backend_xapian_get_free_memory()/1024.0));
-				dbw->commit();
-				dbw->close();
-				delete(dbw);
-				dbw=NULL;
-			}
-		}
-
-		if(dbw == NULL)
-		{
-			try
-        		{
-				dbw = new Xapian::WritableDatabase(fpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
-			}
-			catch(Xapian::Error e)
-			{
-				i_error("FTS Xapian: Can't reopen Xapian DB %s : %s - %s",fpath,e.get_type(),e.get_error_string());
-				delete(result);
-				return;
-			}
-			catch(const std::exception &e)
-                        {
-				i_error("FTS Xapian: Can't reopen Xapian DB for expunging (%s) : Low memory (%s)",fpath, e.what());
-				delete(result);
-				return;
-                        }
-		}
-
-		docid=result->data[j-1];
-		try
-		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Expunging (3a) UID=%d (Free mem= %ld MB) '%s'",docid,long(fts_backend_xapian_get_free_memory()/1024.0),fpath);
-			if(docid>0) dbw->delete_document(docid);
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Expunging (3b) UID=%d (Free mem= %ld MB) done",docid,long(fts_backend_xapian_get_free_memory()/1024.0));
-			j--;
-		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: Expunging (4a) UID=%d '%s' : %s - %s",docid,fpath,e.get_type(),e.get_error_string());
-			dbw->commit();
-			dbw->close();
-			delete(dbw);
-			dbw=NULL;
-		}
-		catch(const std::exception &e2)
-		{
-			i_error("FTS Xapian: Expunging (4b) UID=%d '%s' : %s",docid,fpath,e2.what());
-			dbw->commit();
-			dbw->close();
-			delete(dbw);
-			dbw=NULL;
-		}
-	}
-	delete(result);
-	
-	if(dbw != NULL)
-	{
-		dbw->commit();
-		dbw->close();
-		delete(dbw);
-	}
-
-	dt = fts_backend_xapian_current_time() - dt;
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Expunging (5) '%s' done in %.2f secs",fpath,dt/1000.0);
-}
-
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
@@ -844,6 +733,9 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 		i_free(backend->boxname);
 		backend->boxname = NULL;
+
+		i_free(backend->expdb);
+		backend->expdb = NULL;
 	}
 
 	return 0;
@@ -915,6 +807,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
+	backend->expdb = i_strdup_printf("%s_exp.db",backend->db);
 
 	char * t = i_strdup_printf("%s/termlist.glass",backend->db);
 	struct stat sb;
