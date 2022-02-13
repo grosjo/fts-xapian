@@ -23,6 +23,8 @@
 #endif
 #endif
 
+#include <sqlite3.h>
+
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245L
 #define XAPIAN_COMMIT_ENTRIES 1000000L

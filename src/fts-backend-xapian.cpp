@@ -14,6 +14,8 @@ extern "C" {
 #define HDRS_NB 10
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
+static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
+static const char * selectUIDs = "select ID from docs;";
 
 struct xapian_fts_backend
 {
@@ -206,7 +208,6 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 		i_error("FTS Xapian: Expunging (1) UID=%d : Can not open %s",uid,backend->expdb);
 		return;
 	}
-	const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
 	char *zErrMsg = 0;
 	if(sqlite3_exec(expdb,createTable,NULL,0,&zErrMsg) != SQLITE_OK )
 	{
@@ -515,8 +516,6 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	uint32_t uid;
 	int ret=0;
 	struct xapian_fts_optimize uids;	
-	const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
-	const char * selectUIDs = "select ID from docs;";
 	char *zErrMsg = 0;
 	while ((dp = readdir(dirp)) != NULL)
 	{
