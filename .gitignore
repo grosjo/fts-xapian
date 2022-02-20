@@ -55,8 +55,11 @@ Makefile
 
 /dummy-config.h
 /dummy-config.h.in
+/dummy-config.h.in~
 /fts-xapian-config.h
 /run-test.sh
+
+/PACKAGES/RPM/fedora
 
 src/*.o
 src/*.lo
