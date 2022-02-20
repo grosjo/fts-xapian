@@ -117,6 +117,7 @@ You are going to need the following things to get this going:
 * Dovecot 2.2.x (or above)
 * Xapian 1.2.x (or above)
 * ICU 50.x (or above)
+* SQlite 3.x
 ```
 
 You will need to configure properly [Users Home Directories](https://wiki.dovecot.org/VirtualUsers/Home) in dovecot configuration
@@ -135,7 +136,7 @@ apt-get install dovecot-dev git libxapian-dev libicu-dev
 
 Archlinux:
 pacman -S dovecot
-pacman -S xapian-core icu git
+pacman -S xapian-core icu git sqlite
 
 FreeBSD:
 pkg install xapian-core
