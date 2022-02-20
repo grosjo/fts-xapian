@@ -42,7 +42,7 @@ git merge rawhide
 fedpkg push
 fedpkg build
 fedpkg update
-fedpkg switch-branch el8
+fedpkg switch-branch epel8
 git merge rawhide
 fedpkg push
 fedpkg build
