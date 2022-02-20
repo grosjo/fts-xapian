@@ -62,10 +62,6 @@ configure~
 /run-test.sh
 /PACKAGES/RPM/fedora
 
-/PACKAGES/RPM/fedora
-
-/PACKAGES/RPM/fedora
-
 src/*.o
 src/*.lo
 src/*.la
