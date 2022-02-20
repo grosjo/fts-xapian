@@ -64,6 +64,8 @@ configure~
 
 /PACKAGES/RPM/fedora
 
+/PACKAGES/RPM/fedora
+
 src/*.o
 src/*.lo
 src/*.la
