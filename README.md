@@ -132,7 +132,7 @@ First install the following packages, or equivalent for your operating system.
 ```
 Ubuntu:
 apt-get build-dep dovecot-core 
-apt-get install dovecot-dev git libxapian-dev libicu-dev
+apt-get install dovecot-dev git libxapian-dev libicu-dev libsqlite3-dev
 
 Archlinux:
 pacman -S dovecot
@@ -143,6 +143,10 @@ pkg install xapian-core
 pkg install xapian-bindings
 pkg install icu
 pkg install git
+
+Fedora:
+dnf install sqlite-devel libicu-devel xapian-core-devel
+dnf install dovecot-devel git 
 ```
 
 Clone this project:
