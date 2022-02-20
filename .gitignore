@@ -60,6 +60,7 @@ configure~
 /dummy-config.h.in~
 /fts-xapian-config.h
 /run-test.sh
+/PACKAGES/RPM/fedora
 
 /PACKAGES/RPM/fedora
 
