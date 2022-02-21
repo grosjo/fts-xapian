@@ -2,6 +2,7 @@
 
 #include <xapian.h>
 #include <cstdio>
+#include <vector>
 extern "C" {
 #include "fts-xapian-plugin.h"
 }
@@ -48,11 +49,6 @@ struct xapian_fts_backend_update_context
 	bool isattachment=false;
 	bool tbi_isfield;
 	uint32_t tbi_uid=0;
-};
-
-struct xapian_fts_optimize
-{
-	ARRAY(uint32_t) uids;
 };
 
 static struct fts_xapian_settings fts_xapian_settings;
@@ -487,8 +483,8 @@ static int fts_backend_xapian_optimize_callback(void *data, int argc, char **arg
 {
 	uint32_t uid = atol(argv[0]);
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize_callback : Adding %d",uid);
-	struct xapian_fts_optimize * uids = (struct xapian_fts_optimize *)data;
-	array_push_back(&uids->uids,&uid);
+	std::vector<uint32_t> * uids = (std::vector<uint32_t> *) data;
+	uids->push_back(uid);
 	return 0;
 }
 	
@@ -512,18 +508,17 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	char *s;
 	uint32_t uid;
 	int ret=0;
-	struct xapian_fts_optimize uids;	
+	std::vector<uint32_t> uids(0);
 	char *zErrMsg = 0;
 	while ((dp = readdir(dirp)) != NULL)
 	{
 		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
-			i_array_init(&(uids.uids),0);
+			uids.clear();
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
 			if(fts_xapian_settings.verbose>0) i_info("Optimize (1) %s : Checking expunges",s);
 			if(sqlite3_open(s,&expdb) == SQLITE_OK)
 			{
-				array_clear(&(uids.uids));
 				if(fts_xapian_settings.verbose>0) i_info("Optimize (1b) Executing %s",createTable);
 				if(sqlite3_exec(expdb,createTable,NULL,0,&zErrMsg) != SQLITE_OK )
 				{
@@ -547,8 +542,9 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				try
 				{
 					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
-					array_foreach_elem(&(uids.uids), uid)
+					for(int n=0;n<uids.size();n++)
 					{
+						uid=uids[n];
 						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
 						char * d = i_strdup_printf("delete from docs where ID=%d",uid);
 						try
@@ -592,7 +588,6 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				sqlite3_close(expdb);
 			}
-			array_free(&(uids.uids));
 			i_free(s);
 		}
 	}
