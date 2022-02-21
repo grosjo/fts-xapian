@@ -4,6 +4,7 @@
 #ifndef FTS_XAPIAN_PLUGIN_H
 #define FTS_XAPIAN_PLUGIN_H
 
+#include "config.h"
 #include "lib.h"
 #include "mail-user.h"
 #include "fts-api.h"
@@ -49,7 +50,9 @@ struct fts_xapian_user {
 };
 
 #define FTS_XAPIAN_USER_CONTEXT(obj) (struct fts_xapian_user *)MODULE_CONTEXT(obj, fts_xapian_user_module)
+#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2))
 #define FTS_XAPIAN_USER_CONTEXT_REQUIRE(obj) MODULE_CONTEXT_REQUIRE(obj, fts_xapian_user_module)
+#endif
 
 extern const char *fts_xapian_plugin_dependencies[];
 extern MODULE_CONTEXT_DEFINE(fts_xapian_user_module, &mail_user_module_register);

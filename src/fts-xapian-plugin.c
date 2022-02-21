@@ -11,7 +11,11 @@ struct fts_xapian_user_module fts_xapian_user_module = MODULE_CONTEXT_INIT(&mail
 
 static void fts_xapian_mail_user_deinit(struct mail_user *user)
 {
+#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2))
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
+#else
+	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(user);
+#endif
 
         fts_mail_user_deinit(user);
 	fuser->module_ctx.super.deinit(user);
