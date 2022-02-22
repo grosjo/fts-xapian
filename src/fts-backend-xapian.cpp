@@ -531,7 +531,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					if(fts_xapian_settings.verbose>0) i_info("Optimize (1c) Executing %s",selectUIDs);
 					if(sqlite3_exec(expdb,selectUIDs,fts_backend_xapian_optimize_callback,&uids,&zErrMsg) != SQLITE_OK)	
 					{
-						i_error("FTS Xapian: Optimize (3) Can not select IDs : %s",selectUIDs,zErrMsg);
+						i_error("FTS Xapian: Optimize (3) Can not select IDs (%s) : %s",selectUIDs,zErrMsg);
 						sqlite3_free(zErrMsg);
 						ret =-1;
 					}
