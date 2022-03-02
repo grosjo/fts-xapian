@@ -84,7 +84,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 	}
                 	else if (strncmp(*tmp,"lowmemory=",10)==0)
                 	{
-                	        len=atol(*tmp + 9);
+                	        len=atol(*tmp + 10);
                 	        if(len>0) { fuser->set.lowmemory = len; }
                 	}
                 	else if (strncmp(*tmp,"attachments=",12)==0)
