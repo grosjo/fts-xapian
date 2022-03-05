@@ -46,6 +46,8 @@ echo ">>> Inside post <<<"
 
 
 %changelog
+* Sat Mar 05 2022 Joan Moreau <jom@grosjo.net> - 1.5.4b
+- Minor fixes
 * Wed Mar 02 2022 Joan Moreau <jom@grosjo.net> - 1.5.4
 - PR #119
 - Issue #113, #117
