@@ -542,7 +542,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				try
 				{
 					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
-					for(int n=0;n<uids.size();n++)
+					for(uint32_t n=0;n<uids.size();n++)
 					{
 						uid=uids[n];
 						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
