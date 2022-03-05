@@ -1,6 +1,6 @@
 %global __brp_check_rpaths %{nil}
 Name:           dovecot-fts-xapian
-Version:        1.5.4
+Version:        1.5.4b
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
@@ -8,9 +8,9 @@ License:        LGPLv2
 URL:            https://github.com/grosjo/fts-xapian
 Source0:        %{url}/archive/%{version}/%{name}-%{version}.tar.gz
 
-BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel
+BuildRequires:  xapian-core-devel, libicu-devel, dovecot-devel, sqlite-devel
 BuildRequires:  gcc, gcc-c++, make, automake, autoconf, libtool
-Requires:       xapian-core, dovecot
+Requires:       xapian-core, dovecot, sqlite
 
 %description
 This project intends to provide a straightforward, simple and
