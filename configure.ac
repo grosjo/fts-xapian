@@ -134,9 +134,6 @@ AC_SUBST(THREE_ARGS)
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3], [have_sqlite=true], [have_sqlite=false]);
 if !($have_sqlite); then
-  PKG_CHECK_MODULES([SQLITE], [sqlite], [have_sqlite=true], [have_sqlite=false]);
-fi
-if !($have_sqlite); then
   AC_MSG_ERROR([SQLite is required, but was not found.])
 fi
 

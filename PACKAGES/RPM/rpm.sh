@@ -5,7 +5,12 @@ kinit grosjo@FEDORAPROJECT.ORG
 rpmdev-setuptree
 cat dovecot-fts-xapian.spec.in | sed -e s/FTSVERSION/${VERSION}/g > dovecot-fts-xapian.spec
 cp dovecot-fts-xapian.spec ~/rpmbuild/SPECS/
-wget https://github.com/grosjo/fts-xapian/archive/refs/tags/${VERSION}.tar.gz -O ~/rpmbuild/SOURCES/dovecot-fts-xapian-${VERSION}.tar.gz
+git clone https://github.com/grosjo/fts-xapian.git fts-xapian-${VERSION}
+rm -rf  fts-xapian-${VERSION}/.git*
+rm -rf  fts-xapian-${VERSION}/PAC*
+tar -czvf ~/rpmbuild/SOURCES/dovecot-fts-xapian-${VERSION}.tar.gz fts-xapian-${VERSION}
+rm -rf fts-xapian-${VERSION}
+#wget https://github.com/grosjo/fts-xapian/archive/refs/tags/${VERSION}.tar.gz -O ~/rpmbuild/SOURCES/dovecot-fts-xapian-${VERSION}.tar.gz
 QA_RPATHS=$(( 0x0001|0x0010 )) rpmbuild --bb --nodebuginfo ~/rpmbuild/SPECS/dovecot-fts-xapian.spec
 QA_RPATHS=$(( 0x0001|0x0010 )) rpmbuild --bs --nodebuginfo ~/rpmbuild/SPECS/dovecot-fts-xapian.spec
 cp ~/rpmbuild/SRPMS/dovecot-fts-xapian-${VERSION}-1.${FEDORA}.src.rpm ${REP}/
