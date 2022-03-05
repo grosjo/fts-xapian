@@ -481,6 +481,11 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 static int fts_backend_xapian_optimize_callback(void *data, int argc, char **argv, char **azColName)
 {
+	(void) azColName;
+	if (argc != 1) {
+		i_error("FTS Xapian: fts_backend_xapian_optimize_callback called with %d!=1 arguments", argc);
+		return -1;
+	}
 	uint32_t uid = atol(argv[0]);
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize_callback : Adding %d",uid);
 	std::vector<uint32_t> * uids = (std::vector<uint32_t> *) data;
