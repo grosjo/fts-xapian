@@ -9,11 +9,10 @@ This project intends to provide a straightforward, simple and maintenance free, 
 This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, un-needed for most users.
 
 
+
 Debugging/Support
 -----------------
-
 Please submit requests/bugs via the [GitHub issue tracker](https://github.com/grosjo/fts-xapian/issues).
-
 A Matrix Room exists also at : #xapian-dovecot:matrix.grosjo.net
 
 
