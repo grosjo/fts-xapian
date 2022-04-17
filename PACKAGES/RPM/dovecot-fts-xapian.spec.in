@@ -46,6 +46,8 @@ echo ">>> Inside post <<<"
 
 
 %changelog
+* Sun Apr 17 2022 Joan Moreau <jom@grosjo.net> - 1.5.5
+- Alignment with Dovecot git
 * Sat Mar 05 2022 Joan Moreau <jom@grosjo.net> - 1.5.4b
 - Minor fixes
 * Wed Mar 02 2022 Joan Moreau <jom@grosjo.net> - 1.5.4

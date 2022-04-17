@@ -1,6 +1,6 @@
 %global __brp_check_rpaths %{nil}
 Name:           dovecot-fts-xapian
-Version:        1.5.4b
+Version:        1.5.5
 Release:        1%{?dist}
 Summary:        Dovecot FTS plugin based on Xapian
 
@@ -46,6 +46,10 @@ echo ">>> Inside post <<<"
 
 
 %changelog
+* Sun Apr 17 2022 Joan Moreau <jom@grosjo.net> - 1.5.5
+- Alignment with Dovecot git
+* Sat Mar 05 2022 Joan Moreau <jom@grosjo.net> - 1.5.4b
+- Minor fixes
 * Wed Mar 02 2022 Joan Moreau <jom@grosjo.net> - 1.5.4
 - PR #119
 - Issue #113, #117
