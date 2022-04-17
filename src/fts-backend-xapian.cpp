@@ -515,6 +515,8 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	int ret=0;
 	std::vector<uint32_t> uids(0);
 	char *zErrMsg = 0;
+	XResultSet * result = NULL;
+
 	while ((dp = readdir(dirp)) != NULL)
 	{
 		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
@@ -551,37 +553,34 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					{
 						uid=uids[n];
 						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
-						char * d = i_strdup_printf("delete from docs where ID=%d",uid);
-						try
+						XQuerySet * xq = new XQuerySet();
+						char *u = i_strdup_printf("%d",uid);
+						xq->add("uid",u);
+						i_free(u);
+						result=fts_backend_xapian_query(db,xq,1);
+						if((result!=NULL) && (result->size>0))
 						{
-							XQuerySet * xq = new XQuerySet();
-        						char *u = i_strdup_printf("%d",uid);
-        						xq->add("uid",u);
-        						XResultSet * result=fts_backend_xapian_query(db,xq,1);
-							if(result->size>0)
+							try
 							{
 								Xapian::docid docid = result->data[0];
 								if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d (%s) DOCID=%d",uid,d,docid);
 								db->delete_document(docid);
-								if (sqlite3_exec(expdb,d,NULL,0,&zErrMsg) != SQLITE_OK )
-								{
-									i_error("FTS Xapian : Optimize Sqlite error %s",zErrMsg);
-									sqlite3_free(zErrMsg);
-								}
 							}
-							else
+							catch(Xapian::Error e)
 							{
-								i_error("FTS Xapian: Optimize UID=%d inexistant",uid);
+								i_error("FTS Xapian: Optimize (5a) %s",e.get_msg().c_str());
 							}
-							delete(result);
-							i_free(u);
-							delete(xq);
 						}
-						catch(Xapian::Error e)
+						else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d inexistent",uid);
+						if(result!=NULL) { delete(result); result=NULL; }
+						delete(xq);
+						u = i_strdup_printf("delete from docs where ID=%d",uid);
+						if (sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK )
 						{
-							i_error("FTS Xapian: Optimize (5a) %s",e.get_msg().c_str());
+							i_error("FTS Xapian : Optimize Sqlite error %s",zErrMsg);
+							sqlite3_free(zErrMsg);
 						}
-						i_free(d);	
+						i_free(u);
 					}
 					db->commit();
 					db->close();
@@ -751,23 +750,22 @@ struct fts_backend fts_backend_xapian =
 	.name = "xapian",
 	.flags = FTS_BACKEND_FLAG_BUILD_FULL_WORDS,
 	.v = {
-		fts_backend_xapian_alloc,
-		fts_backend_xapian_init,
-		fts_backend_xapian_deinit,
-		fts_backend_xapian_get_last_uid,
-		fts_backend_xapian_update_init,
-		fts_backend_xapian_update_deinit,
-		fts_backend_xapian_update_set_mailbox,
-		fts_backend_xapian_update_expunge,
-		fts_backend_xapian_update_set_build_key,
-		fts_backend_xapian_update_unset_build_key,
-		fts_backend_xapian_update_build_more,
-		fts_backend_xapian_refresh,
-		fts_backend_xapian_rescan,
-		fts_backend_xapian_optimize,
-		fts_backend_default_can_lookup,
-		fts_backend_xapian_lookup,
-		fts_backend_xapian_lookup_multi,
-		NULL
+		.alloc = fts_backend_xapian_alloc,
+		.init = fts_backend_xapian_init,
+		.deinit = fts_backend_xapian_deinit,
+		.get_last_uid = fts_backend_xapian_get_last_uid,
+		.update_init = fts_backend_xapian_update_init,
+		.update_deinit = fts_backend_xapian_update_deinit,
+		.update_set_mailbox = fts_backend_xapian_update_set_mailbox,
+		.update_expunge = fts_backend_xapian_update_expunge,
+		.update_set_build_key = fts_backend_xapian_update_set_build_key,
+		.update_unset_build_key = fts_backend_xapian_update_unset_build_key,
+		.update_build_more = fts_backend_xapian_update_build_more,
+		.refresh = fts_backend_xapian_refresh,
+		.rescan = fts_backend_xapian_rescan,
+		.optimize = fts_backend_xapian_optimize,
+		.can_lookup = fts_backend_default_can_lookup,
+		.lookup = fts_backend_xapian_lookup,
+		.lookup_multi = fts_backend_xapian_lookup_multi,
 	}
 };

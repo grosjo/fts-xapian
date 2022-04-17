@@ -1,4 +1,4 @@
-VERSION=1.5.4b
+VERSION=1.5.5
 FEDORA=fc35
 REP=`pwd`
 kinit grosjo@FEDORAPROJECT.ORG
