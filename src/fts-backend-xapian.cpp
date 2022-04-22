@@ -516,6 +516,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	std::vector<uint32_t> uids(0);
 	char *zErrMsg = 0;
 	XResultSet * result = NULL;
+	Xapian::docid docid =0;
 
 	while ((dp = readdir(dirp)) != NULL)
 	{
@@ -545,7 +546,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				i_free(s);
 				s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
-				if(fts_xapian_settings.verbose>0) i_info("Optimize (5a) Opening Xapian DB (%s)",s);
+				if(fts_xapian_settings.verbose>0) i_info("Optimize (4) Opening Xapian DB (%s)",s);
 				try
 				{
 					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
@@ -558,20 +559,21 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						xq->add("uid",u);
 						i_free(u);
 						result=fts_backend_xapian_query(db,xq,1);
+						docid=0;
 						if((result!=NULL) && (result->size>0))
 						{
 							try
 							{
-								Xapian::docid docid = result->data[0];
-								if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d (%s) DOCID=%d",uid,d,docid);
+								docid = result->data[0];
+								if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d DOCID=%d",uid,docid);
 								db->delete_document(docid);
 							}
 							catch(Xapian::Error e)
 							{
-								i_error("FTS Xapian: Optimize (5a) %s",e.get_msg().c_str());
+								i_error("FTS Xapian: Optimize (6) %s",e.get_msg().c_str());
 							}
 						}
-						else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d inexistent",uid);
+						else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d (DOCID=%d) inexistent",uid,docid);
 						if(result!=NULL) { delete(result); result=NULL; }
 						delete(xq);
 						u = i_strdup_printf("delete from docs where ID=%d",uid);
