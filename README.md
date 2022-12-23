@@ -139,7 +139,7 @@ First install the following packages, or equivalent for your operating system.
 ```
 Ubuntu:
 apt-get build-dep dovecot-core 
-apt-get install dovecot-dev git libxapian-dev libicu-dev libsqlite3-dev
+apt-get install dovecot-dev git libxapian-dev libicu-dev libsqlite3-dev autoconf automake libtool pkg-config
 
 Archlinux:
 pacman -S dovecot
