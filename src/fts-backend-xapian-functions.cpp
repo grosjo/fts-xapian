@@ -93,21 +93,14 @@ class XQuerySet
 
 	void add(icu::UnicodeString *h, icu::UnicodeString *t, bool is_neg)
 	{
-		long i,j;
+		long i,j,k;
 		XQuerySet * q2;
-		icu::UnicodeString *r;
+		icu::UnicodeString *r1,*r2;
 
 		t->findAndReplace("'"," ");
 		t->findAndReplace("\""," ");
-		t->findAndReplace(":"," ");
-		t->findAndReplace(";"," ");
-		t->findAndReplace("\""," ");
-		t->findAndReplace("<"," ");
-		t->findAndReplace(">"," ");
 		t->findAndReplace("\n"," ");
 		t->findAndReplace("\r"," ");
-		t->findAndReplace("@"," ");
-		t->findAndReplace("-","_");
 
 		h->trim();
 		t->trim();
@@ -117,41 +110,47 @@ class XQuerySet
 		if(h->length()<1) return;
 		if(t->length()<limit) return;
 
-		i = t->lastIndexOf(" ");
-		if(i>0)
+		k=CHARS_NB;
+		while(k>0)
 		{
-			q2 = new XQuerySet(true,false,limit);
-			while(i>0)
+			i = t->lastIndexOf(chars_pb[k-1]);
+			if(i>=0)
 			{
-				j = t->length();
-				r = new icu::UnicodeString(*t,i+1,j-i-1);
-				q2->add(h,r,false);
-				delete(r);
-				t->truncate(i);
-				t->trim();
-				i = t->lastIndexOf(" ");
+				r1 = new icu::UnicodeString(*t,0,i);
+				r2 = new icu::UnicodeString(*t,i+1,t->length()-i-1);
+
+				q2 = new XQuerySet(false,false,limit);
+				q2->add(h,r1,false);
+				q2->add(h,r2,false);
+				r1->append("_");
+				r1->append(*r2);
+				q2->add(h,r1,false);
+				if(q2->count()>0) add(q2); else delete(q2);
+				delete(r1);
+				delete(r2);
+				return;
 			}
-			q2->add(h,t,false);
-			if(q2->count()>0) add(q2); else delete(q2);
-			return;
+			k--;
 		}
 
-		i = t->indexOf(".");
-		if(i>=0)
-		{
-			r = new icu::UnicodeString(*t);
-			r->findAndReplace(".","_");
-			q2 = new XQuerySet(false,false,limit);
-			q2->add(h,r,false);
-			delete(r);
-
-			t->findAndReplace("."," ");
-			t->trim();
-			q2->add(h,t,false);
-
-			if(q2->count()>0) add(q2); else delete(q2);
-			return;
-		}
+		i = t->lastIndexOf(" ");
+                if(i>0)
+                {
+                        q2 = new XQuerySet(true,false,limit);
+                        while(i>0)
+                        {
+                                j = t->length();
+                                r1 = new icu::UnicodeString(*t,i+1,j-i-1);
+                                q2->add(h,r1,false);
+                                delete(r1);
+                                t->truncate(i);
+                                t->trim();
+                                i = t->lastIndexOf(" ");
+                        }
+                        q2->add(h,t,false);
+                        if(q2->count()>0) add(q2); else delete(q2);
+                        return;
+                }
 
 		std::string tmp1;
 		h->toUTF8String(tmp1);
@@ -198,7 +197,7 @@ class XQuerySet
 			return;
 		}
 
-		if(has(h2,t2,true))
+		if(has(h2,t2))
 		{
 			i_free(h2);
 			i_free(t2);
@@ -232,15 +231,12 @@ class XQuerySet
 		qsize++;
 	}
 
-	bool has(const char *h, const char *t, bool loop)
+	bool has(const char *h, const char *t)
 	{
 		if((text!=NULL) && (strcmp(h,header)==0) && (strcmp(t,text)==0)) return true;
-		if(loop)
+		for(long i=0; i<qsize; i++)
 		{
-			for(long i=0; i<qsize; i++)
-			{
-				if(qs[i]->has(h,t,false)) return true;
-			}
+			if(qs[i]->has(h,t)) return true;
 		}
 		return false;
 	}
@@ -375,45 +371,51 @@ class XNGram
 
 	void add(icu::UnicodeString *d)
 	{
-		icu::UnicodeString * r;
-
 		d->toLower();
 		d->findAndReplace("'"," ");
 		d->findAndReplace("\""," ");
-		d->findAndReplace(":"," ");
-		d->findAndReplace(";"," ");
-		d->findAndReplace("\""," ");
-		d->findAndReplace("<"," ");
-		d->findAndReplace(">"," ");
 		d->findAndReplace("\n"," ");
 		d->findAndReplace("\r"," ");
-		d->findAndReplace("@"," ");
-		d->findAndReplace("-","_");
-		
-		long i = d->indexOf(".");
-		if(i>=0)
-		{
-			r = new icu::UnicodeString(*d);
-			r->findAndReplace(".","_");
-			add(r);
-			delete(r);
-			d->findAndReplace("."," ");
+	
+		long i,k;
+		icu::UnicodeString *r1,*r2;
+
+		k=CHARS_NB;
+                while(k>0)
+                {
+                        i = d->lastIndexOf(chars_pb[k-1]);	
+			if(i>=0)
+			{
+				r1 = new icu::UnicodeString(*d,0,i);
+                                r2 = new icu::UnicodeString(*d,i+1,d->length()-i-1);
+				add(r1);
+				add(r2);
+				r1->append("_");
+				r1->append(*r2);
+				add(r1);
+				delete(r1);
+				delete(r2);
+				return;
+			}
+			k--;
 		}
 
 		d->trim();
-		i = d->indexOf(" ");
+		i = d->lastIndexOf(" ");
 
 		if(i>0)
 		{
-			r = new icu::UnicodeString(*d,i+1);
-			add(r);
-			delete(r);
-			d->truncate(i);
-			d->trim();
+			r1 = new icu::UnicodeString(*d,0,i);
+			r2 = new icu::UnicodeString(*d,i+1,d->length()-i-1);
+			add(r1);
+			add(r2);
+			delete(r1);
+			delete(r2);
+			return;
 		}
 
-		long l = d->length();
-		if(l<fts_xapian_settings.partial) return;
+		k = d->length();
+		if(k<fts_xapian_settings.partial) return;
 
 		if(accentsConverter == NULL)
 		{
@@ -433,16 +435,16 @@ class XNGram
 			return;
 		}
 
-		for(i=0;i<=l-fts_xapian_settings.partial;i++)
+		for(i=0;i<=k-fts_xapian_settings.partial;i++)
 		{
-			for(long j=fts_xapian_settings.partial;(j+i<=l)&&(j<=fts_xapian_settings.full);j++)
+			for(long j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
 			{
-				r = new icu::UnicodeString(*d,i,j);
-				add_stem(r);
-				delete(r);
+				r1 = new icu::UnicodeString(*d,i,j);
+				add_stem(r1);
+				delete(r1);
 			}
 		}
-		if(l>fts_xapian_settings.full) add_stem(d);
+		if(k>fts_xapian_settings.full) add_stem(d);
 	}
 
 	void add_stem(icu::UnicodeString *d)
@@ -617,7 +619,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
 		/* End Performance calculator*/
 
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->perf_nb,dt,r);
+		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->perf_nb,dt,r);
 
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
