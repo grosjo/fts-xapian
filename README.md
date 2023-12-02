@@ -21,7 +21,7 @@ Availability in major distributions
 
 THis plugin is readly available in major distributions under the name "dovecot-fts-xapian"
 - Archlinux : https://archlinux.org/packages/?q=dovecot-fts-xapian
-- Debian : https://packages.debian.org/bullseye/dovecot-fts-xapian
+- Debian : https://packages.debian.org/bookworm/dovecot-fts-xapian
 - Fedora : https://src.fedoraproject.org/rpms/dovecot-fts-xapian
 
 
