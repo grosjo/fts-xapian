@@ -42,6 +42,8 @@ struct xapian_fts_backend
 	long perf_nb;
 	long perf_uid;
 	long perf_dt;
+
+	long nbdocs = 0;
 };
 
 struct xapian_fts_backend_update_context

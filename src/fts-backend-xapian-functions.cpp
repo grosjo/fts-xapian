@@ -598,17 +598,17 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 		i_error("FTS Xapian: Can't open Xapian DB (RW) (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
 		return false;
 	}
+	backend->nbdocs=backend->dbw->get_doccount();
 	if(fts_xapian_settings.verbose>0) 
 	{
-		long n = backend->dbw->get_doccount();
-		i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,n);
+		i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,backend->nbdocs);
 	}
 	return true;
 }
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox");
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox");
 
 	if(backend->old_guid != NULL)
 	{
@@ -627,6 +627,8 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
 	}
+
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
@@ -643,6 +645,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		if(fts_xapian_settings.verbose>0) n = backend->dbw->get_doccount();
 		try
 		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Close : %ld (old) vs %ld (new)",backend->nbdocs,n);
 			backend->dbw->commit();
 			backend->dbw->close();
 		}
@@ -651,6 +654,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			i_error("FTS Xapian: %s : %s - %s",reason,e.get_type(),e.get_error_string());
 			err=true;
 		}
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Close - Done");
 		delete(backend->dbw);
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
@@ -683,6 +687,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			i_info("FTS Xapian: Committed '%s' in %ld ms",reason,fts_backend_xapian_current_time() - commit_time);
 		}
 	}
+
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - done",reason);
 }
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
