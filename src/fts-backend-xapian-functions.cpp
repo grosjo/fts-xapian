@@ -510,6 +510,7 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB
 {
+/*
 	struct rlimit rl;
 
 #if !defined(__OpenBSD__)
@@ -526,7 +527,28 @@ static long fts_backend_xapian_get_free_memory() // KB
         if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM DATA =%ld",l2);
 
 	if((l2>0) && ((limit>l2) || (limit<1))) limit=l2;
-
+*/
+	long m=0;
+	char buffer[500];
+	FILE *f=fopen("/proc/meminfo","r");
+	while(!feof(f))
+     	{
+       		if ( fgets (buffer , 100 , f) == NULL ) break;
+		const char *p = strstr(buffer,"MemFree");
+		if(p!=NULL)
+		{
+			m+=atol(p+8);
+		}
+		p = strstr(buffer,"Cached");
+		if(p==buffer)
+		{
+                        m+=atol(p+6);
+                }
+     	}
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
+     	fclose (f);
+	return m;
+/*
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)	
 	uint32_t m;
 	size_t len = sizeof(m);
@@ -542,6 +564,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
 	return m;
 #endif
+*/
 }
 
 static bool fts_backend_xapian_test_memory()
@@ -1025,7 +1048,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 {
 	bool ok = true;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index_text");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
 
 	Xapian::WritableDatabase * dbx = backend->dbw;
 
@@ -1107,7 +1130,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		n--;
 	}
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
 
 	char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
 	for(n=0;n<ngram->size;n++)

@@ -7,7 +7,7 @@ const char *fts_xapian_plugin_version = DOVECOT_ABI_VERSION;
 
 struct fts_xapian_user_module fts_xapian_user_module = MODULE_CONTEXT_INIT(&mail_user_module_register);
 
-
+struct fts_xapian_dbw *dbws; 
 
 static void fts_xapian_mail_user_deinit(struct mail_user *user)
 {
@@ -130,12 +130,16 @@ void fts_xapian_plugin_init(struct module *module ATTR_UNUSED)
 {
 	fts_backend_register(&fts_backend_xapian);
 	mail_storage_hooks_add(module, &fts_xapian_mail_storage_hooks);
+
+	i_info("Plugin dovecot-fts-xapian loaded");
 }
 
 void fts_xapian_plugin_deinit(void)
 {
 	fts_backend_unregister(fts_backend_xapian.name);
 	mail_storage_hooks_remove(&fts_xapian_mail_storage_hooks);
+
+	i_info("Plugin dovecot-fts-xapian unloaded");
 }
 
 const char *fts_xapian_plugin_dependencies[] = { "fts", NULL };

@@ -49,6 +49,12 @@ struct fts_xapian_user {
         struct fts_xapian_settings set;
 };
 
+struct fts_xapian_dbw
+{
+	void* dbw; 
+	char ID[100];
+};
+
 #define FTS_XAPIAN_USER_CONTEXT(obj) (struct fts_xapian_user *)MODULE_CONTEXT(obj, fts_xapian_user_module)
 #if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2))
 #define FTS_XAPIAN_USER_CONTEXT_REQUIRE(obj) MODULE_CONTEXT_REQUIRE(obj, fts_xapian_user_module)
