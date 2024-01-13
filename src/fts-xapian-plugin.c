@@ -7,8 +7,6 @@ const char *fts_xapian_plugin_version = DOVECOT_ABI_VERSION;
 
 struct fts_xapian_user_module fts_xapian_user_module = MODULE_CONTEXT_INIT(&mail_user_module_register);
 
-struct fts_xapian_dbw *dbws; 
-
 static void fts_xapian_mail_user_deinit(struct mail_user *user)
 {
 #if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2))
