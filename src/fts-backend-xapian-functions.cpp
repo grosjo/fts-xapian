@@ -510,31 +510,14 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB
 {
-/*
-	struct rlimit rl;
-
-#if !defined(__OpenBSD__)
-	getrlimit(RLIMIT_AS,&rl);
-
-	long limit = rl.rlim_cur / 1024.0;
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM AS =%ld",limit);
-#else
-	long limit = 0;
-#endif
-
-	getrlimit(RLIMIT_DATA,&rl);
-	long l2 = rl.rlim_cur / 1024.0;
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: RLIM DATA =%ld",l2);
-
-	if((l2>0) && ((limit>l2) || (limit<1))) limit=l2;
-*/
 	long m=0;
 	char buffer[500];
+	const char *p;
 	FILE *f=fopen("/proc/meminfo","r");
 	while(!feof(f))
      	{
        		if ( fgets (buffer , 100 , f) == NULL ) break;
-		const char *p = strstr(buffer,"MemFree");
+		p = strstr(buffer,"MemFree");
 		if(p!=NULL)
 		{
 			m+=atol(p+8);
@@ -542,7 +525,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 		p = strstr(buffer,"Cached");
 		if(p==buffer)
 		{
-                        m+=atol(p+6);
+                        m+=atol(p+7);
                 }
      	}
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
