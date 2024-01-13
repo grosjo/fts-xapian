@@ -262,7 +262,7 @@ class XQuerySet
 			s.append("\"");
 			s.append(text);
 			s.append("\"");
-			if(item_neg) s.append(" )");
+			if(item_neg) s.append(")");
 		}
 
 		const char * op=" OR ";
