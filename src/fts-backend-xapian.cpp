@@ -421,9 +421,11 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		return -1;
 	}
 
-	if(!fts_backend_xapian_test_memory())
+	long fri = fts_backend_xapian_test_memory();
+
+	if(fri>=0)
 	{
-		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Warning Low memory (%ld MB)",long(fts_backend_xapian_get_free_memory()/1024.0));
+		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
 		fts_backend_xapian_release(backend,"Low memory indexing", 0);
 		if(!fts_backend_xapian_check_access(backend))
 		{

@@ -550,13 +550,13 @@ static long fts_backend_xapian_get_free_memory() // KB
 */
 }
 
-static bool fts_backend_xapian_test_memory()
+static long fts_backend_xapian_test_memory()
 {
 	long fri = fts_backend_xapian_get_free_memory(); // KB
 
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB vs %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-
-	return(fri > ( fts_xapian_settings.lowmemory * 1024 ) );
+	if(fri < ( fts_xapian_settings.lowmemory * 1024L ) ) return fri;
+	
+	return -1L;
 }
 
 static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend, Xapian::Database ** dbr)
