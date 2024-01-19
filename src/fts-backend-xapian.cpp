@@ -425,7 +425,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if(fri>=0)
 	{
-		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
+		i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
 		fts_backend_xapian_release(backend,"Low memory indexing", 0);
 		if(!fts_backend_xapian_check_access(backend))
 		{
