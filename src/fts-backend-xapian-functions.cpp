@@ -255,10 +255,9 @@ class XQuerySet
 
 		if(text!=NULL)
 		{
-			if(item_neg) s.append("NOT( ");
+			if(item_neg) s.append("NOT ( ");
 			s.append(header);
 			s.append(":");
-			if(item_neg) s.append("NOT(");
 			s.append("\"");
 			s.append(text);
 			s.append("\"");
@@ -277,7 +276,7 @@ class XQuerySet
 
 			if(qs[i]->global_neg)
 			{
-				s.append("NOT(");
+				s.append("NOT (");
 				s.append(qs[i]->get_string());
 				s.append(")");
 			}
@@ -311,7 +310,7 @@ class XQuerySet
 
 		qp->set_database(*db);
 
-		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_DEFAULT));// | Xapian::QueryParser::FLAG_PARTIAL));
+		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_PHRASE | Xapian::QueryParser::FLAG_BOOLEAN | Xapian::QueryParser::FLAG_WILDCARD));
 
 		i_free(s);
 		delete(qp);
