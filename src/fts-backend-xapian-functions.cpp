@@ -510,44 +510,40 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB
 {
-	long m=0;
-	char buffer[500];
-	const char *p;
-	FILE *f=fopen("/proc/meminfo","r");
-	while(!feof(f))
-     	{
-       		if ( fgets (buffer , 100 , f) == NULL ) break;
-		p = strstr(buffer,"MemFree");
-		if(p!=NULL)
-		{
-			m+=atol(p+8);
-		}
-		p = strstr(buffer,"Cached");
-		if(p==buffer)
-		{
-                        m+=atol(p+7);
-                }
-     	}
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
-     	fclose (f);
-	return m;
-/*
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)	
-	uint32_t m;
+	uint32_t m,n;
 	size_t len = sizeof(m);
 	sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Free pages %ld",long(m));
-	m = m * fts_xapian_settings.pagesize / 1024.0;
+	sysctlbyname("vm.stats.vm.v_cache_count", &n, &len, NULL, 0);
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Cached pages %ld",long(n));
+	m = (m+n) * fts_xapian_settings.pagesize / 1024.0;
 	if((limit>0) && (m>limit)) m = limit;
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Free memory %ld MB",long(m/1024.0));
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Available memory %ld MB",long(m/1024.0));
 	return long(m);
 #else
-	long m = long(sysconf(_SC_AVPHYS_PAGES) * fts_xapian_settings.pagesize / 1024.0);
-	if((limit>0) && (m>limit)) m = limit;
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
-	return m;
+        long m=0;
+        char buffer[500];
+        const char *p;
+        FILE *f=fopen("/proc/meminfo","r");
+        while(!feof(f))
+        {       
+                if ( fgets (buffer , 100 , f) == NULL ) break;
+                p = strstr(buffer,"MemFree");
+                if(p!=NULL)
+                {
+                        m+=atol(p+8);
+                }
+                p = strstr(buffer,"Cached");
+                if(p==buffer)
+                {
+                        m+=atol(p+7);
+                }
+        }       
+        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
+        fclose (f);     
+        return m;
 #endif
-*/
 }
 
 static long fts_backend_xapian_test_memory()

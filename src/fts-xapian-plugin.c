@@ -36,8 +36,6 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 	size_t len = sizeof(fuser->set.pagesize);
 	sysctlbyname("hw.pagesize", &(fuser->set.pagesize), &len, NULL, 0);
-#else
-	fuser->set.pagesize = sysconf(_SC_PAGE_SIZE);
 #endif
 
 	const char * env = mail_user_plugin_getenv(user, "fts_xapian");
