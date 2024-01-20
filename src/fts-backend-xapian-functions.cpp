@@ -633,7 +633,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
-static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, char* dbpath)
+static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, char* dbpath, char* boxname)
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Closing starting");
 	bool err=false;
@@ -642,7 +642,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	if(fts_xapian_settings.verbose>0) n = db->get_doccount();
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Closing : %ld (old) vs %ld (new)",nbdocs,n);	
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : %ld (old) vs %ld (new)",dbpath,boxname,nbdocs,n);	
 		db->commit();
 		db->close();
 	}
@@ -667,7 +667,8 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
                         i_error("FTS Xapian: Can't re-create Xapian DB %s : %s - %s",dbpath,e.get_type(),e.get_error_string());
                 }
         }
-	else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Close - Done in %ld ms",t);
+	else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) - Done in %ld ms",dbpath,boxname,t);
+	i_free(boxname);
 	i_free(dbpath);
 }
 	
@@ -681,7 +682,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(backend->dbw !=NULL)
 	{
-		std::thread *t = new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db));
+		std::thread *t = new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
 		backend->commit_time = commit_time;
