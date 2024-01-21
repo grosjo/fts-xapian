@@ -302,34 +302,53 @@ class XQuerySet
 			return new Xapian::Query(Xapian::Query::MatchNothing);
 		}
 
+		Xapian::Query * q = NULL;
+		Xapian::Query * q2;
+
 		if(text!=NULL)
                 {
 			std::string s;
+			if(item_neg) s="NOT ";
                         s.append(header);
                         s.append(":");
                         s.append("\"");
                         s.append(text);
                         s.append("\"");
 
-		//	Xapian::QueryParser * qp = new Xapian::QueryParser();
-	//		for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
-	//		qp->set_database(*db);
-	//		Xapian::Query * q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_PHRASE | Xapian::QueryParser::FLAG_BOOLEAN | Xapian::QueryParser::FLAG_WILDCARD));
-	//                        if(item_neg) s.append(")");
+			Xapian::QueryParser * qp = new Xapian::QueryParser();
+			for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
+			qp->set_database(*db);
+			q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_DEFAULT));
+			delete (qp);
+			if (qsize<1) return q;
                 }
 
-		Xapian::QueryParser * qp = new Xapian::QueryParser();
+		Xapian::Query::op op = Xapian::Query::OP_OR;
+                if(global_and) op=Xapian::Query::OP_AND;
 
-		for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
-
-		char *s = i_strdup(get_string().c_str());
-
-		qp->set_database(*db);
-
-		Xapian::Query * q = new Xapian::Query(qp->parse_query(s,Xapian::QueryParser::FLAG_PHRASE | Xapian::QueryParser::FLAG_BOOLEAN | Xapian::QueryParser::FLAG_WILDCARD));
-
-		i_free(s);
-		delete(qp);
+		if(q==NULL)
+		{	
+			q=qs[0]->get_query(db);
+		}
+		else
+		{
+			q2 = new Xapian::Query(op,*q,*(qs[0]->get_query(db)));
+			delete(q);
+			q=q2;
+		}
+		for (int i=1;i<qsize;i++)
+		{
+			q2 = new Xapian::Query(op,*q,*(qs[1]->get_query(db)));
+			delete(q);
+			q=q2;
+		}
+		if(global_neg)
+		{
+			q2 = new Xapian::Query(Xapian::Query::MatchAll);
+			q2 = new Xapian::Query(Xapian::Query::OP_AND_NOT,*q2,*q);
+			delete(q);
+                        q=q2;
+                }
 		return q;
 	}
 };
