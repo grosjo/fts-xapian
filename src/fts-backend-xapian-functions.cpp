@@ -302,6 +302,22 @@ class XQuerySet
 			return new Xapian::Query(Xapian::Query::MatchNothing);
 		}
 
+		if(text!=NULL)
+                {
+			std::string s;
+                        s.append(header);
+                        s.append(":");
+                        s.append("\"");
+                        s.append(text);
+                        s.append("\"");
+
+		//	Xapian::QueryParser * qp = new Xapian::QueryParser();
+	//		for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
+	//		qp->set_database(*db);
+	//		Xapian::Query * q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_PHRASE | Xapian::QueryParser::FLAG_BOOLEAN | Xapian::QueryParser::FLAG_WILDCARD));
+	//                        if(item_neg) s.append(")");
+                }
+
 		Xapian::QueryParser * qp = new Xapian::QueryParser();
 
 		for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
@@ -633,9 +649,21 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
+static std::string fts_backend_xapian_get_selfpath() 
+{
+    char buff[PATH_MAX];
+    buff[0]=0;
+    ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff)-1);
+    if (len != -1) 
+    {
+      buff[len] = '\0';
+    }
+    return std::string(buff);
+}
+
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, char* dbpath, char* boxname)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Closing starting");
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Closing starting (%s)",fts_backend_xapian_get_selfpath().c_str());
 	bool err=false;
 	long n = 0;
 	long t = fts_backend_xapian_current_time();
@@ -682,7 +710,14 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(backend->dbw !=NULL)
 	{
-		std::thread *t = new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
+		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
+		{
+			std::thread *t = new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
+		}
+		else
+		{
+			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
+		}
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
 		backend->commit_time = commit_time;
