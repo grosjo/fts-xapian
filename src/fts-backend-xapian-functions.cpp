@@ -297,11 +297,6 @@ class XQuerySet
 
 	Xapian::Query * get_query(Xapian::Database * db)
 	{
-		if(count()<1)
-		{
-			return new Xapian::Query(Xapian::Query::MatchNothing);
-		}
-
 		Xapian::Query * q = NULL;
 		Xapian::Query * q2;
 
@@ -320,7 +315,11 @@ class XQuerySet
 			qp->set_database(*db);
 			q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_DEFAULT));
 			delete (qp);
-			if (qsize<1) return q;
+		}
+		if(qsize<1)
+		{
+			if(q==NULL) q = new Xapian::Query(Xapian::Query::MatchNothing);
+			return q;
                 }
 
 		Xapian::Query::op op = Xapian::Query::OP_OR;
@@ -345,9 +344,8 @@ class XQuerySet
 		if(global_neg)
 		{
 			q2 = new Xapian::Query(Xapian::Query::MatchAll);
-			q2 = new Xapian::Query(Xapian::Query::OP_AND_NOT,*q2,*q);
-			delete(q);
-                        q=q2;
+			q = new Xapian::Query(Xapian::Query::OP_AND_NOT,*q2,*q);
+			delete(q2);
                 }
 		return q;
 	}
