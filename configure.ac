@@ -1,4 +1,4 @@
-AC_INIT([Dovecot FTS Xapian],[1.5.6a],[jom@grosjo.net],[dovecot-fts-xapian])
+AC_INIT([Dovecot FTS Xapian],[1.5.8],[jom@grosjo.net],[dovecot-fts-xapian])
 AC_CONFIG_AUX_DIR([.])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_MACRO_DIR([m4])
