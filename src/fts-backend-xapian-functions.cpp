@@ -729,7 +729,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	{
 		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
 		{
-			std::thread *t = new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Thread Closing");
+			new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,i_strdup(backend->db), i_strdup(backend->boxname));
 		}
 		else
 		{
