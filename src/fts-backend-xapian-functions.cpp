@@ -690,7 +690,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	if(fts_xapian_settings.verbose>0) n = db->get_doccount();
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (s) finishing (%s) : %ld (old) vs %ld (new)",c,dbpath.c_str(),boxname.c_str(),nbdocs,n);	
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) finishing (%s) : %ld (old) vs %ld (new)",c,dbpath.c_str(),boxname.c_str(),nbdocs,n);	
 		db->commit();
 		db->close();
 	}
