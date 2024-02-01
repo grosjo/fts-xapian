@@ -279,12 +279,11 @@ class XQuerySet
 	Xapian::Query * get_query(Xapian::Database * db)
 	{
 		Xapian::Query * q = NULL;
-		Xapian::Query * q2;
+		Xapian::Query *q2, *q3;
 
 		if(text!=NULL)
                 {
 			std::string s;
-			if(item_neg) s="NOT ";
                         s.append(header);
                         s.append(":");
                         s.append("\"");
@@ -296,6 +295,14 @@ class XQuerySet
 			qp->set_database(*db);
 			q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_DEFAULT));
 			delete (qp);
+			if(item_neg)
+			{
+				q2 = new Xapian::Query(Xapian::Query::MatchAll);
+				q3 = new Xapian::Query(Xapian::Query::OP_AND_NOT,*q2,*q);
+				delete(q2);
+				delete(q);
+				q=q3;
+			}
 		}
 		if(qsize<1)
 		{
