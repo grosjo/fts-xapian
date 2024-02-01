@@ -126,16 +126,12 @@ void fts_xapian_plugin_init(struct module *module ATTR_UNUSED)
 {
 	fts_backend_register(&fts_backend_xapian);
 	mail_storage_hooks_add(module, &fts_xapian_mail_storage_hooks);
-
-	i_info("Plugin dovecot-fts-xapian loaded");
 }
 
 void fts_xapian_plugin_deinit(void)
 {
 	fts_backend_unregister(fts_backend_xapian.name);
 	mail_storage_hooks_remove(&fts_xapian_mail_storage_hooks);
-
-	i_info("Plugin dovecot-fts-xapian unloaded");
 }
 
 const char *fts_xapian_plugin_dependencies[] = { "fts", NULL };
