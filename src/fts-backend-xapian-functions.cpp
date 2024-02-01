@@ -234,7 +234,7 @@ class XQuerySet
 
 	std::string get_string()
 	{
-		std::string s;
+		std::string s("");
 
 		if(count()<1) return s;
 
@@ -283,8 +283,7 @@ class XQuerySet
 
 		if(text!=NULL)
                 {
-			std::string s;
-                        s.append(header);
+			std::string s(header);
                         s.append(":");
                         s.append("\"");
                         s.append(text);
