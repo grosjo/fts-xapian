@@ -679,19 +679,19 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		return 0;
 	}
 
-	bool is_and=false;
+	XQuerySet * qs;
 
 	if((flags & FTS_LOOKUP_FLAG_AND_ARGS) != 0)
 	{
 		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: FLAG=AND");
-		is_and=true;
+		qs = new XQuerySet(Xapian::Query::OP_AND,fts_xapian_settings.partial);
 	}
 	else
 	{
 		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: FLAG=OR");
+		qs = new XQuerySet(Xapian::Query::OP_OR,fts_xapian_settings.partial);
 	}
 
-	XQuerySet * qs = new XQuerySet(is_and,false,fts_xapian_settings.partial);
 	fts_backend_xapian_build_qs(qs,args);
 
 	XResultSet * r=fts_backend_xapian_query(dbr,qs);

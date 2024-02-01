@@ -32,8 +32,7 @@ class XQuerySet
 		char * header;
 		char * text;
 		XQuerySet ** qs;
-		bool global_and; // global
-		bool global_neg; // global
+		Xapian::Query::op global_op;
 		bool item_neg; // for the term
 		long qsize;
 		long limit;
@@ -42,22 +41,20 @@ class XQuerySet
 	{
 		qsize=0; qs=NULL;
 		limit=1;
-		global_and=true;
 		header=NULL;
 		text=NULL;
-		global_neg=false;
+		global_op = Xapian::Query::op::OP_OR;		
 		accentsConverter=NULL;
 	}
 
-	XQuerySet(bool is_and, bool is_neg, long l)
+	XQuerySet(Xapian::Query::op op, long l)
 	{
 		qsize=0; qs=NULL;
 		limit=1;
 		if(l>1) { limit=l; }
 		header=NULL;
 		text=NULL;
-		global_and=is_and;
-		global_neg=is_neg;
+		global_op=op;
 		accentsConverter=NULL;
 	}
 
@@ -131,7 +128,14 @@ class XQuerySet
 		i = t->lastIndexOf(" ");
                 if(i>0)
                 {
-                        q2 = new XQuerySet(true,false,limit);
+			if(is_neg)
+			{
+                        	q2 = new XQuerySet(Xapian::Query::OP_AND_NOT,limit);
+			}
+			else
+			{
+				q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
+			}
                         while(i>0)
                         {
                                 j = t->length();
@@ -169,7 +173,7 @@ class XQuerySet
 
 		if(strcmp(h2,XAPIAN_WILDCARD)==0)
 		{
-			q2 = new XQuerySet(false,is_neg,limit);
+                        q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
 			for(i=1;i<HDRS_NB;i++)
 			{
 				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t2,is_neg);
@@ -192,13 +196,6 @@ class XQuerySet
 			return;
 		}
 
-		if(has(h2,t2))
-		{
-			i_free(h2);
-			i_free(t2);
-			return;
-		}
-
 		if(text==NULL)
 		{
 			text=t2;
@@ -207,8 +204,8 @@ class XQuerySet
 			return;
 		}
 
-		q2 = new XQuerySet(global_and,is_neg,limit);
-		q2->add(h,t,false);
+		q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
+		q2->add(h,t,is_neg);
 		add(q2);
 	}
 
@@ -225,18 +222,6 @@ class XQuerySet
 		}
 		qs[qsize]=q2;
 		qsize++;
-	}
-
-	bool has(const char *h, const char *t)
-	{
-		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XQuerySet->has(%s,%s)",h,t);
-
-		if((text!=NULL) && (strcmp(h,header)==0) && (strcmp(t,text)==0)) return true;
-		for(long i=0; i<qsize; i++)
-		{
-			if(qs[i]->has(h,t)) return true;
-		}
-		return false;
 	}
 
 	int count()
@@ -264,8 +249,14 @@ class XQuerySet
 			if(item_neg) s.append(")");
 		}
 
-		const char * op=" OR ";
-		if(global_and) op=" AND ";
+		const char * op;
+		switch(global_op)
+		{
+			case Xapian::Query::OP_OR : op=" OR "; break;
+			case Xapian::Query::OP_AND : op=" AND "; break;
+			case Xapian::Query::OP_AND_NOT : op=" AND NOT "; break;
+			default : op=" ERROR ";
+		}	
 
 		for (int i=0;i<qsize;i++)
 		{
@@ -274,23 +265,13 @@ class XQuerySet
 
 			if(s.length()>0) s.append(op);
 
-			if(qs[i]->global_neg)
-			{
-				s.append("NOT (");
-				s.append(qs[i]->get_string());
-				s.append(")");
-			}
-			else if(c>1)
+			if(c>1)
 			{
 				s.append("(");
 				s.append(qs[i]->get_string());
 				s.append(")");
 			}
 			else s.append(qs[i]->get_string());
-		}
-		if(global_neg)
-		{
-			s="NOT("+s+")";
 		}
 		return s;
 	}
@@ -322,31 +303,22 @@ class XQuerySet
 			return q;
                 }
 
-		Xapian::Query::op op = Xapian::Query::OP_OR;
-                if(global_and) op=Xapian::Query::OP_AND;
-
 		if(q==NULL)
 		{	
 			q=qs[0]->get_query(db);
 		}
 		else
 		{
-			q2 = new Xapian::Query(op,*q,*(qs[0]->get_query(db)));
+			q2 = new Xapian::Query(global_op,*q,*(qs[0]->get_query(db)));
 			delete(q);
 			q=q2;
 		}
 		for (int i=1;i<qsize;i++)
 		{
-			q2 = new Xapian::Query(op,*q,*(qs[1]->get_query(db)));
+			q2 = new Xapian::Query(global_op,*q,*(qs[1]->get_query(db)));
 			delete(q);
 			q=q2;
 		}
-		if(global_neg)
-		{
-			q2 = new Xapian::Query(Xapian::Query::MatchAll);
-			q = new Xapian::Query(Xapian::Query::OP_AND_NOT,*q2,*q);
-			delete(q2);
-                }
 		return q;
 	}
 };
@@ -683,7 +655,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	const char * c="Not threaded";
 	if(threaded) c="Threaded";
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Commit & Closing (%s) starting (%s)",c,fts_backend_xapian_get_selfpath().c_str());
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c,dbpath.c_str(),boxname.c_str(),fts_backend_xapian_get_selfpath().c_str());
 	bool err=false;
 	long n = 0;
 	long t = fts_backend_xapian_current_time();
@@ -733,7 +705,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Thread Closing");
 			try
 			{
-				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,backend->db, backend->boxname,true);
+				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,std::string(backend->db), std::string(backend->boxname),true);
 			}
 			catch (std::runtime_error &ex)
 			{
@@ -742,7 +714,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		}
 		else
 		{
-			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,backend->db, backend->boxname,false);
+			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,std::string(backend->db), std::string(backend->boxname),false);
 		}
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
@@ -948,7 +920,15 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		}
 		if((a->value.str == NULL) || (strlen(a->value.str)<1))
 		{
-			XQuerySet * q2 = new XQuerySet(false,a->match_not,qs->limit);
+			XQuerySet * q2;
+			if(a->match_not)
+			{
+				q2 = new XQuerySet(Xapian::Query::OP_AND_NOT,qs->limit);
+			}
+			else
+			{
+				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
+			}
 			fts_backend_xapian_build_qs(q2,a->value.subargs);
 			if(q2->count()>0)
 			{
