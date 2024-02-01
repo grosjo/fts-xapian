@@ -725,19 +725,16 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_query");
+	i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
 
 	XResultSet * set= new XResultSet();
+	Xapian::Query * q = query->get_query(dbx);
 
 	try
 	{
 		Xapian::Enquire enquire(*dbx);
-
-		Xapian::Query * q = query->get_query(dbx);
-
 		enquire.set_query(*q);
 		enquire.set_docid_order(Xapian::Enquire::DESCENDING);
-		delete(q);
 
 		long offset=0;
 		long pagesize=100; if(limit>0) { pagesize=std::min(pagesize,limit); }
@@ -759,6 +756,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 	{
 		i_error("FTS Xapian: xapian_query %s - %s",e.get_type(),e.get_error_string());
 	}
+	delete(q);
 	return set;
 }
 
