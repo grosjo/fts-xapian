@@ -661,14 +661,14 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	const char * c="Not threaded";
 	if(threaded) c="Threaded";
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c,dbpath->c_str(),boxname->c_str(),fts_backend_xapian_get_selfpath().c_str());
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c,boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
 	bool err=false;
 	long n = 0;
 	long t = fts_backend_xapian_current_time();
 	if(fts_xapian_settings.verbose>0) n = db->get_doccount();
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) finishing (%s) : %ld (old) vs %ld (new)",c,dbpath->c_str(),boxname->c_str(),nbdocs,n);	
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",c,boxname->c_str(),nbdocs,n);	
 		db->commit();
 		db->close();
 	}
@@ -677,6 +677,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
                 err=true;
         }
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Releasing Xapian db",c,boxname->c_str());
 	delete(db);
 	t = fts_backend_xapian_current_time() -t;
         if(err)
