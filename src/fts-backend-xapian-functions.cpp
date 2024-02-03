@@ -709,8 +709,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(backend->dbw !=NULL)
 	{
-		std::string *a = new std::string(backend->db);
-		std::string *b = new std::string(backend->boxname);
+		std::string *a = new std::string(); a->append(backend->db);
+		std::string *b = new std::string(); b->append(backend->boxname);
 
 		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
 		{
@@ -728,8 +728,6 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		else
 		{
 			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,a,b,false);
-			delete(a);
-			delete(b);
 		}
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
