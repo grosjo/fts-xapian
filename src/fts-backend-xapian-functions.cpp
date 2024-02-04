@@ -173,10 +173,17 @@ class XQuerySet
 
 		if(strcmp(h2,XAPIAN_WILDCARD)==0)
 		{
-                        q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
+			if(is_neg)
+			{
+				q2 = new XQuerySet(Xapian::Query::OP_AND_NOT,limit);
+			}
+			else
+			{
+                        	q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
+			}
 			for(i=1;i<HDRS_NB;i++)
 			{
-				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t2,is_neg);
+				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t2,false);
 			}
 			add(q2);
 			i_free(h2);
