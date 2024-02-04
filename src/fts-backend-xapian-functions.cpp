@@ -118,7 +118,7 @@ class XQuerySet
 			k--;
 		}
 	
-		if(fts_xapian_settings.verbose>2)
+		if(fts_xapian_settings.verbose>1)
 		{
 			st2.clear();
 			t->toUTF8String(st2);
@@ -211,7 +211,7 @@ class XQuerySet
 
 	void add(XQuerySet *q2)
 	{
-		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XQuerySet->addQ()");
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XQuerySet->addQ()");
 		if(qsize<1)
 		{
 			qs=(XQuerySet **)i_malloc(sizeof(XQuerySet*));
@@ -321,7 +321,7 @@ class XQuerySet
 		}
 		for (int i=1;i<qsize;i++)
 		{
-			q2 = new Xapian::Query(global_op,*q,*(qs[1]->get_query(db)));
+			q2 = new Xapian::Query(global_op,*q,*(qs[i]->get_query(db)));
 			delete(q);
 			q=q2;
 		}
@@ -709,8 +709,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(backend->dbw !=NULL)
 	{
-		std::string *a = new std::string(); a->append(backend->db);
-		std::string *b = new std::string(); b->append(backend->boxname);
+		std::string *a = new std::string(backend->db);
+		std::string *b = new std::string(backend->boxname);
 
 		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
 		{
