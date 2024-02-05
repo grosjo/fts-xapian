@@ -18,10 +18,14 @@ static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "c
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
 static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
 static const char * selectUIDs = "select ID from docs;";
-#define CHARS_PB 18
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", ":", ";", "!", "%", "*", "|", "`", "#", "~", "^", ",", "/", "\\" };
+
+#define CHARS_PB 15
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "!", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
+
+#define CHARS_SEP 10
+static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")" };
 
 struct xapian_fts_backend
 {

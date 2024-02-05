@@ -99,13 +99,13 @@ class XQuerySet
 		icu::UnicodeString *r1,*r2;
 		std::string st1,st2;
 
-		t->findAndReplace("'",CHAR_SPACE);
-		t->findAndReplace("\"",CHAR_SPACE);
-		t->findAndReplace("\n",CHAR_SPACE);
-		t->findAndReplace("\r",CHAR_SPACE);
-		t->findAndReplace("\t",CHAR_SPACE);
 		t->toLower();
-
+		k=CHARS_SEP;
+		while(k>0)
+                {
+                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                        k--;
+                }
 		k=CHARS_PB;
 		while(k>0)
 		{
@@ -388,18 +388,18 @@ class XNGram
 	{
 		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XNGram->add()");
 
-		d->toLower();
-		d->findAndReplace("'",CHAR_SPACE);
-		d->findAndReplace("\"",CHAR_SPACE);
-		d->findAndReplace("\n",CHAR_SPACE);
-		d->findAndReplace("\r",CHAR_SPACE);
-		d->findAndReplace("\t",CHAR_SPACE);
-		d->trim();
-	
 		long i,k;
 		icu::UnicodeString *r1,*r2;
-                i = d->lastIndexOf(CHAR_SPACE);
 
+		d->toLower();
+		k=CHARS_SEP;
+                while(k>0)
+                {
+                        d->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                        k--;
+                }
+		d->trim();
+                i = d->lastIndexOf(CHAR_SPACE);
                 if(i>0)
                 {
                         r1 = new icu::UnicodeString(*d,0,i);
