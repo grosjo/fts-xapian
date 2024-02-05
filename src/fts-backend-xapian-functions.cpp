@@ -440,7 +440,6 @@ class XNGram
                 }
 
 		bool b=false;
-		i=0;
 		while(d->indexOf(CHAR_KEY)==0)
 		{
 			d->remove(0,1);
