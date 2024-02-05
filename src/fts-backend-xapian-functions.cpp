@@ -91,7 +91,6 @@ class XQuerySet
 	void add(icu::UnicodeString *h, icu::UnicodeString *t, bool is_neg)
 	{
 		std::string st1,st2;
-		if(fts_xapian_settings.verbose>2) { st1.clear(); t->toUTF8String(st1); }
 
 		long i,j,k;
 		XQuerySet * q2;
@@ -111,10 +110,10 @@ class XQuerySet
 		if(h->length()<1) return;
 		if(t->length()<limit) return;
 
-		k=CHARS_NB;
+		k=CHARS_PB;
 		while(k>0)
 		{
-			t->findAndReplace(chars_pb[k-1],"_");
+			t->findAndReplace(chars_pb[k-1],CHAR_KEY);
 			k--;
 		}
 	
@@ -395,11 +394,10 @@ class XNGram
 		d->findAndReplace("\n"," ");
 		d->findAndReplace("\r"," ");
 		d->findAndReplace("\t"," ");
+		d->trim();
 	
 		long i,k;
 		icu::UnicodeString *r1,*r2;
-
-		d->trim();
                 i = d->lastIndexOf(" ");
 
                 if(i>0)
@@ -413,10 +411,10 @@ class XNGram
                         return;
                 }
 
-		k=CHARS_NB;
+		k=CHARS_PB;
                 while(k>0)
                 {
-			d->findAndReplace(chars_pb[k-1],"_");
+			d->findAndReplace(chars_pb[k-1],CHAR_KEY);
 			k--;
 		}
                 
@@ -440,9 +438,22 @@ class XNGram
                         add_stem(d);
                         return;
                 }
- 
-		i = d->lastIndexOf("_");	
-		if(i>=0)
+
+		bool b=false;
+		i=0;
+		while(d->indexOf(CHAR_KEY)==0)
+		{
+			d->remove(0,1);
+			b=true;
+		}
+		i = d->lastIndexOf(CHAR_KEY);
+		while((i>0) && (i==d->length()-1))
+		{
+			d->remove(i,1);
+			i = d->lastIndexOf(CHAR_KEY);
+			b=true;
+		}
+		if(i>0)
 		{
 			r1 = new icu::UnicodeString(*d,0,i);
                         r2 = new icu::UnicodeString(*d,i+1,d->length()-i-1);
@@ -463,16 +474,19 @@ class XNGram
 				delete(r1);
 			}
 		}
-		if(k>fts_xapian_settings.full) add_stem(d);
+		if(b || (k>fts_xapian_settings.full)) add_stem(d);
 	}
 
 	void add_stem(icu::UnicodeString *d)
 	{
+		long l,i,p;
+		std::string s;
+		char * s2;
+
 		d->trim();
-		long l=d->length();
+		l=d->length();
 		if(l<fts_xapian_settings.partial) return;
 
-		std::string s;
 		d->toUTF8String(s);
 		l  = s.length();
 		if(l>hardlimit)
@@ -481,10 +495,10 @@ class XNGram
 			return;
 		}
 
-		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XNGram->add_stem(%s)",s.substr(0,100).c_str());
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XNGram->add_stem(%s)",s.substr(0,100).c_str());
 
-		char * s2 = i_strdup(s.c_str());
-		long p =0;
+		s2 = i_strdup(s.c_str());
+		p=0;
 
 		if(size<1)
 		{
@@ -505,7 +519,7 @@ class XNGram
 				return;
 			}
 			data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
-			long i=size;
+			i=size;
 			while(i>p)
 			{
 				data[i]=data[i-1];
