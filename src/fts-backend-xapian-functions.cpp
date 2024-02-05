@@ -99,11 +99,11 @@ class XQuerySet
 		icu::UnicodeString *r1,*r2;
 		std::string st1,st2;
 
-		t->findAndReplace("'"," ");
-		t->findAndReplace("\""," ");
-		t->findAndReplace("\n"," ");
-		t->findAndReplace("\r"," ");
-		t->findAndReplace("\t"," ");
+		t->findAndReplace("'",CHAR_SPACE);
+		t->findAndReplace("\"",CHAR_SPACE);
+		t->findAndReplace("\n",CHAR_SPACE);
+		t->findAndReplace("\r",CHAR_SPACE);
+		t->findAndReplace("\t",CHAR_SPACE);
 		t->toLower();
 
 		k=CHARS_PB;
@@ -112,20 +112,19 @@ class XQuerySet
 			t->findAndReplace(chars_pb[k-1],CHAR_KEY);
 			k--;
 		}
-		while(t->indexOf(CHAR_KEY)==0)
+		while((t->indexOf(CHAR_KEY)==0) || (t->indexOf(CHAR_SPACE)==0))
                 {
                         t->remove(0,1);
                 }
-                i = t->lastIndexOf(CHAR_KEY);
+                i = std::max(t->lastIndexOf(CHAR_KEY),t->indexOf(CHAR_SPACE));
                 while((i>0) && (i==t->length()-1))
                 {
                         t->remove(i,1);
-                        i = t->lastIndexOf(CHAR_KEY);
+                        i = std::max(t->lastIndexOf(CHAR_KEY),t->indexOf(CHAR_SPACE));
                 }
-		t->trim();
 		if(t->length()<limit) return;
 	
-		i = t->lastIndexOf(" ");
+		i = t->lastIndexOf(CHAR_SPACE);
                 if(i>0)
                 {
 			if(is_neg)
@@ -144,7 +143,7 @@ class XQuerySet
                                 delete(r1);
                                 t->truncate(i);
                                 t->trim();
-                                i = t->lastIndexOf(" ");
+                                i = t->lastIndexOf(CHAR_SPACE);
                         }
                         q2->add(h,t,false);
                         if(q2->count()>0) add(q2); else delete(q2);
@@ -390,16 +389,16 @@ class XNGram
 		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XNGram->add()");
 
 		d->toLower();
-		d->findAndReplace("'"," ");
-		d->findAndReplace("\""," ");
-		d->findAndReplace("\n"," ");
-		d->findAndReplace("\r"," ");
-		d->findAndReplace("\t"," ");
+		d->findAndReplace("'",CHAR_SPACE);
+		d->findAndReplace("\"",CHAR_SPACE);
+		d->findAndReplace("\n",CHAR_SPACE);
+		d->findAndReplace("\r",CHAR_SPACE);
+		d->findAndReplace("\t",CHAR_SPACE);
 		d->trim();
 	
 		long i,k;
 		icu::UnicodeString *r1,*r2;
-                i = d->lastIndexOf(" ");
+                i = d->lastIndexOf(CHAR_SPACE);
 
                 if(i>0)
                 {
@@ -431,15 +430,6 @@ class XNGram
                 }
                 if(accentsConverter != NULL) accentsConverter->transliterate(*d);
        
-		k = d->length();
-                if(k<fts_xapian_settings.partial) return;
-
-                if(onlyone)
-                {
-                        add_stem(d);
-                        return;
-                }
-
 		bool b=false;
 		while(d->indexOf(CHAR_KEY)==0)
 		{
@@ -453,6 +443,16 @@ class XNGram
 			i = d->lastIndexOf(CHAR_KEY);
 			b=true;
 		}
+	
+                k = d->length();
+                if(k<fts_xapian_settings.partial) return;
+
+                if(onlyone)
+                {
+                        add_stem(d);
+                        return;
+                }
+	
 		if(i>0)
 		{
 			r1 = new icu::UnicodeString(*d,0,i);

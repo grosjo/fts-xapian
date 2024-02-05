@@ -20,6 +20,7 @@ static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMAR
 static const char * selectUIDs = "select ID from docs;";
 #define CHARS_PB 18
 #define CHAR_KEY "_"
+#define CHAR_SPACE " "
 static const char * chars_pb[] = { "<", ">", ".", "-", "@", ":", ";", "!", "%", "*", "|", "`", "#", "~", "^", ",", "/", "\\" };
 
 struct xapian_fts_backend
