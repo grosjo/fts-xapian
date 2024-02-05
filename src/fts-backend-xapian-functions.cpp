@@ -90,25 +90,21 @@ class XQuerySet
 
 	void add(icu::UnicodeString *h, icu::UnicodeString *t, bool is_neg)
 	{
-		std::string st1,st2;
+		h->trim();
+                h->toLower();
+                if(h->length()<1) return;
 
 		long i,j,k;
 		XQuerySet * q2;
 		icu::UnicodeString *r1,*r2;
+		std::string st1,st2;
 
 		t->findAndReplace("'"," ");
 		t->findAndReplace("\""," ");
 		t->findAndReplace("\n"," ");
 		t->findAndReplace("\r"," ");
 		t->findAndReplace("\t"," ");
-
-		h->trim();
-		t->trim();
-		h->toLower();
 		t->toLower();
-
-		if(h->length()<1) return;
-		if(t->length()<limit) return;
 
 		k=CHARS_PB;
 		while(k>0)
@@ -116,14 +112,19 @@ class XQuerySet
 			t->findAndReplace(chars_pb[k-1],CHAR_KEY);
 			k--;
 		}
+		while(t->indexOf(CHAR_KEY)==0)
+                {
+                        t->remove(0,1);
+                }
+                i = t->lastIndexOf(CHAR_KEY);
+                while((i>0) && (i==t->length()-1))
+                {
+                        t->remove(i,1);
+                        i = t->lastIndexOf(CHAR_KEY);
+                }
+		t->trim();
+		if(t->length()<limit) return;
 	
-		if(fts_xapian_settings.verbose>1)
-		{
-			st2.clear();
-			t->toUTF8String(st2);
-			i_info("FTS Xapian: XQuerySet->add(%s) -> %s",st1.c_str(),st2.c_str());
-		}
-
 		i = t->lastIndexOf(" ");
                 if(i>0)
                 {
