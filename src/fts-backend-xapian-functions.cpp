@@ -116,11 +116,11 @@ class XQuerySet
                 {
                         t->remove(0,1);
                 }
-                i = std::max(t->lastIndexOf(CHAR_KEY),t->indexOf(CHAR_SPACE));
+                i = std::max(t->lastIndexOf(CHAR_KEY),t->lastIndexOf(CHAR_SPACE));
                 while((i>0) && (i==t->length()-1))
                 {
                         t->remove(i,1);
-                        i = std::max(t->lastIndexOf(CHAR_KEY),t->indexOf(CHAR_SPACE));
+                        i = std::max(t->lastIndexOf(CHAR_KEY),t->lastIndexOf(CHAR_SPACE));
                 }
 		if(t->length()<limit) return;
 	
