@@ -679,17 +679,17 @@ static std::string fts_backend_xapian_get_selfpath()
 
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * boxname, bool threaded)
 {
-	const char * c="Not threaded";
-	if(threaded) c="Threaded";
+	std::string * c= new std::string("Not threaded");
+	if(threaded) { c->clear(); c->append("Threaded"); }
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c,boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c->c_str(),boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
 	bool err=false;
 	long n = 0;
 	long t = fts_backend_xapian_current_time();
 	if(fts_xapian_settings.verbose>0) n = db->get_doccount();
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",c,boxname->c_str(),nbdocs,n);	
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",c->c_str(),boxname->c_str(),nbdocs,n);	
 		db->commit();
 		db->close();
 	}
@@ -698,12 +698,16 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
                 err=true;
         }
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Releasing Xapian db",c,boxname->c_str());
+	i_info("JOJO1");
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Releasing Xapian db",c->c_str(),boxname->c_str());
 	delete(db);
+	i_info("JOJO2");
 	t = fts_backend_xapian_current_time() -t;
+	i_info("JOJO3");
         if(err)
         {
-        	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Re-creating index database (%s) due to error",dbpath->c_str());
+		i_info("JOJO3b");
+        	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Re-creating index database (%s) due to error",c->c_str(),dbpath->c_str());
                 try
                 {
                 	db = new Xapian::WritableDatabase(dbpath->c_str(),Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
@@ -715,9 +719,11 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
                         i_error("FTS Xapian: Can't re-create Xapian DB %s : %s - %s",dbpath->c_str(),e.get_type(),e.get_error_string());
                 }
         }
-	else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) (%s) - Done in %ld ms",c,dbpath->c_str(),boxname->c_str(),t);
+	else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) (%s) - Done in %ld ms",c->c_str(),dbpath->c_str(),boxname->c_str(),t);
+	i_info("JOJO4");
 	delete(dbpath);
 	delete(boxname);
+	delete(c);
 }
 	
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
