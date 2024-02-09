@@ -681,15 +681,14 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 {
 	std::string * c= new std::string("Not threaded");
 	if(threaded) { c->clear(); c->append("Threaded"); }
+	c->append(" "); c->append(cuserid(NULL));
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",c->c_str(),boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
 	bool err=false;
-	long n = 0;
 	long t = fts_backend_xapian_current_time();
-	if(fts_xapian_settings.verbose>0) n = db->get_doccount();
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",c->c_str(),boxname->c_str(),nbdocs,n);	
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",c->c_str(),boxname->c_str(),nbdocs,(long)(db->get_doccount()));
 		db->commit();
 		db->close();
 	}
