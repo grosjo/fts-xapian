@@ -759,7 +759,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	delete(title);
 }
 
-static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded)
 {
 	bool err=false;
 
@@ -776,7 +776,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		title->append(*dbpath);
 		title->append(") - ");
 
-		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
+		if((strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL) && threaded)
 		{
 			title->append("Threaded from=");
         		title->append(cuserid(NULL));
@@ -848,7 +848,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	long commit_time = fts_backend_xapian_current_time();
 
 	fts_backend_xapian_oldbox(backend);
-	fts_backend_xapian_release(backend,"unset_box",commit_time);
+	fts_backend_xapian_release(backend,"unset_box",commit_time,true);
 
 	if(backend->db != NULL)
 	{

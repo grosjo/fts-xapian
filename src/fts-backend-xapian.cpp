@@ -187,7 +187,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
-	fts_backend_xapian_release(backend,"update_deinit",0);
+	fts_backend_xapian_release(backend,"update_deinit",0,true);
 
 	i_free(ctx);
 
@@ -396,7 +396,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	fts_backend_xapian_release(backend,"refresh", 0);
+	fts_backend_xapian_release(backend,"refresh", 0, false);
 
 	return 0;
 }
@@ -437,7 +437,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(fri>=0)
 	{
 		i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-		fts_backend_xapian_release(backend,"Low memory indexing", 0);
+		fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
 		if(!fts_backend_xapian_check_access(backend))
 		{
 			i_error("FTS Xapian: Buildmore: Can not open db (2)");
@@ -453,7 +453,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		if(!ok)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
-			fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0);
+			fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0, false);
                 	if(fts_backend_xapian_check_access(backend))
 			{
 				ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
@@ -470,7 +470,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		if(!ok)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
-			fts_backend_xapian_release(backend,"Flushing memory indexing text", 0);
+			fts_backend_xapian_release(backend,"Flushing memory indexing text", 0, false);
 			if(fts_backend_xapian_check_access(backend))
 			{
 				ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
@@ -489,7 +489,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
 	{
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES);
-		fts_backend_xapian_release(backend,"refreshing", current_time);
+		fts_backend_xapian_release(backend,"refreshing", current_time, false);
 	}
 
 	if(!ok) return -1;
