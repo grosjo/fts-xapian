@@ -714,11 +714,17 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * boxname, std::string * threaded)
 {
-	if(fts_xapian_settings.verbose>0) { threaded->append(" to="); threaded->append(cuserid(NULL)); }
+	long t;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",threaded->c_str(),boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
+	if(fts_xapian_settings.verbose>0) 
+	{ 
+		threaded->append(" to="); 
+		threaded->append(cuserid(NULL)); 
+		t = fts_backend_xapian_current_time();
+		i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",threaded->c_str(),boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
+	}
+
 	bool err=false;
-	long t = fts_backend_xapian_current_time();
 	try
 	{
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",threaded->c_str(),boxname->c_str(),nbdocs,(long)(db->get_doccount()));
@@ -732,7 +738,6 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Releasing Xapian db",threaded->c_str(),boxname->c_str());
 	delete(db);
-	t = fts_backend_xapian_current_time() -t;
         if(err)
         {
         	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Re-creating index database (%s) due to error",threaded->c_str(),dbpath->c_str());
@@ -749,8 +754,8 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	else 
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) (%s) - Done in %ld ms",threaded->c_str(),dbpath->c_str(),boxname->c_str(),t);
-		fts_backend_xapian_ownership(dbpath);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) (%s) - Done in %ld ms",threaded->c_str(),dbpath->c_str(),boxname->c_str(),fts_backend_xapian_current_time()-t);
+		if(strcmp(cuserid(NULL),"root")==0) fts_backend_xapian_ownership(dbpath);
 	}	
 	delete(dbpath);
 	delete(boxname);
