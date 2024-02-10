@@ -710,22 +710,22 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 	closedir(dir);
 }
 
-static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * boxname, std::string * threaded)
+static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * title)
 {
 	long t;
 
 	if(fts_xapian_settings.verbose>0) 
 	{ 
-		threaded->append(" to="); 
-		threaded->append(cuserid(NULL)); 
+		title->append(" to="); 
+		title->append(cuserid(NULL)); 
 		t = fts_backend_xapian_current_time();
-		i_info("FTS Xapian (%s): Commit & Closing (%s) starting (%s) : %s",threaded->c_str(),boxname->c_str(),dbpath->c_str(),fts_backend_xapian_get_selfpath().c_str());
+		i_info("%s : starting (%s) : %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
 	}
 
 	bool err=false;
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Writing %ld (old) vs %ld (new)",threaded->c_str(),boxname->c_str(),nbdocs,(long)(db->get_doccount()));
+		if(fts_xapian_settings.verbose>0) i_info("%s : Writing %ld (old) vs %ld (new)",title->c_str(),nbdocs,(long)(db->get_doccount()));
 		db->commit();
 		db->close();
 	}
@@ -734,11 +734,11 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
                 err=true;
         }
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Commit & Closing (%s) : Releasing Xapian db",threaded->c_str(),boxname->c_str());
+	if(fts_xapian_settings.verbose>0) i_info("%s : Releasing Xapian db",title->c_str());
 	delete(db);
         if(err)
         {
-        	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Re-creating index database (%s) due to error",threaded->c_str(),dbpath->c_str());
+        	if(fts_xapian_settings.verbose>0) i_info("%s : Re-creating index database due to error",title->c_str());
                 try
                 {
                 	db = new Xapian::WritableDatabase(dbpath->c_str(),Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
@@ -752,12 +752,11 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	else 
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s) : Commit & Close (%s) (%s) - Done in %ld ms",threaded->c_str(),dbpath->c_str(),boxname->c_str(),fts_backend_xapian_current_time()-t);
+		if(fts_xapian_settings.verbose>0) i_info("%s : Done in %ld ms",title->c_str(),fts_backend_xapian_current_time()-t);
 		if(strcmp(cuserid(NULL),"root")==0) fts_backend_xapian_ownership(dbpath);
 	}	
 	delete(dbpath);
-	delete(boxname);
-	delete(threaded);
+	delete(title);
 }
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time)
@@ -770,30 +769,33 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 	if(backend->dbw !=NULL)
 	{
-		std::string *a = new std::string(backend->db);
-		std::string *b = new std::string(backend->boxname);
+		std::string *dbpath = new std::string(backend->db);
+		std::string *title = new std::string("FTS Xapian: Commit & Closing (");
+		title->append(backend->boxname);
+		title->append(",");
+		title->append(*dbpath);
+		title->append(") - ");
 
 		if(strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL)
 		{
-			std::string * c= new std::string("Threaded from=");
-        		c->append(cuserid(NULL));
+			title->append("Threaded from=");
+        		title->append(cuserid(NULL));
 
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Lauching Thread for closing");
 			try
 			{
-				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,a,b,c);
+				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title);
 			}
 			catch (std::runtime_error &ex)
 			{
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Thread Closing ERROR(%s)",ex.what());
+				i_error("FTS Xapian - Thread Closing ERROR(%s)",ex.what());
 			}
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Thread for closing launched");
 		}
 		else
 		{
-			std::string * c= new std::string("Not threaded from=");
-                        c->append(cuserid(NULL));
-			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,a,b,c);
+			title->append("Not threaded from=");
+                        title->append(cuserid(NULL));
+			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,dbpath,title);
 		}
 		backend->dbw = NULL;
 		backend->commit_updates = 0;
