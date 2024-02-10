@@ -685,9 +685,7 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 		i_error("FTS Xapian: can not stats %s",dbpath->c_str());
                 return;
         }
-	uid_t uid = info.st_uid;
-	gid_t gid = info.st_gid;
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Fixing ownership to %ld:%ld",dbpath->c_str(),(long)uid,(long)gid);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Fixing ownership to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
 	
 	DIR *dir = opendir(dbpath->c_str());
 	if(dir==NULL)
@@ -706,7 +704,7 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 			file.append("/");
 			file.append(ent->d_name);
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : chown %s",file.c_str());
-			if(chown(file.c_str(),uid,gid)<0) { i_error("FTS Xapian : Can not chown %s",file.c_str()); }
+			if(chown(file.c_str(),info.st_uid,info.st_gid)<0) { i_error("FTS Xapian : Can not chown %s",file.c_str()); }
 		}
 	}
 	closedir(dir);
