@@ -13,6 +13,10 @@ extern "C" {
 #include <unicode/translit.h>
 #include <sys/time.h>
 
+#include <pwd.h>
+#include <grp.h>
+#include <sys/stat.h>
+
 #define HDRS_NB 10
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
