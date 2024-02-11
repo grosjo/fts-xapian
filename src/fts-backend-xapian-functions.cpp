@@ -390,11 +390,12 @@ class XNGram
 
 		icu::UnicodeString d = icu::UnicodeString::fromUTF8(icu::StringPiece(s));
 		add(&d);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: XNGram %ld kB used",long(memory/1024.0));
 	}
 
 	void add(icu::UnicodeString *d)
 	{
-		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XNGram->add()");
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XNGram->add()");
 
 		long i,j,k;
 		icu::UnicodeString *r1,*r2;
