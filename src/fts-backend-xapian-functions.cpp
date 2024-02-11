@@ -1,5 +1,23 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
+static bool fts_backend_xapian_trim(icu::UnicodeString* d)
+{
+	bool b=false;
+	while((d->indexOf(CHAR_KEY)==0)|| (d->indexOf(CHAR_SPACE)==0))
+	{
+		d->remove(0,1);
+		b=true;
+	}
+	long i = std::max(d->lastIndexOf(CHAR_KEY),d->lastIndexOf(CHAR_SPACE));
+	while((i>0) && (i==d->length()-1))
+	{
+		d->remove(i,1);
+		i = std::max(d->lastIndexOf(CHAR_KEY),d->lastIndexOf(CHAR_SPACE));
+		b=true;
+	}
+	return b;
+}
+
 class XResultSet
 {
 	public:
@@ -112,16 +130,6 @@ class XQuerySet
 			t->findAndReplace(chars_pb[k-1],CHAR_KEY);
 			k--;
 		}
-		while((t->indexOf(CHAR_KEY)==0) || (t->indexOf(CHAR_SPACE)==0))
-                {
-                        t->remove(0,1);
-                }
-                i = std::max(t->lastIndexOf(CHAR_KEY),t->lastIndexOf(CHAR_SPACE));
-                while((i>0) && (i==t->length()-1))
-                {
-                        t->remove(i,1);
-                        i = std::max(t->lastIndexOf(CHAR_KEY),t->lastIndexOf(CHAR_SPACE));
-                }
 		if(t->length()<limit) return;
 	
 		i = t->lastIndexOf(CHAR_SPACE);
@@ -388,7 +396,7 @@ class XNGram
 	{
 		if(fts_xapian_settings.verbose>2) i_info("FTS Xapian: XNGram->add()");
 
-		long i,k;
+		long i,j,k;
 		icu::UnicodeString *r1,*r2;
 
 		d->toLower();
@@ -430,20 +438,6 @@ class XNGram
                 }
                 if(accentsConverter != NULL) accentsConverter->transliterate(*d);
        
-		bool b=false;
-		while(d->indexOf(CHAR_KEY)==0)
-		{
-			d->remove(0,1);
-			b=true;
-		}
-		i = d->lastIndexOf(CHAR_KEY);
-		while((i>0) && (i==d->length()-1))
-		{
-			d->remove(i,1);
-			i = d->lastIndexOf(CHAR_KEY);
-			b=true;
-		}
-	
                 k = d->length();
                 if(k<fts_xapian_settings.partial) return;
 
@@ -453,28 +447,16 @@ class XNGram
                         return;
                 }
 	
-		if(i>0)
-		{
-			r1 = new icu::UnicodeString(*d,0,i);
-                        r2 = new icu::UnicodeString(*d,i+1,d->length()-i-1);
-			add(r1);
-			add(r2);
-			delete(r1);
-			delete(r2);
-			add_stem(d);
-			return;
-		}
-
 		for(i=0;i<=k-fts_xapian_settings.partial;i++)
 		{
-			for(long j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
+			for(j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
 			{
 				r1 = new icu::UnicodeString(*d,i,j);
 				add_stem(r1);
 				delete(r1);
 			}
 		}
-		if(b || (k>fts_xapian_settings.full)) add_stem(d);
+		if(k>fts_xapian_settings.full) add_stem(d);
 	}
 
 	void add_stem(icu::UnicodeString *d)
@@ -489,47 +471,51 @@ class XNGram
 
 		d->toUTF8String(s);
 		l  = s.length();
-		if(l>hardlimit)
+		if(l<=hardlimit)
 		{
-			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%s ...)",s.substr(0,100).c_str());
-			return;
-		}
-
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XNGram->add_stem(%s)",s.substr(0,100).c_str());
-
-		s2 = i_strdup(s.c_str());
-		p=0;
-
-		if(size<1)
-		{
-			data=(char **)i_malloc(sizeof(char*));
-			size=0;
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XNGram->add_stem(%s)",s.substr(0,100).c_str());
+			s2 = i_strdup(s.c_str());
 			p=0;
+
+			if(size<1)
+			{
+				data=(char **)i_malloc(sizeof(char*));
+				size=1;
+				data[0]=s2;
+				memory+= ((l+1) * sizeof(data[0][0]));
+			}
+			else
+			{
+				p=0;
+				while((p<size) && (strcmp(data[p],s2)<0))
+				{
+					p++;
+				}
+				if((p<size) && (strcmp(data[p],s2)==0))
+				{
+					i_free(s2);
+				}
+				else
+				{
+					data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
+					i=size;
+					while(i>p)
+					{
+						data[i]=data[i-1];
+						i--;
+					}
+					data[p]=s2;
+					size++;
+					memory+= ((l+1) * sizeof(data[p][0]));
+				}
+			}
+			if(l>maxlength) { maxlength=l; }
 		}
 		else
 		{
-			p=0;
-			while((p<size) && (strcmp(data[p],s2)<0))
-			{
-				p++;
-			}
-			if((p<size) && (strcmp(data[p],s2)==0))
-			{
-				i_free(s2);
-				return;
-			}
-			data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
-			i=size;
-			while(i>p)
-			{
-				data[i]=data[i-1];
-				i--;
-			}
+			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%s ...)",s.substr(0,100).c_str());
 		}
-		if(l>maxlength) { maxlength=l; }
-		data[p]=s2;
-		size++;
-		memory = memory + ((l+1) * sizeof(data[p][0]));
+		if(fts_backend_xapian_trim(d)) add_stem(d);
 	}
 };
 
@@ -719,7 +705,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 		title->append(" to="); 
 		title->append(cuserid(NULL)); 
 		t = fts_backend_xapian_current_time();
-		i_info("%s : starting (%s) : %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
+		i_info("%s : starting %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
 	}
 
 	bool err=false;
