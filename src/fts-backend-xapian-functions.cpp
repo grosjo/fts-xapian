@@ -717,30 +717,17 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	}
 	catch(Xapian::Error e)
         {
-        	i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
+        	if(fts_xapian_settings.verbose>0) i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
                 err=true;
         }
 	if(fts_xapian_settings.verbose>0) i_info("%s : Releasing Xapian db",title->c_str());
 	delete(db);
-        if(err)
-        {
-        	if(fts_xapian_settings.verbose>0) i_info("%s : Re-creating index database due to error",title->c_str());
-                try
-                {
-                	db = new Xapian::WritableDatabase(dbpath->c_str(),Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
-                        db->close();
-                        delete(db);
-                }
-                catch(Xapian::Error e)
-                {
-                        i_error("FTS Xapian: Can't re-create Xapian DB %s : %s - %s",dbpath->c_str(),e.get_type(),e.get_error_string());
-                }
-        }
-	else 
+	if(fts_xapian_settings.verbose>0)
 	{
-		if(fts_xapian_settings.verbose>0) i_info("%s : Done in %ld ms",title->c_str(),fts_backend_xapian_current_time()-t);
-		if(strcmp(cuserid(NULL),"root")==0) fts_backend_xapian_ownership(dbpath);
-	}	
+        	if(err) i_info("%s : Could not commit this time, but will do a bit later")
+		else i_info("%s : Done in %ld ms",title->c_str(),fts_backend_xapian_current_time()-t);
+	}
+	if(strcmp(cuserid(NULL),"root")==0) fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	delete(title);
 }
