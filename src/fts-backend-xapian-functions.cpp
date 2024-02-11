@@ -713,7 +713,6 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	try
 	{
 		if(fts_xapian_settings.verbose>0) i_info("%s : Writing %ld (old) vs %ld (new)",title->c_str(),nbdocs,(long)(db->get_doccount()));
-		db->commit();
 		db->close();
 	}
 	catch(Xapian::Error e)
