@@ -566,7 +566,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				if(fts_xapian_settings.verbose>0) i_info("Optimize (4) Opening Xapian DB (%s)",s);
 				try
 				{
-					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
+					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
 					for(uint32_t n=0;n<uids.size();n++)
 					{
 						uid=uids[n];
