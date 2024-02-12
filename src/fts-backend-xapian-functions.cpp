@@ -701,16 +701,20 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 {
 	long t, currentdocs;
 
+	if(fts_xapian_settings.verbose>0)
+        {
+                title->append(" to=");
+                title->append(cuserid(NULL)); 
+                t = fts_backend_xapian_current_time();
+        }
+	title->append(" : ");
+	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
 	if(fts_xapian_settings.verbose>0) 
 	{ 
-		i_info("%s : starting %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
-		title->append(" to="); 
-		title->append(cuserid(NULL)); 
-		t = fts_backend_xapian_current_time();
-		i_info("%s : starting %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
+		syslog(LOG_INFO,"starting %s",fts_backend_xapian_get_selfpath().c_str());
 		currentdocs=db->get_doccount();
 	}
-	if(fts_xapian_settings.verbose>0) i_info("%s : Writing %ld (old) vs %ld (new)",title->c_str(),nbdocs,currentdocs);
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Writing %ld (old) vs %ld (new)",nbdocs,currentdocs);
 	bool err=false;
 	try
 	{
@@ -718,19 +722,20 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	}
 	catch(Xapian::Error e)
         {
-        	if(fts_xapian_settings.verbose>0) i_error("FTS Xapian: %s - %s",e.get_type(),e.get_error_string());
+        	if(fts_xapian_settings.verbose>0) syslog(LOG_ERR,"%s - %s",e.get_type(),e.get_error_string());
                 err=true;
         }
-	if(fts_xapian_settings.verbose>0) i_info("%s : Releasing Xapian db",title->c_str());
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Releasing Xapian db");
 	delete(db);
 	if(fts_xapian_settings.verbose>0)
 	{
-        	if(err) { i_info("%s : Could not commit this time, but will do a bit later",title->c_str()); }
-		else i_info("%s : Done in %ld ms by %s",title->c_str(),fts_backend_xapian_current_time()-t,cuserid(NULL));
+        	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
+		else syslog(LOG_INFO, "Done in %ld ms by %s",fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
 	fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	delete(title);
+	closelog();
 }
 
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded)
