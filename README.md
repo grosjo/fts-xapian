@@ -54,6 +54,7 @@ service indexer-worker {
     # Increase vsz_limit to 2GB or above.
     # Or 0 if you have rather large memory usable on your server, which is preferred for performance)
     vsz_limit = 2G
+    process_limit = 0
 }
 
 service decode2text {
