@@ -398,7 +398,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	fts_backend_xapian_release(backend,"refresh", 0, false);
+	fts_backend_xapian_release(backend,"refresh", 0, true);
 
 	return 0;
 }
