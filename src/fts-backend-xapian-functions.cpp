@@ -669,15 +669,15 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 	struct stat info;
 	if(stat(dbpath->c_str(), &info) !=0)
 	{
-		i_error("FTS Xapian: can not stats %s",dbpath->c_str());
+		syslog(LOG_ERR,"FTS Xapian: can not stats %s",dbpath->c_str());
                 return;
         }
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian (%s): Fixing ownership to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Fixing ownership to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
 	
 	DIR *dir = opendir(dbpath->c_str());
 	if(dir==NULL)
 	{
-		i_error("FTS Xapian: can not open %s",dbpath->c_str());
+		syslog(LOG_ERR,"can not open %s",dbpath->c_str());
                 return;
         }
 	struct dirent *ent;
@@ -690,8 +690,8 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 			file.append(*dbpath);
 			file.append("/");
 			file.append(ent->d_name);
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : chown %s",file.c_str());
-			if(chown(file.c_str(),info.st_uid,info.st_gid)<0) { i_error("FTS Xapian : Can not chown %s",file.c_str()); }
+			if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"chown %s",file.c_str());
+			if(chown(file.c_str(),info.st_uid,info.st_gid)<0) { syslog(LOG_ERR,"Can not chown %s",file.c_str()); }
 		}
 	}
 	closedir(dir);
@@ -732,7 +732,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
 		else syslog(LOG_INFO, "Done in %ld ms by %s",fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
-	fts_backend_xapian_ownership(dbpath);
+	//fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
