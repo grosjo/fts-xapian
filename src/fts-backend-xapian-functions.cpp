@@ -732,7 +732,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
 		else syslog(LOG_INFO, "Done in %ld ms by %s",fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
-	//fts_backend_xapian_ownership(dbpath);
+	fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
@@ -764,7 +764,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Lauching Thread for closing");
 			try
 			{
-				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title);
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title))->detach();
 			}
 			catch (const std::exception &ex)
 			{
