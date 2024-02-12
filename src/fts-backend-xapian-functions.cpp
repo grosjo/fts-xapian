@@ -699,20 +699,21 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * title)
 {
-	long t;
+	long t, currentdocs;
 
 	if(fts_xapian_settings.verbose>0) 
 	{ 
+		i_info("%s : starting %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
 		title->append(" to="); 
 		title->append(cuserid(NULL)); 
 		t = fts_backend_xapian_current_time();
 		i_info("%s : starting %s",title->c_str(),fts_backend_xapian_get_selfpath().c_str());
+		currentdocs=db->get_doccount();
 	}
-
+	if(fts_xapian_settings.verbose>0) i_info("%s : Writing %ld (old) vs %ld (new)",title->c_str(),nbdocs,currentdocs);
 	bool err=false;
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("%s : Writing %ld (old) vs %ld (new)",title->c_str(),nbdocs,(long)(db->get_doccount()));
 		db->close();
 	}
 	catch(Xapian::Error e)
