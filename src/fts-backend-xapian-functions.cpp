@@ -735,6 +735,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	delete(title);
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
 	closelog();
 }
 
