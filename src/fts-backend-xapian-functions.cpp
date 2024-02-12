@@ -766,10 +766,14 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			{
 				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title);
 			}
-			catch (std::runtime_error &ex)
+			catch (const std::exception &ex)
 			{
 				i_error("FTS Xapian - Thread Closing ERROR(%s)",ex.what());
 			}
+			catch (const std::string &ex)
+			{
+                                i_error("FTS Xapian - Thread Closing ERROR(%s)",ex.c_str());
+                        }
 		}
 		else
 		{
