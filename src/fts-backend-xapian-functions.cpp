@@ -758,7 +758,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Lauching Thread for closing");
 			try
 			{
-				new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title);
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title))->detach();
 			}
 			catch (std::runtime_error &ex)
 			{
