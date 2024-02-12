@@ -728,7 +728,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         	if(err) { i_info("%s : Could not commit this time, but will do a bit later",title->c_str()); }
 		else i_info("%s : Done in %ld ms by %s",title->c_str(),fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
-	if(strcmp(cuserid(NULL),"root")==0) fts_backend_xapian_ownership(dbpath);
+	fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	delete(title);
 }
