@@ -672,7 +672,7 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 		syslog(LOG_ERR,"FTS Xapian: can not stats %s",dbpath->c_str());
                 return;
         }
-	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Fixing ownership to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Fixing ownership %s to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
 	
 	DIR *dir = opendir(dbpath->c_str());
 	if(dir==NULL)
