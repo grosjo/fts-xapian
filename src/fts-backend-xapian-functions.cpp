@@ -608,7 +608,11 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 		return false;
 	}
 
-	if(backend->dbw != NULL) return true;
+	if(backend->dbw != NULL) 
+	{
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_check_access : OK");
+		return true;
+	}
 
 	try
 	{
@@ -1022,7 +1026,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 	}
 }
 
-bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
+bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
 {
 	bool ok=true;
 
@@ -1035,13 +1039,12 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, const char
 	if(strlen(field)<1) return true;
 
 	long i=0;
+	const char * h="XBDY";
 	while((i<HDRS_NB) && (strcmp(field,hdrs_emails[i])!=0))
 	{
 		i++;
 	}
-	if(i>=HDRS_NB) return true;
-
-	const char * h = hdrs_xapian[i];
+	if(i<HDRS_NB) h = hdrs_xapian[i];
 
 	XQuerySet * xq = new XQuerySet();
 	char *u = i_strdup_printf("%ld",backend->lastuid);
@@ -1114,132 +1117,6 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, const char
 		catch (const std::exception &e)
 		{
 			i_warning("FTS Xapian: Memory too low (hdr) '%s'",e.what());
-			ok = false;
-		}
-	}
-
-	delete(doc);
-
-	return ok;
-}
-
-bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend, const char * field, icu::UnicodeString * data)
-{
-	bool ok = true;
-
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index_text");
-
-	Xapian::WritableDatabase * dbx = backend->dbw;
-
-	if(data->length()<fts_xapian_settings.partial) return true;
-
-	XQuerySet * xq = new XQuerySet();
-
-	const char *u = t_strdup_printf("%ld",backend->lastuid);
-	xq->add("uid",u);
-
-	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
-
-	Xapian::docid docid = 0;
-	Xapian::Document * doc = NULL;
-
-	try
-	{
-		if(result->size<1)
-		{
-			doc = new Xapian::Document();
-			doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
-			u = t_strdup_printf("Q%ld",backend->lastuid);
-			doc->add_term(u);
-			docid=dbx->add_document(*doc);
-		}
-		else
-		{
-			docid=result->data[0];
-			doc = new Xapian::Document(dbx->get_document(docid));
-		}
-	}
-	catch(Xapian::Error e)
-	{
-		i_error("FTS Xapian: fts_backend_xapian_index_text : %s - %s",e.get_type(),e.get_error_string());
-		if(doc!=NULL) delete(doc);
-		ok=false;
-	}
-
-	delete(result);
-	delete(xq);
-
-	if(!ok) return false;
-
-	Xapian::Document * doc2 = new Xapian::Document();
-	Xapian::TermGenerator * termgenerator = new Xapian::TermGenerator();;
-	Xapian::Stem stem("none");
-	termgenerator->set_stemmer(stem);
-	termgenerator->set_document(*doc2);
-
-	const char * h;
-	if(strcmp(field,"subject")==0)
-	{
-		h="S";
-	}
-	else
-	{
-		h="XBDY";
-	}
-	std::string s;
-	data->toUTF8String(s);
-	termgenerator->set_stemming_strategy(Xapian::TermGenerator::STEM_NONE);
-	termgenerator->index_text_without_positions(s, 1, h);
-
-	long l = strlen(h);
-	long n = doc2->termlist_count();
-	Xapian::TermIterator * ti = new Xapian::TermIterator(doc2->termlist_begin());
-
-	XNGram * ngram = new XNGram(h);
-	const char * c;
-	while(n>0)
-	{
-		s = *(*ti);
-		c=s.c_str();
-		if(strncmp(c,h,l)==0)
-		{
-			ngram->add(c+l);
-		}
-		(*ti)++;
-		n--;
-	}
-
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: NGRAM(%s,%s) -> %ld items, max length=%ld, (total %ld KB)",field,h,ngram->size,ngram->maxlength,ngram->memory/1024);
-
-	char *t = (char*)i_malloc(sizeof(char)*(ngram->maxlength+6));
-	for(n=0;n<ngram->size;n++)
-	{
-		snprintf(t,ngram->maxlength+6,"%s%s",h,ngram->data[n]);
-		try
-		{
-			doc->add_term(t);
-		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: xapian_index_text : %s - %s",e.get_type(),e.get_error_string());
-			ok=false;
-		}
-	}
-	i_free(t);
-	delete(ngram);
-	delete(ti);
-	delete(termgenerator);
-	delete(doc2);
-
-	if(ok)
-	{
-		try
-		{
-			dbx->replace_document(docid,*doc);
-		}
-		catch (const std::exception &e)
-		{
-			i_warning("FTS Xapian: Memory too low (text) '%s'",e.what());
 			ok = false;
 		}
 	}

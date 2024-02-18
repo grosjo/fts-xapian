@@ -266,7 +266,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
 	// Verify content-type
 
@@ -332,8 +332,22 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			ctx->tbi_uid=key->uid;
 			break;
 		case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
-			i_unreached();
+		default:
+			return FALSE;
 	}
+
+	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
+        {
+                if(backend->added_docs>=XAPIAN_ADDED_DOCS)
+                {
+                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->added_docs, XAPIAN_ADDED_DOCS,backend->total_added_docs);
+                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
+                }
+                backend->lastuid = ctx->tbi_uid;
+                backend->added_docs++;
+                backend->total_added_docs++;
+                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Indexing msg #%ld",backend->total_added_docs);
+        }
 
 	return TRUE;
 }
@@ -385,31 +399,27 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
 
-	if(fts_xapian_settings.verbose>0)
-	{
-		if(ctx->isattachment)
-		{
-			i_info("FTS Xapian: Indexing part as attachment");
-		}
-		else
-		{
-			i_info("FTS Xapian: Indexing part as text");
-		}
-	}
-
 	if(ctx->tbi_uid<1) return 0;
 
 	if(data == NULL) return 0;
 
 	icu::StringPiece sp_d((const char *)data,(int32_t )size);
 	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
-	if(d2.length() < fts_xapian_settings.partial) return 0;
+	
+	if(fts_xapian_settings.verbose>0)
+        {
+		std::string s; d2.toUTF8String(s); s=s.substr(0,20);
+                if(ctx->isattachment)
+                {
+                        i_info("FTS Xapian: Indexing part as attachment (len=%ld) : %s",d2.length(),s.c_str());
+                }
+                else
+                {
+                        i_info("FTS Xapian: Indexing part as text (len=%ld) :%s",d2.length(),s.c_str());
+                }
+        }
 
-	if(!fts_backend_xapian_check_access(backend))
-	{
-		i_error("FTS Xapian: Buildmore: Can not open db");
-		return -1;
-	}
+	if(d2.length() < fts_xapian_settings.partial) return 0;
 
 	long fri = fts_backend_xapian_test_memory();
 
@@ -417,68 +427,31 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	{
 		i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
 		fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
-		if(!fts_backend_xapian_check_access(backend))
-		{
-			i_error("FTS Xapian: Buildmore: Can not open db (2)");
-			return -1;
-		}
 	}
+
+	if(!fts_backend_xapian_check_access(backend))
+        {
+                i_error("FTS Xapian: Buildmore: Can not open db");
+                return -1;
+        }
 
 	bool ok=true;
 
-	if(ctx->tbi_uid != backend->lastuid) 
-	{ 
-		if(backend->added_docs>=XAPIAN_ADDED_DOCS)
-                {
-                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->added_docs, XAPIAN_ADDED_DOCS,backend->total_added_docs);
-                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
-                        if(!fts_backend_xapian_check_access(backend))
-                        {
-                                i_error("FTS Xapian: Buildmore: Can not open db");
-                                return -1;
-                        }
-                }
-		backend->lastuid = ctx->tbi_uid; 
-		backend->added_docs++; 
-		backend->total_added_docs++; 
-	}
-
-	if(ctx->tbi_isfield)
+	ok=fts_backend_xapian_index(backend,ctx->tbi_field, &d2);
+	if(!ok)
 	{
-		ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_field, &d2);
-		if(!ok)
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
+		fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0, false);
+               	if(fts_backend_xapian_check_access(backend))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
-			fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0, false);
-                	if(fts_backend_xapian_check_access(backend))
-			{
-				ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_field, &d2);
-			}
-			else
-                	{
-                        	i_error("FTS Xapian: Buildmore: Can not open db (3)");
-                	}
+			ok=fts_backend_xapian_index(backend,ctx->tbi_field, &d2);
 		}
+		else
+               	{
+                       	i_error("FTS Xapian: Buildmore: Can not open db (3)");
+			ok=false;
+               	}
 	}
-	else
-	{
-		ok=fts_backend_xapian_index_text(backend,ctx->tbi_field, &d2);
-		if(!ok)
-		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
-			fts_backend_xapian_release(backend,"Flushing memory indexing text", 0, false);
-			if(fts_backend_xapian_check_access(backend))
-			{
-				ok=fts_backend_xapian_index_text(backend,ctx->tbi_field, &d2);
-			}
-			else
-			{
-				i_error("FTS Xapian: Buildmore: Can not open db (4)");
-			}
-		}
-	}
-
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Committed msgs: %ld",backend->total_added_docs);
 
 	if(!ok) return -1;
 	return 0;
