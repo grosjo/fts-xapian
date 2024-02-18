@@ -428,19 +428,19 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	if(ctx->tbi_uid != backend->lastuid) 
 	{ 
+		if(backend->added_docs>=XAPIAN_ADDED_DOCS)
+                {
+                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->added_docs, XAPIAN_ADDED_DOCS,backend->total_added_docs);
+                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
+                        if(!fts_backend_xapian_check_access(backend))
+                        {
+                                i_error("FTS Xapian: Buildmore: Can not open db");
+                                return -1;
+                        }
+                }
 		backend->lastuid = ctx->tbi_uid; 
 		backend->added_docs++; 
 		backend->total_added_docs++; 
-        	if(backend->added_docs>XAPIAN_ADDED_DOCS)
-        	{
-                	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) ...", backend->added_docs, XAPIAN_ADDED_DOCS);
-                	fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
-			if(!fts_backend_xapian_check_access(backend))
-        		{
-                		i_error("FTS Xapian: Buildmore: Can not open db");
-                		return -1;
-        		}
-        	}
 	}
 
 	if(ctx->tbi_isfield)
