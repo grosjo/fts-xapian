@@ -1039,12 +1039,12 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	if(strlen(field)<1) return true;
 
 	long i=0;
-	const char * h="XBDY";
 	while((i<HDRS_NB) && (strcmp(field,hdrs_emails[i])!=0))
 	{
 		i++;
 	}
-	if(i<HDRS_NB) h = hdrs_xapian[i];
+	if(i>=HDRS_NB) i=HDRS_NB-1;
+	const char * h = hdrs_xapian[i];
 
 	XQuerySet * xq = new XQuerySet();
 	char *u = i_strdup_printf("%ld",backend->lastuid);
