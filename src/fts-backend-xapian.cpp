@@ -48,13 +48,10 @@ struct xapian_fts_backend
 
 	Xapian::WritableDatabase * dbw;
 
-	long commit_updates;
-	long commit_time;
-
-	long perf_pt;
-	long perf_nb;
-	long perf_uid;
-	long perf_dt;
+	long added_docs;
+	long lastuid;
+	long total_added_docs;
+	long start_time;
 
 	long nbdocs = 0;
 };
@@ -265,26 +262,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->boxname,backend->guid);
 	}
 
-	/* Performance calculator*/
-	if( backend->perf_uid != key->uid )
-	{
-		backend->perf_nb++;
-		backend->perf_uid = key->uid;
-	}
-	if((backend->perf_nb - backend->perf_pt)>=200)
-	{
-		backend->perf_pt = backend->perf_nb;
-		long dt = fts_backend_xapian_current_time() - backend->perf_dt;
-		double r=0;
-		if(dt>0)
-		{
-			r=backend->perf_nb*1000.0;
-			r=r/dt;
-		}
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Partial indexing '%s' (%ld msgs in %ld ms, rate: %.1f)",backend->boxname,backend->perf_nb,dt,r);
-	}
-	/* End Performance calculator*/
-
 	const char * field=key->hdr_name;
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
@@ -408,7 +385,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
 
-	if(fts_xapian_settings.verbose>1)
+	if(fts_xapian_settings.verbose>0)
 	{
 		if(ctx->isattachment)
 		{
@@ -449,16 +426,33 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	bool ok=true;
 
+	if(ctx->tbi_uid != backend->lastuid) 
+	{ 
+		backend->lastuid = ctx->tbi_uid; 
+		backend->added_docs++; 
+		backend->total_added_docs++; 
+        	if(backend->added_docs>XAPIAN_ADDED_DOCS)
+        	{
+                	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) ...", backend->added_docs, XAPIAN_ADDED_DOCS);
+                	fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
+			if(!fts_backend_xapian_check_access(backend))
+        		{
+                		i_error("FTS Xapian: Buildmore: Can not open db");
+                		return -1;
+        		}
+        	}
+	}
+
 	if(ctx->tbi_isfield)
 	{
-		ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+		ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_field, &d2);
 		if(!ok)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
 			fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0, false);
                 	if(fts_backend_xapian_check_access(backend))
 			{
-				ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+				ok=fts_backend_xapian_index_hdr(backend,ctx->tbi_field, &d2);
 			}
 			else
                 	{
@@ -468,14 +462,14 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	}
 	else
 	{
-		ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+		ok=fts_backend_xapian_index_text(backend,ctx->tbi_field, &d2);
 		if(!ok)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
 			fts_backend_xapian_release(backend,"Flushing memory indexing text", 0, false);
 			if(fts_backend_xapian_check_access(backend))
 			{
-				ok=fts_backend_xapian_index_text(backend,ctx->tbi_uid,ctx->tbi_field, &d2);
+				ok=fts_backend_xapian_index_text(backend,ctx->tbi_field, &d2);
 			}
 			else
 			{
@@ -484,15 +478,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 		}
 	}
 
-	backend->commit_updates++;
-
-	long current_time = fts_backend_xapian_current_time();
-
-	if( (!ok) || (backend->commit_updates>XAPIAN_COMMIT_ENTRIES) || ((current_time - backend->commit_time) > XAPIAN_COMMIT_TIMEOUT*1000) )
-	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld ms (vs %ld) and %ld updates (vs %ld) ...", current_time - backend->commit_time, XAPIAN_COMMIT_TIMEOUT*1000, backend->commit_updates, XAPIAN_COMMIT_ENTRIES);
-		fts_backend_xapian_release(backend,"refreshing", current_time, false);
-	}
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Committed msgs: %ld",backend->total_added_docs);
 
 	if(!ok) return -1;
 	return 0;

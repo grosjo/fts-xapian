@@ -600,7 +600,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_check_access");
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_check_access");
 
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
@@ -635,16 +635,16 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(backend->old_guid != NULL)
 	{
 		/* Performance calculator*/
-		long dt = fts_backend_xapian_current_time() - backend->perf_dt;
+		long dt = fts_backend_xapian_current_time() - backend->start_time;
 		double r=0;
 		if(dt>0)
 		{
-			r=backend->perf_nb*1000.0;
+			r=backend->total_added_docs*1000.0;
 			r=r/dt;
 		}
 		/* End Performance calculator*/
 
-		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->perf_nb,dt,r);
+		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->total_added_docs,dt,r);
 
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
@@ -698,9 +698,8 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 	closedir(dir);
 }
 
-static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * title)
+static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, long newdocs, std::string * dbpath, std::string * title)
 {
-	long currentdocs;
 	long t = fts_backend_xapian_current_time();
 
 	if(fts_xapian_settings.verbose>0)
@@ -712,10 +711,8 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
 	if(fts_xapian_settings.verbose>0) 
 	{ 
-		syslog(LOG_INFO,"starting %s",fts_backend_xapian_get_selfpath().c_str());
-		currentdocs=db->get_doccount();
+		syslog(LOG_INFO,"Writing %ld (old) + %ld (new) = %ld (total)",nbdocs,newdocs,nbdocs+newdocs);
 	}
-	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Writing %ld (old) vs %ld (new)",nbdocs,currentdocs);
 	bool err=false;
 	try
 	{
@@ -735,9 +732,9 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	}
 	else
 	{
-		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",currentdocs-nbdocs,fts_backend_xapian_current_time()-t,cuserid(NULL));
+		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",newdocs,fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
-	fts_backend_xapian_ownership(dbpath);
+	if(strcmp("root",cuserid(NULL))==0) fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
@@ -760,35 +757,37 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		title->append(",");
 		title->append(*dbpath);
 		title->append(") - ");
+		title->append(reason);
 
 		if((strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL) && threaded)
 		{
 			title->append("Threaded from=");
         		title->append(cuserid(NULL));
 
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian - Lauching Thread for closing");
+			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching Thread for closing",title->c_str());
 			try
 			{
-				(new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,dbpath,title))->detach();
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw,backend->nbdocs,backend->added_docs,dbpath,title))->detach();
 			}
 			catch (const std::exception &ex)
 			{
-				i_error("FTS Xapian - Thread Closing ERROR(%s)",ex.what());
+				i_error("%s - Thread Closing ERROR(%s)",title->c_str(),ex.what());
 			}
 			catch (const std::string &ex)
 			{
-                                i_error("FTS Xapian - Thread Closing ERROR(%s)",ex.c_str());
+                                i_error("%s - Thread Closing ERROR(%s)",title->c_str(),ex.c_str());
                         }
 		}
 		else
 		{
 			title->append("Not threaded from=");
                         title->append(cuserid(NULL));
-			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,dbpath,title);
+			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
+			fts_backend_xapian_commitclose(backend->dbw,backend->nbdocs,backend->added_docs,dbpath,title);
 		}
 		backend->dbw = NULL;
-		backend->commit_updates = 0;
-		backend->commit_time = commit_time;
+		backend->added_docs = 0;
+        	backend->lastuid = 0;
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - done",reason);
 }
@@ -918,8 +917,10 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	long current_time = fts_backend_xapian_current_time();
 
-	backend->commit_updates = 0;
-	backend->commit_time = current_time;
+	backend->start_time = current_time;
+	backend->added_docs = 0;
+	backend->lastuid = 0;
+
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
@@ -942,13 +943,6 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		}
 	}
 	i_free(t);
-
-	/* Performance calculator*/
-	backend->perf_dt = current_time;
-	backend->perf_uid=0;
-	backend->perf_nb=0;
-	backend->perf_pt=0;
-	/* End Performance calculator*/
 
 	return 0;
 }
@@ -1028,7 +1022,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 	}
 }
 
-bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, const char* field, icu::UnicodeString* data)
+bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
 {
 	bool ok=true;
 
@@ -1050,7 +1044,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 	const char * h = hdrs_xapian[i];
 
 	XQuerySet * xq = new XQuerySet();
-	char *u = i_strdup_printf("%d",uid);
+	char *u = i_strdup_printf("%ld",backend->lastuid);
 	xq->add("uid",u);
 	i_free(u);
 
@@ -1063,8 +1057,8 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 		if(result->size<1)
 		{
 			doc = new Xapian::Document();
-			doc->add_value(1,Xapian::sortable_serialise(uid));
-			u = i_strdup_printf("Q%d",uid);
+			doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
+			u = i_strdup_printf("Q%d",backend->lastuid);
 			doc->add_term(u);
 			docid=dbx->add_document(*doc);
 			i_free(u);
@@ -1129,7 +1123,7 @@ bool fts_backend_xapian_index_hdr(struct xapian_fts_backend *backend, uint uid, 
 	return ok;
 }
 
-bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, const char * field, icu::UnicodeString * data)
+bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend, const char * field, icu::UnicodeString * data)
 {
 	bool ok = true;
 
@@ -1141,7 +1135,7 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 
 	XQuerySet * xq = new XQuerySet();
 
-	const char *u = t_strdup_printf("%d",uid);
+	const char *u = t_strdup_printf("%ld",backend->lastuid);
 	xq->add("uid",u);
 
 	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
@@ -1154,8 +1148,8 @@ bool fts_backend_xapian_index_text(struct xapian_fts_backend *backend,uint uid, 
 		if(result->size<1)
 		{
 			doc = new Xapian::Document();
-			doc->add_value(1,Xapian::sortable_serialise(uid));
-			u = t_strdup_printf("Q%d",uid);
+			doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
+			u = t_strdup_printf("Q%ld",backend->lastuid);
 			doc->add_term(u);
 			docid=dbx->add_document(*doc);
 		}
