@@ -1055,29 +1055,13 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 
 	if(backend->doc == NULL)
 	{
-	//	XQuerySet * xq = new XQuerySet();
-        //	u = i_strdup_printf("%ld",backend->lastuid);
-        //	xq->add("uid",u);
-        //	i_free(u);
-
-        //	XResultSet * result=fts_backend_xapian_query(dbx,xq,1);
-
 		try
 		{
-	//		if(result->size<1)
-	//		{
-				backend->doc = new Xapian::Document();
-				backend->doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
-				u = i_strdup_printf("Q%d",backend->lastuid);
-				backend->doc->add_term(u);
-				//backend->docid=dbx->add_document(*(backend->doc));
-				i_free(u);
-	//		}
-	//		else
-	//		{
-	//			backend->docid=result->data[0];
-	//			backend->doc = new Xapian::Document(dbx->get_document(backend->docid));
-	//		}
+			backend->doc = new Xapian::Document();
+			backend->doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
+			u = i_strdup_printf("Q%d",backend->lastuid);
+			backend->doc->add_term(u);
+			i_free(u);
 		}
 		catch(Xapian::Error e)
 		{
@@ -1086,8 +1070,6 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 			backend->doc=NULL;
 			ok=false;
 		}
-		//delete(result);
-		//delete(xq);
 		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: New doc"); }
 	}
 
