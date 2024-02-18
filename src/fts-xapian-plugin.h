@@ -35,6 +35,20 @@
 #define XAPIAN_DEFAULT_PARTIAL 3L
 #define XAPIAN_DEFAULT_FULL 20L
 
+#define HDRS_NB 10
+static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
+static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
+static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
+static const char * selectUIDs = "select ID from docs;";
+#define CHAR_KEY "_"
+#define CHAR_SPACE " "
+
+#define CHARS_PB 15
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "!", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
+
+#define CHARS_SEP 10
+static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")" };
+
 struct fts_xapian_settings
 {
 	int verbose;

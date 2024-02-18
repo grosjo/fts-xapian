@@ -16,22 +16,7 @@ extern "C" {
 #include <pwd.h>
 #include <grp.h>
 #include <sys/stat.h>
-
 #include <syslog.h>
-
-#define HDRS_NB 10
-static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
-static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XBDY" };
-static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
-static const char * selectUIDs = "select ID from docs;";
-#define CHAR_KEY "_"
-#define CHAR_SPACE " "
-
-#define CHARS_PB 15
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", "!", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
-
-#define CHARS_SEP 10
-static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")" };
 
 struct xapian_fts_backend
 {
@@ -47,6 +32,7 @@ struct xapian_fts_backend
 	char * old_boxname;
 
 	Xapian::WritableDatabase * dbw;
+        Xapian::Document * doc = NULL;
 
 	long added_docs;
 	long lastuid;
@@ -338,7 +324,20 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
-                if(backend->added_docs>=XAPIAN_ADDED_DOCS)
+		if(backend->doc !=NULL ) 
+		{
+			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
+			backend->dbw->add_document(*(backend->doc)); 
+			delete(backend->doc); 
+			backend->doc=NULL;
+		}
+		long fri = fts_backend_xapian_test_memory();
+		if(fri>=0)
+        	{
+                	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
+                	fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
+        	}
+                else if(backend->added_docs>=XAPIAN_ADDED_DOCS)
                 {
                         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->added_docs, XAPIAN_ADDED_DOCS,backend->total_added_docs);
                         fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
@@ -347,6 +346,11 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                 backend->added_docs++;
                 backend->total_added_docs++;
                 if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Indexing msg #%ld",backend->total_added_docs);
+		if(!fts_backend_xapian_check_access(backend))
+        	{
+                	i_error("FTS Xapian: Buildmore: Can not open db");
+                	return -1;
+        	}
         }
 
 	return TRUE;
@@ -406,55 +410,12 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	icu::StringPiece sp_d((const char *)data,(int32_t )size);
 	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
 	
-	if(fts_xapian_settings.verbose>0)
-        {
-		std::string s; d2.toUTF8String(s); s=s.substr(0,20);
-                if(ctx->isattachment)
-                {
-                        i_info("FTS Xapian: Indexing part as attachment (len=%ld) : %s",d2.length(),s.c_str());
-                }
-                else
-                {
-                        i_info("FTS Xapian: Indexing part as text (len=%ld) :%s",d2.length(),s.c_str());
-                }
-        }
-
 	if(d2.length() < fts_xapian_settings.partial) return 0;
 
-	long fri = fts_backend_xapian_test_memory();
-
-	if(fri>=0)
-	{
-		i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-		fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
-	}
-
-	if(!fts_backend_xapian_check_access(backend))
-        {
-                i_error("FTS Xapian: Buildmore: Can not open db");
-                return -1;
-        }
-
-	bool ok=true;
-
-	ok=fts_backend_xapian_index(backend,ctx->tbi_field, &d2);
-	if(!ok)
-	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing memory and retrying");
-		fts_backend_xapian_release(backend,"Flushing memory indexing hdr", 0, false);
-               	if(fts_backend_xapian_check_access(backend))
-		{
-			ok=fts_backend_xapian_index(backend,ctx->tbi_field, &d2);
-		}
-		else
-               	{
-                       	i_error("FTS Xapian: Buildmore: Can not open db (3)");
-			ok=false;
-               	}
-	}
-
-	if(!ok) return -1;
-	return 0;
+	if(fts_backend_xapian_index(backend,ctx->tbi_field, &d2)) return 0;
+        	
+	i_error("FTS Xapian: Buildmore: Error Index");
+	return -1;
 }
 
 static int fts_backend_xapian_optimize_callback(void *data, int argc, char **argv, char **azColName)
