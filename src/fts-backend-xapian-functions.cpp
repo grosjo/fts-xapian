@@ -124,12 +124,7 @@ class XQuerySet
                         t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
                         k--;
                 }
-		k=CHARS_PB;
-		while(k>0)
-		{
-			t->findAndReplace(chars_pb[k-1],CHAR_KEY);
-			k--;
-		}
+		t->trim();
 		if(t->length()<limit) return;
 	
 		i = t->lastIndexOf(CHAR_SPACE);
@@ -161,6 +156,17 @@ class XQuerySet
 		st1.clear();
 		h->toUTF8String(st1);
 		char * h2 = i_strdup(st1.c_str());
+		i=0;
+                while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
+                {
+                        i++;
+                }
+                if(i>=HDRS_NB)
+                {
+                        i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
+                        i_free(h2);
+                        return;
+                }
 
 		if(accentsConverter == NULL)
 		{
@@ -174,6 +180,12 @@ class XQuerySet
 		}
 		if(accentsConverter != NULL) accentsConverter->transliterate(*t);
 
+		k=CHARS_PB;
+                while(k>0)
+                {
+                        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
+                        k--;
+                }
 		st2.clear();
 		t->toUTF8String(st2);
 		char * t2 = i_strdup(st2.c_str());
@@ -198,18 +210,6 @@ class XQuerySet
 			return;
 		}
 
-		i=0;
-		while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
-		{
-			i++;
-		}
-		if(i>=HDRS_NB)
-		{
-			if(fts_xapian_settings.verbose>1) i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
-			i_free(h2); i_free(t2);
-			return;
-		}
-
 		if(text==NULL)
 		{
 			text=t2;
@@ -218,6 +218,7 @@ class XQuerySet
 			return;
 		}
 
+		i_free(h2); i_free(t2);
 		q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
 		q2->add(h,t,is_neg);
 		add(q2);
@@ -699,13 +700,13 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, std::string * dbpath, std::string * title)
 {
-	long t, currentdocs;
+	long currentdocs;
+	long t = fts_backend_xapian_current_time();
 
 	if(fts_xapian_settings.verbose>0)
         {
                 title->append(" to=");
                 title->append(cuserid(NULL)); 
-                t = fts_backend_xapian_current_time();
         }
 	title->append(" : ");
 	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
@@ -727,10 +728,14 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Releasing Xapian db");
 	delete(db);
-	if(fts_xapian_settings.verbose>0)
+	if(err)
 	{
-        	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
-		else syslog(LOG_INFO, "Done in %ld ms by %s",fts_backend_xapian_current_time()-t,cuserid(NULL));
+		if(fts_xapian_settings.verbose>0)
+        	{ syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
+	}
+	else
+	{
+		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",currentdocs-nbdocs,fts_backend_xapian_current_time()-t,cuserid(NULL));
 	}
 	fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
