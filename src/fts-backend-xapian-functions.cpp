@@ -1067,7 +1067,7 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 		{
 			backend->doc = new Xapian::Document();
 			backend->doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
-			u = i_strdup_printf("Q%d",backend->lastuid);
+			u = i_strdup_printf("Q%ld",(long)(backend->lastuid));
 			backend->doc->add_term(u);
 			i_free(u);
 		}
