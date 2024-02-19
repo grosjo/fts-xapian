@@ -625,7 +625,6 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 		return false;
 	}
 	backend->nbdocs=backend->dbw->get_doccount();
-	backend->doc=NULL;
 	if(fts_xapian_settings.verbose>0) 
 	{
 		i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,backend->nbdocs);
@@ -703,7 +702,7 @@ static void fts_backend_xapian_ownership(std::string * dbpath)
 	closedir(dir);
 }
 
-static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, Xapian::Document *doc, long nbdocs, long newdocs, std::string * dbpath, std::string * title)
+static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, long newdocs, std::string * dbpath, std::string * title)
 {
 	long t = fts_backend_xapian_current_time();
 
@@ -721,11 +720,6 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, Xapian
 	bool err=false;
 	try
 	{
-                if(doc != NULL) 
-		{
-			if(fts_xapian_settings.verbose>0) { syslog(LOG_INFO,"Closing docID"); } 
-			db->add_document(*doc); delete(doc); 
-		}
 		db->close();
 	}
 	catch(Xapian::Error e)
@@ -758,7 +752,15 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
-
+	if(backend->doc != NULL)
+	{
+		if(!fts_backend_xapian_check_access(backend))
+                {
+                        i_error("FTS Xapian: Release: Can not open db");
+                }
+                if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: release - Closing docID"); }
+                backend->dbw->add_document(*(backend->doc)); delete(backend->doc); backend->doc=NULL;
+        }
 	if(backend->dbw !=NULL)
 	{
 		std::string *dbpath = new std::string(backend->db);
@@ -777,7 +779,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching Thread for closing",title->c_str());
 			try
 			{
-				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->doc, backend->nbdocs,backend->added_docs,dbpath,title))->detach();
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title))->detach();
 			}
 			catch (const std::exception &ex)
 			{
@@ -793,7 +795,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			title->append("Not threaded from=");
                         title->append(cuserid(NULL));
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
-			fts_backend_xapian_commitclose(backend->dbw, backend->doc, backend->nbdocs,backend->added_docs,dbpath,title);
+			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title);
 		}
 		backend->dbw = NULL;
 		backend->added_docs = 0;

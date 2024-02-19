@@ -361,7 +361,7 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
-/
+
 	if(ctx->tbi_field!=NULL)
 	{
 		i_free(ctx->tbi_field);
