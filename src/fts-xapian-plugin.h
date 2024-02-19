@@ -44,10 +44,10 @@ static const char * selectUIDs = "select ID from docs;";
 #define CHAR_SPACE " "
 
 #define CHARS_PB 15
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", "!", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
 
-#define CHARS_SEP 10
-static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")" };
+#define CHARS_SEP 12
+static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!" };
 
 struct fts_xapian_settings
 {

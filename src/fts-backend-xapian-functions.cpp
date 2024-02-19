@@ -515,7 +515,7 @@ class XNGram
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%ld vs %ld) (%s ...)",l,hardlimit,s.substr(0,10).c_str());
+			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%ld vs %ld) (%s ...)",l,hardlimit,s.substr(0,30).c_str());
 		}
 		if(fts_backend_xapian_trim(d)) add_stem(d);
 	}
@@ -720,6 +720,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	bool err=false;
 	try
 	{
+		db->commit();
 		db->close();
 	}
 	catch(Xapian::Error e)
@@ -754,12 +755,17 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
 	if(backend->doc != NULL)
 	{
-		if(!fts_backend_xapian_check_access(backend))
-                {
-                        i_error("FTS Xapian: Release: Can not open db");
-                }
-                if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: release - Closing docID"); }
-                backend->dbw->add_document(*(backend->doc)); delete(backend->doc); backend->doc=NULL;
+		if(fts_backend_xapian_check_access(backend))
+		{
+			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: release - Closing docID"); }
+                	backend->dbw->add_document(*(backend->doc)); 
+			delete(backend->doc); 
+			backend->doc=NULL;
+		}
+		else
+		{
+			i_error("FTS Xapian: Release: Can not open db");
+		}
         }
 	if(backend->dbw !=NULL)
 	{
@@ -776,7 +782,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			title->append("Threaded from=");
         		title->append(cuserid(NULL));
 
-			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching Thread for closing",title->c_str());
+			if(fts_xapian_settings.verbose>0) i_info("%s - Launching Thread for closing",title->c_str());
 			try
 			{
 				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title))->detach();
