@@ -225,7 +225,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
@@ -326,6 +326,11 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
         {
 		if(backend->doc !=NULL ) 
 		{
+			if(!fts_backend_xapian_check_access(backend))
+                	{
+                        	i_error("FTS Xapian: Set Build Key: Can not open db");
+                        	return FALSE;
+                	}
 			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
 			backend->dbw->add_document(*(backend->doc)); 
 			delete(backend->doc); 
@@ -346,11 +351,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                 backend->added_docs++;
                 backend->total_added_docs++;
                 if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Indexing msg #%ld",backend->total_added_docs);
-		if(!fts_backend_xapian_check_access(backend))
-        	{
-                	i_error("FTS Xapian: Buildmore: Can not open db");
-                	return -1;
-        	}
         }
 
 	return TRUE;
@@ -360,25 +360,8 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 {
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
-	if(fts_xapian_settings.verbose>0) 
-	{
-		long n = 0;
-		if( ctx->ctx.backend != NULL )
-		{
-			struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
-			if( backend->dbw != NULL) n = backend->dbw->get_doccount();
-		}
-
-		if(n>0)
-		{
-			i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key with %ld docs in the index",n);
-		}
-		else
-		{
-			i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
-		}
-	}
-
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
+/
 	if(ctx->tbi_field!=NULL)
 	{
 		i_free(ctx->tbi_field);

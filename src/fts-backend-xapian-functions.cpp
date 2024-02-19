@@ -515,7 +515,7 @@ class XNGram
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%s ...)",s.substr(0,100).c_str());
+			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%ld vs %ld) (%s ...)",l,hardlimit,s.substr(0,10).c_str());
 		}
 		if(fts_backend_xapian_trim(d)) add_stem(d);
 	}
