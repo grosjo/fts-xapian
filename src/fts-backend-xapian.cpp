@@ -333,6 +333,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                 	}
 			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
 			backend->dbw->add_document(*(backend->doc)); 
+			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Deleting docID"); }
 			delete(backend->doc); 
 			backend->doc=NULL;
 		}
