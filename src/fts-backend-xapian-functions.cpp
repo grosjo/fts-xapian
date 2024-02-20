@@ -538,7 +538,6 @@ static long fts_backend_xapian_get_free_memory() // KB
 	sysctlbyname("vm.stats.vm.v_cache_count", &n, &len, NULL, 0);
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Cached pages %ld",long(n));
 	m = (m+n) * fts_xapian_settings.pagesize / 1024.0;
-	if((limit>0) && (m>limit)) m = limit;
 	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Available memory %ld MB",long(m/1024.0));
 	return long(m);
 #else
