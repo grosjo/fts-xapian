@@ -709,7 +709,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	if(fts_xapian_settings.verbose>0)
         {
                 title->append(" to=");
-                title->append(cuserid(NULL)); 
+                title->append(getlogin()); 
         }
 	title->append(" : ");
 	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
@@ -737,9 +737,9 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	}
 	else
 	{
-		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",newdocs,fts_backend_xapian_current_time()-t,cuserid(NULL));
+		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",newdocs,fts_backend_xapian_current_time()-t,getlogin());
 	}
-	if(strcmp("root",cuserid(NULL))==0) fts_backend_xapian_ownership(dbpath);
+	if(strcmp("root",getlogin())==0) fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
@@ -780,7 +780,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		if((strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL) && threaded)
 		{
 			title->append("Threaded from=");
-        		title->append(cuserid(NULL));
+        		title->append(getlogin());
 
 			if(fts_xapian_settings.verbose>0) i_info("%s - Launching Thread for closing",title->c_str());
 			try
@@ -799,7 +799,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		else
 		{
 			title->append("Not threaded from=");
-                        title->append(cuserid(NULL));
+                        title->append(getlogin());
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
 			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title);
 		}

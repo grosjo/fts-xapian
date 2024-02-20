@@ -19,9 +19,6 @@
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
-#if !defined(__APPLE__)
-#include <vm/vm_param.h>
-#endif
 #endif
 
 #include <sqlite3.h>
