@@ -657,60 +657,19 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
-static std::string fts_backend_xapian_get_selfpath() 
+static bool fts_backend_xapian_isnormalprocess()
 {
-    char buff[PATH_MAX];
-    buff[0]=0;
-    ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff)-1);
-    if (len != -1) 
-    {
-      buff[len] = '\0';
-    }
-    return std::string(buff);
-}
-
-static void fts_backend_xapian_ownership(std::string * dbpath)
-{
-	struct stat info;
-	if(stat(dbpath->c_str(), &info) !=0)
-	{
-		syslog(LOG_ERR,"FTS Xapian: can not stats %s",dbpath->c_str());
-                return;
-        }
-	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Fixing ownership %s to %ld:%ld",dbpath->c_str(),(long)(info.st_uid),(long)(info.st_gid));
-	
-	DIR *dir = opendir(dbpath->c_str());
-	if(dir==NULL)
-	{
-		syslog(LOG_ERR,"can not open %s",dbpath->c_str());
-                return;
-        }
-	struct dirent *ent;
-	std::string file;
-	while ((ent = readdir (dir)) != NULL) 
-	{
-		if((ent->d_name[0]!='.')&&(ent->d_name[0]!=0))
-		{
-			file.clear();
-			file.append(*dbpath);
-			file.append("/");
-			file.append(ent->d_name);
-			if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"chown %s",file.c_str());
-			if(chown(file.c_str(),info.st_uid,info.st_gid)<0) { syslog(LOG_ERR,"Can not chown %s",file.c_str()); }
-		}
-	}
-	closedir(dir);
+    	char buff[PATH_MAX];
+    	buff[0]=0;
+    	ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff)-1);
+    	if (len>0)  buff[len] = 0;
+    	return (strstr(buff,"doveadm")==NULL);
 }
 
 static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long nbdocs, long newdocs, std::string * dbpath, std::string * title)
 {
 	long t = fts_backend_xapian_current_time();
 
-	if(fts_xapian_settings.verbose>0)
-        {
-                title->append(" to=");
-                title->append(getlogin()); 
-        }
 	title->append(" : ");
 	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
 	if(fts_xapian_settings.verbose>0) 
@@ -730,16 +689,11 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Releasing Xapian db");
 	delete(db);
-	if(err)
+	if(fts_xapian_settings.verbose>0)
 	{
-		if(fts_xapian_settings.verbose>0)
-        	{ syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
+		if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
+		else syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdocs,fts_backend_xapian_current_time()-t);
 	}
-	else
-	{
-		syslog(LOG_INFO, "Committed %ld docs in %ld ms by %s",newdocs,fts_backend_xapian_current_time()-t,getlogin());
-	}
-	if(strcmp("root",getlogin())==0) fts_backend_xapian_ownership(dbpath);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
@@ -749,16 +703,33 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded)
 {
 	bool err=false;
+	threaded=false;
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
+
+	if(backend->db == NULL)
+	{
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - backend->db NULL",reason);
+		return;
+	}
+
+	std::string *dbpath = new std::string(backend->db);
+        std::string *title = new std::string("FTS Xapian: Commit & Closing (");
+        title->append(backend->boxname);
+        title->append(",");
+        title->append(*dbpath);
+        title->append(") - ");
+        title->append(reason);
+
 	if(backend->doc != NULL)
 	{
 		if(fts_backend_xapian_check_access(backend))
 		{
-			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: release - Closing docID"); }
+			if(fts_xapian_settings.verbose>0) { i_info("%s - Closing docID",title->c_str()); }
                 	backend->dbw->add_document(*(backend->doc)); 
+			if(fts_xapian_settings.verbose>0) { i_info("%s - Deleting docID",title->c_str()); }
 			delete(backend->doc); 
 			backend->doc=NULL;
 		}
@@ -769,19 +740,10 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
         }
 	if(backend->dbw !=NULL)
 	{
-		std::string *dbpath = new std::string(backend->db);
-		std::string *title = new std::string("FTS Xapian: Commit & Closing (");
-		title->append(backend->boxname);
-		title->append(",");
-		title->append(*dbpath);
-		title->append(") - ");
-		title->append(reason);
+		if(fts_xapian_settings.verbose>0) { i_info("%s - Closing dbw",title->c_str()); }
 
-		if((strstr(fts_backend_xapian_get_selfpath().c_str(),"doveadm")==NULL) && threaded)
+		if(fts_backend_xapian_isnormalprocess() && threaded)
 		{
-			title->append("Threaded from=");
-        		title->append(getlogin());
-
 			if(fts_xapian_settings.verbose>0) i_info("%s - Launching Thread for closing",title->c_str());
 			try
 			{
@@ -798,8 +760,6 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		}
 		else
 		{
-			title->append("Not threaded from=");
-                        title->append(getlogin());
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
 			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title);
 		}
