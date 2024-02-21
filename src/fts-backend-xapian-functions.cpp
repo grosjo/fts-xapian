@@ -624,10 +624,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 		return false;
 	}
 	backend->nbdocs=backend->dbw->get_doccount();
-	if(fts_xapian_settings.verbose>0) 
-	{
-		i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,backend->nbdocs);
-	}
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening DB (RW) %s (%ld docs stored): Done",backend->db,backend->nbdocs);
 	return true;
 }
 
@@ -678,7 +675,6 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	bool err=false;
 	try
 	{
-		db->commit();
 		db->close();
 	}
 	catch(Xapian::Error e)
@@ -699,58 +695,56 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	delete(title);
 }
 
-static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded, bool checkdoc);
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded);
 
-static bool fts_backend_xapian_commitdoc(struct xapian_fts_backend *backend, const char * reason)
+static bool fts_backend_xapian_commitdocs(struct xapian_fts_backend *backend, const char * reason)
 {
-	if(backend->doc == NULL) return true;
+	if(backend->qdocs == NULL) return true;
 
 	bool ok=true;
-        if(!fts_backend_xapian_check_access(backend))
-        {       
-              i_error("FTS Xapian: %s 1 : Can not open db",reason);
-              ok=false;                       
-        }
-	else
-        {
-        	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
-                try
-                {
-			backend->dbw->add_document(*(backend->doc));
-		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: %s 2 : %s",reason,e.get_msg().c_str());
-			ok=false;
-		}
-		if(!ok)
-		{
-			fts_backend_xapian_release(backend,"Releasing current db to get some space",0,false,false);
-			if(!fts_backend_xapian_check_access(backend))
+
+	if(backend->qsize>0)
+	{
+        	if(!fts_backend_xapian_check_access(backend))
+        	{       
+              		i_error("FTS Xapian: %s 1 : Can not open db",reason);
+              		ok=false;                       
+        	}
+		else
+        	{
+        		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docIDs"); }
+			long i=0;
+                	while(i < backend->qsize)
 			{
-				i_error("FTS Xapian: %s 3 : Can not open db",reason);
-			}
-			else
-			{
-				try             
-				{               
-					backend->dbw->add_document(*(backend->doc));
-					ok=true;
-				}       
+				try { backend->dbw->add_document(*((backend->qdocs)[i])); }
 				catch(Xapian::Error e)
-				{       
-					i_error("FTS Xapian: %s 4 : %s",reason,e.get_msg().c_str());
+				{
+					i_error("FTS Xapian: %s 2 (%ld) : %s",reason,i,e.get_msg().c_str());
+					fts_backend_xapian_release(backend,"Releasing current db to get some space",0,false);
+					if(!fts_backend_xapian_check_access(backend))
+					{
+						i_error("FTS Xapian: %s 3 : Can not open db",reason);
+						ok=false;
+					}
+					else
+					{
+						try { backend->dbw->add_document(*((backend->qdocs)[i])); }
+						catch(Xapian::Error e2) { ok=false; }
+					}
 				}
+				delete((backend->qdocs)[i]);
+				i++;
 			}
 		}
 	}
-	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Deleting docID"); }
-	delete(backend->doc);
-	backend->doc=NULL;
+	if(backend->qdocs != NULL) free(backend->qdocs);
+	backend->qsize = 0;
+	backend->qdocs = NULL;
+	backend->qcur =-1;
 	return ok;
 }
 
-static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded, bool checkdoc)
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded)
 {
 	bool err=false;
 
@@ -772,8 +766,6 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
         title->append(") - ");
         title->append(reason);
 
-	if(checkdoc) fts_backend_xapian_commitdoc(backend,"External release");	
-        
 	if(backend->dbw !=NULL)
 	{
 		if(fts_xapian_settings.verbose>0) { i_info("%s - Closing dbw",title->c_str()); }
@@ -783,7 +775,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 			if(fts_xapian_settings.verbose>0) i_info("%s - Launching Thread for closing",title->c_str());
 			try
 			{
-				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title))->detach();
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->nbdocs,backend->qsize,dbpath,title))->detach();
 			}
 			catch (const std::exception &ex)
 			{
@@ -797,12 +789,15 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		else
 		{
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
-			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->added_docs,dbpath,title);
+			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->qsize,dbpath,title);
 		}
-		backend->dbw = NULL;
-		backend->added_docs = 0;
-        	backend->lastuid = 0;
 	}
+	backend->dbw = NULL;
+        backend->lastuid = -1;
+	backend->qcur = -1;
+	backend->qsize = 0;
+	if(backend->qdocs !=NULL) { free(backend->qdocs); backend->qdocs = NULL; }
+	
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - done",reason);
 }
 
@@ -850,7 +845,8 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	long commit_time = fts_backend_xapian_current_time();
 
 	fts_backend_xapian_oldbox(backend);
-	fts_backend_xapian_release(backend,"unset_box",commit_time,true,true);
+	fts_backend_xapian_commitdocs(backend,"unset_box");
+	fts_backend_xapian_release(backend,"unset_box",commit_time,true);
 
 	if(backend->db != NULL)
 	{
@@ -932,8 +928,9 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	long current_time = fts_backend_xapian_current_time();
 
 	backend->start_time = current_time;
-	backend->added_docs = 0;
-	backend->lastuid = 0;
+	backend->qsize = 0;
+	backend->lastuid = -1;
+	backend->qcur = -1;
 
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
@@ -1038,11 +1035,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
 {
-	bool ok=true;
-
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index_hdr");
-
-	Xapian::WritableDatabase * dbx = backend->dbw;
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index %s : %ld",field,data->length());
 
 	if(data->length()<fts_xapian_settings.partial) return true;
 
@@ -1057,27 +1050,27 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	const char * h = hdrs_xapian[i];
 	char * u;
 
-	if(backend->doc == NULL)
+	if(backend->qcur<0)
 	{
-		try
+		if(backend->qdocs == NULL)
 		{
-			backend->doc = new Xapian::Document();
-			backend->doc->add_value(1,Xapian::sortable_serialise(backend->lastuid));
-			u = i_strdup_printf("Q%ld",(long)(backend->lastuid));
-			backend->doc->add_term(u);
-			i_free(u);
+			backend->qdocs=(Xapian::Document * *)i_malloc(sizeof(Xapian::Document * *));
+			backend->qsize=0;
 		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: fts_backend_xapian_index : %s - %s",e.get_type(),e.get_error_string());
-			if(backend->doc!=NULL) delete(backend->doc);
-			backend->doc=NULL;
-			ok=false;
-		}
+        	else
+        	{
+                	backend->qdocs=(Xapian::Document * *)i_realloc(backend->qdocs,backend->qsize * sizeof(Xapian::Document * *),(backend->qsize + 1)*sizeof(Xapian::Document * *));
+        	}
+        	(backend->qdocs)[backend->qsize] = new Xapian::Document();
+		(backend->qdocs)[backend->qsize]->add_value(1,Xapian::sortable_serialise(backend->lastuid));
+		u = i_strdup_printf("Q%ld",(long)(backend->lastuid));
+		(backend->qdocs)[backend->qsize]->add_term(u);
+		i_free(u);
+		backend->qcur = backend->qsize;
+		backend->qsize++;
+		backend->total_added_docs++;
 		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: New doc"); }
 	}
-
-	if(!ok) return false;
 
 	XNGram * ngram = new XNGram(h);
 	ngram->add(data);
@@ -1090,19 +1083,13 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	for(i=0;i<ngram->size;i++)
 	{
 		u = i_strdup_printf("%s%s",h,ngram->data[i]);
-		try
-		{
-			backend->doc->add_term(u);
-		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: fts_backend_xapian_index_hdr : %s - %s",e.get_type(),e.get_error_string());
-			ok=false;
-		}
+		backend->qdocs[backend->qcur]->add_term(u);
 		i_free(u);
 	}
 	delete(ngram);
 
-	return ok;
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
+
+	return TRUE;
 }
 

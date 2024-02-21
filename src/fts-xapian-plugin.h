@@ -23,14 +23,15 @@
 
 #include <sqlite3.h>
 
-#define XAPIAN_FILE_PREFIX "xapian-indexes"
-#define XAPIAN_TERM_SIZELIMIT 245L
-#define XAPIAN_ADDED_DOCS 2000L
-#define XAPIAN_WILDCARD "wldcrd"
-#define XAPIAN_EXPUNGE_HEADER 9
 #define XAPIAN_MIN_RAM 250L // MB
 #define XAPIAN_DEFAULT_PARTIAL 3L
 #define XAPIAN_DEFAULT_FULL 20L
+
+#define XAPIAN_FILE_PREFIX "xapian-indexes"
+#define XAPIAN_TERM_SIZELIMIT 245L
+#define XAPIAN_ADDED_DOCS 100L
+#define XAPIAN_WILDCARD "wldcrd"
+#define XAPIAN_EXPUNGE_HEADER 9
 
 #define HDRS_NB 10
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };
@@ -45,6 +46,7 @@ static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", 
 
 #define CHARS_SEP 12
 static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!" };
+
 
 struct fts_xapian_settings
 {
