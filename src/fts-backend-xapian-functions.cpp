@@ -1070,7 +1070,7 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 		backend->qcur = backend->qsize;
 		backend->qsize++;
 		backend->total_added_docs++;
-		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Indexing new doc %ld/%ld #%ld",backend->qcur,XAPIAN_ADDED_DOCS,backend->lastuid); }
+		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Indexing new doc %ld/%ld #%ld %s (%s)",backend->qcur,XAPIAN_ADDED_DOCS,backend->lastuid, backend->boxname, backend->db); }
 	}
 
 	XNGram * ngram = new XNGram(h);
