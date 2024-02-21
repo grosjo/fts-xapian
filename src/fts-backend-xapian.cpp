@@ -308,7 +308,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB)
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+		// if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
 		i_free(ctx->tbi_field);
 		ctx->tbi_field=NULL;
 		return FALSE;
