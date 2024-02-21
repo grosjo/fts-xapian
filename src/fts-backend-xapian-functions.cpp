@@ -559,7 +559,7 @@ static long fts_backend_xapian_get_free_memory() // KB
                         m+=atol(p+7);
                 }
         }       
-        if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
+        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
         fclose (f);     
         return m;
 #endif
