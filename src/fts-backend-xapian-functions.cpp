@@ -699,7 +699,58 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	delete(title);
 }
 
-static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded)
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded, bool checkdoc);
+
+static bool fts_backend_xapian_commitdoc(struct xapian_fts_backend *backend, const char * reason)
+{
+	if(backend->doc == NULL) return true;
+
+	bool ok=true;
+        if(!fts_backend_xapian_check_access(backend))
+        {       
+              i_error("FTS Xapian: %s 1 : Can not open db",reason);
+              ok=false;                       
+        }
+	else
+        {
+        	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
+                try
+                {
+			backend->dbw->add_document(*(backend->doc));
+		}
+		catch(Xapian::Error e)
+		{
+			i_error("FTS Xapian: %s 2 : %s",reason,e.get_msg().c_str());
+			ok=false;
+		}
+		if(!ok)
+		{
+			fts_backend_xapian_release(backend,"Releasing current db to get some space",0,false,false);
+			if(!fts_backend_xapian_check_access(backend))
+			{
+				i_error("FTS Xapian: %s 3 : Can not open db",reason);
+			}
+			else
+			{
+				try             
+				{               
+					backend->dbw->add_document(*(backend->doc));
+					ok=true;
+				}       
+				catch(Xapian::Error e)
+				{       
+					i_error("FTS Xapian: %s 4 : %s",reason,e.get_msg().c_str());
+				}
+			}
+		}
+	}
+	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Deleting docID"); }
+	delete(backend->doc);
+	backend->doc=NULL;
+	return ok;
+}
+
+static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const char * reason, long commit_time, bool threaded, bool checkdoc)
 {
 	bool err=false;
 
@@ -721,21 +772,8 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
         title->append(") - ");
         title->append(reason);
 
-	if(backend->doc != NULL)
-	{
-		if(fts_backend_xapian_check_access(backend))
-		{
-			if(fts_xapian_settings.verbose>0) { i_info("%s - Closing docID",title->c_str()); }
-                	backend->dbw->add_document(*(backend->doc)); 
-			if(fts_xapian_settings.verbose>0) { i_info("%s - Deleting docID",title->c_str()); }
-			delete(backend->doc); 
-			backend->doc=NULL;
-		}
-		else
-		{
-			i_error("FTS Xapian: Release: Can not open db");
-		}
-        }
+	if(checkdoc) fts_backend_xapian_commitdoc(backend,"External release");	
+        
 	if(backend->dbw !=NULL)
 	{
 		if(fts_xapian_settings.verbose>0) { i_info("%s - Closing dbw",title->c_str()); }
@@ -812,7 +850,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	long commit_time = fts_backend_xapian_current_time();
 
 	fts_backend_xapian_oldbox(backend);
-	fts_backend_xapian_release(backend,"unset_box",commit_time,true);
+	fts_backend_xapian_release(backend,"unset_box",commit_time,true,true);
 
 	if(backend->db != NULL)
 	{

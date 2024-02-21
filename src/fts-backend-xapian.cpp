@@ -172,7 +172,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
-	fts_backend_xapian_release(backend,"update_deinit",0,true);
+	fts_backend_xapian_release(backend,"update_deinit",0,true,true);
 
 	i_free(ctx);
 
@@ -324,34 +324,23 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
-		if(backend->doc !=NULL ) 
-		{
-			if(!fts_backend_xapian_check_access(backend))
-                	{
-                        	i_error("FTS Xapian: Set Build Key: Can not open db");
-                        	return FALSE;
-                	}
-			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docID"); }
-			backend->dbw->add_document(*(backend->doc)); 
-			if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Deleting docID"); }
-			delete(backend->doc); 
-			backend->doc=NULL;
-		}
+		if(!fts_backend_xapian_commitdoc(backend,"Set build key")) return FALSE;
+		
 		long fri = fts_backend_xapian_test_memory();
 		if(fri>=0)
         	{
                 	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-                	fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
+                	fts_backend_xapian_release(backend,"Low memory indexing", 0, false,false);
         	}
                 else if(backend->added_docs>=XAPIAN_ADDED_DOCS)
                 {
                         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->added_docs, XAPIAN_ADDED_DOCS,backend->total_added_docs);
-                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
+                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false,false);
                 }
                 backend->lastuid = ctx->tbi_uid;
                 backend->added_docs++;
                 backend->total_added_docs++;
-                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Indexing msg #%ld",backend->total_added_docs);
+                i_info("FTS Xapian: Indexing msg #%ld (%s)",backend->total_added_docs,backend->boxname);
         }
 
 	return TRUE;
@@ -377,7 +366,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	fts_backend_xapian_release(backend,"refresh", 0, true);
+	fts_backend_xapian_release(backend,"refresh", 0, true, true);
 
 	return 0;
 }
