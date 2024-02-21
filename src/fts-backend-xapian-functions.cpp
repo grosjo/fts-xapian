@@ -162,7 +162,6 @@ class XQuerySet
                 }
                 if(i>=HDRS_NB)
                 {
-                        i_error("FTS Xapian: Unknown header (lookup) '%s'",h2);
                         i_free(h2);
                         return;
                 }
