@@ -99,7 +99,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Deinit %s)",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Deinit %s)",backend->path);
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
@@ -118,7 +118,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct mailbox *box, uint32_t *last_uid_r)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_get_last_uid");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_get_last_uid");
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
@@ -134,7 +134,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 
 	if(!fts_backend_xapian_open_readonly(backend, &dbr))
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: GetLastUID: Can not open db RO (%s)",backend->db);
+		i_error("FTS Xapian: GetLastUID: Can not open db RO (%s)",backend->db);
 		return 0;
 	}
 
@@ -154,7 +154,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 	dbr->close();
 	delete(dbr);
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->boxname,backend->guid,*last_uid_r);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->boxname,backend->guid,*last_uid_r);
 
 	return 0;
 }
@@ -162,7 +162,7 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 
 static struct fts_backend_update_context * fts_backend_xapian_update_init(struct fts_backend *_backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_update_context");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_update_context");
 
 	struct xapian_fts_backend_update_context *ctx;
 
@@ -176,7 +176,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
 	fts_backend_xapian_commitdocs(backend,"update_deinit");
 	fts_backend_xapian_release(backend,"update_deinit",0,true);
@@ -188,7 +188,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 
 static void fts_backend_xapian_update_set_mailbox(struct fts_backend_update_context *_ctx, struct mailbox *box)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_set_mailbox");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_set_mailbox");
 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
@@ -198,7 +198,7 @@ static void fts_backend_xapian_update_set_mailbox(struct fts_backend_update_cont
 
 static void fts_backend_xapian_update_expunge(struct fts_backend_update_context *_ctx, uint32_t uid)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_expunge");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_expunge");
 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
@@ -232,7 +232,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_set_build_key");
 
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
@@ -252,26 +252,26 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		fts_backend_xapian_oldbox(backend);
 		backend->old_guid = i_strdup(backend->guid);
 		backend->old_boxname = i_strdup(backend->boxname);
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->boxname,backend->guid);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->boxname,backend->db);
 	}
 
 	const char * field=key->hdr_name;
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
 	// Verify content-type
 
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
 		return FALSE;
 	}
 
 	if((type != NULL) && (strncmp(type,"text",4)!=0) && ((disposition==NULL) || ((strstr(disposition,"filename=")==NULL) && (strstr(disposition,"attachment")==NULL))))
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Non-binary & non-text part of type '%s'",type);
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Non-binary & non-text part of type '%s'",type);
 		return FALSE;
 	}
 
@@ -279,7 +279,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	ctx->isattachment=false;
 	if((disposition != NULL) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Found part as attachment of type '%s' and disposition '%s'",type,disposition);
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Found part as attachment of type '%s' and disposition '%s'",type,disposition);
 		ctx->isattachment=true;
 	}
 
@@ -308,7 +308,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB)
 	{
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
 		i_free(ctx->tbi_field);
 		ctx->tbi_field=NULL;
 		return FALSE;
@@ -347,7 +347,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 		backend->qcur = -1;
                 backend->lastuid = ctx->tbi_uid;
-                i_info("FTS Xapian: Indexing msg #%ld (%s)",backend->total_added_docs,backend->boxname);
         }
 
 	return TRUE;
@@ -357,7 +356,7 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 {
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_unset_build_key");
 
 	if(ctx->tbi_field!=NULL)
 	{
@@ -369,7 +368,7 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 
 static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_refresh");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_refresh");
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
@@ -407,7 +406,7 @@ static int fts_backend_xapian_optimize_callback(void *data, int argc, char **arg
 		return -1;
 	}
 	uint32_t uid = atol(argv[0]);
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize_callback : Adding %d",uid);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_optimize_callback : Adding %d",uid);
 	std::vector<uint32_t> * uids = (std::vector<uint32_t> *) data;
 	uids->push_back(uid);
 	return 0;
@@ -417,12 +416,12 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_optimize '%s'",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_optimize '%s'",backend->path);
 
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
 	{
-		if(fts_xapian_settings.verbose>0) i_error("FTS Xapian: Optimize(0) Index folder inexistent");
+		i_error("FTS Xapian: Optimize(0) Index folder inexistent");
 		return -1;
 	}
 
@@ -523,7 +522,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 
 static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_rescan");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_rescan");
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
@@ -573,7 +572,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 
 static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbox *box, struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_result *result)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_lookup");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_lookup");
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
@@ -641,7 +640,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 
 static int fts_backend_xapian_lookup_multi(struct fts_backend *_backend, struct mailbox *const boxes[], struct mail_search_arg *args, enum fts_lookup_flags flags, struct fts_multi_result *result)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_lookup_multi");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_lookup_multi");
 
 	ARRAY(struct fts_result) box_results;
 

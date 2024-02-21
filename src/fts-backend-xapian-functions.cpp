@@ -152,7 +152,6 @@ class XQuerySet
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
-
 		st1.clear();
 		h->toUTF8String(st1);
 		char * h2 = i_strdup(st1.c_str());
@@ -471,6 +470,7 @@ class XNGram
 		l=d->length();
 		if(l<fts_xapian_settings.partial) return;
 
+		s.clear();
 		d->toUTF8String(s);
 		l  = s.length();
 		if(l<=hardlimit)
@@ -515,7 +515,7 @@ class XNGram
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Term too long to be indexed (%ld vs %ld) (%s ...)",l,hardlimit,s.substr(0,30).c_str());
+			if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Term too long to be indexed (%ld vs %ld) (%s ...)",l,hardlimit,s.substr(0,30).c_str());
 		}
 		if(fts_backend_xapian_trim(d)) add_stem(d);
 	}
@@ -559,7 +559,7 @@ static long fts_backend_xapian_get_free_memory() // KB
                         m+=atol(p+7);
                 }
         }       
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
+        if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
         fclose (f);     
         return m;
 #endif
@@ -599,7 +599,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_check_access");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_check_access");
 
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
@@ -609,7 +609,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 
 	if(backend->dbw != NULL) 
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_check_access : OK");
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_check_access : OK");
 		return true;
 	}
 
@@ -630,7 +630,7 @@ static bool fts_backend_xapian_check_access(struct xapian_fts_backend *backend)
 
 static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox");
 
 	if(backend->old_guid != NULL)
 	{
@@ -650,7 +650,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
 	}
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
 static bool fts_backend_xapian_isnormalprocess()
@@ -684,11 +684,8 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
         }
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Releasing Xapian db");
 	delete(db);
-	if(fts_xapian_settings.verbose>0)
-	{
-		if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
-		else syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdocs,fts_backend_xapian_current_time()-t);
-	}
+	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
+	else if(fts_xapian_settings.verbose>0) syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdocs,fts_backend_xapian_current_time()-t);
 	delete(dbpath);
 	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
         closelog();
@@ -752,13 +749,13 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 {
 	bool err=false;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_release (%s)",reason);
 
 	if(commit_time<1) commit_time = fts_backend_xapian_current_time();
 
 	if(backend->db == NULL)
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - backend->db NULL",reason);
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_release (%s) - backend->db NULL",reason);
 		return;
 	}
 
@@ -802,7 +799,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	backend->qsize = 0;
 	if(backend->qdocs !=NULL) { free(backend->qdocs); backend->qdocs = NULL; }
 	
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_release (%s) - done",reason);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_release (%s) - done",reason);
 }
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
@@ -844,7 +841,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
 
 	long commit_time = fts_backend_xapian_current_time();
 
@@ -1039,7 +1036,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 
 bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index %s : %ld",field,data->length());
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s : %ld",field,data->length());
 
 	if(data->length()<fts_xapian_settings.partial) return true;
 
@@ -1073,13 +1070,13 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 		backend->qcur = backend->qsize;
 		backend->qsize++;
 		backend->total_added_docs++;
-		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: New doc"); }
+		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Indexing new doc %ld/%ld #%ld",backend->qcur,XAPIAN_ADDED_DOCS,backend->lastuid); }
 	}
 
 	XNGram * ngram = new XNGram(h);
 	ngram->add(data);
 
-	if(fts_xapian_settings.verbose>0)
+	if(fts_xapian_settings.verbose>1)
 	{
 		i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024);
 	}
@@ -1092,7 +1089,7 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	}
 	delete(ngram);
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
 
 	return TRUE;
 }
