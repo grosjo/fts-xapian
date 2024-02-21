@@ -729,7 +729,11 @@ static bool fts_backend_xapian_commitdocs(struct xapian_fts_backend *backend, co
 					else
 					{
 						try { backend->dbw->add_document(*((backend->qdocs)[i])); }
-						catch(Xapian::Error e2) { ok=false; }
+						catch(Xapian::Error e2) 
+						{ 
+							i_error("FTS Xapian: %s 4 : Can not add document : %s",reason,e.get_msg().c_str());
+							ok=false; 
+						}
 					}
 				}
 				delete((backend->qdocs)[i]);

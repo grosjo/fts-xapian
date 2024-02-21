@@ -331,8 +331,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
-		if(!fts_backend_xapian_commitdocs(backend,"Set build key")) return FALSE;
-		
 		long fri = fts_backend_xapian_test_memory();
 		if(fri>=0)
         	{
