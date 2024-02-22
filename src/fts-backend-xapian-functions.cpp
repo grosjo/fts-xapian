@@ -375,9 +375,9 @@ class XNGram
 		{
 			for(i=0;i<size;i++)
 			{
-				i_free(data[i]);
+				free(data[i]);
 			}
-			i_free(data);
+			free(data);
 		}
 		data=NULL;
 		if(accentsConverter != NULL) delete(accentsConverter);
@@ -475,12 +475,13 @@ class XNGram
 		if(l<=hardlimit)
 		{
 			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XNGram->add_stem(%s)",s.substr(0,100).c_str());
-			s2 = i_strdup(s.c_str());
+			s2 = (char *)malloc((l+1)*sizeof(char));
+			strcpy(s2, s.c_str());
 			p=0;
 
 			if(size<1)
 			{
-				data=(char **)i_malloc(sizeof(char*));
+				data=(char **)malloc(sizeof(char*));
 				size=1;
 				data[0]=s2;
 				memory+= ((l+1) * sizeof(data[0][0]));
@@ -494,11 +495,11 @@ class XNGram
 				}
 				if((p<size) && (strcmp(data[p],s2)==0))
 				{
-					i_free(s2);
+					free(s2);
 				}
 				else
 				{
-					data=(char **)i_realloc(data,size*sizeof(char*),(size+1)*sizeof(char*));
+					data=(char **)realloc(data,(size+1)*sizeof(char*));
 					i=size;
 					while(i>p)
 					{
@@ -669,7 +670,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	openlog(title->c_str(), LOG_PID|LOG_CONS, LOG_MAIL);
 	if(fts_xapian_settings.verbose>0) 
 	{ 
-		syslog(LOG_INFO,"Writing %ld (old) + %ld (new) = %ld (total)",nbdocs,newdocs,nbdocs+newdocs);
+		syslog(LOG_INFO,"Closing DBW");
 	}
 	bool err=false;
 	try
@@ -686,7 +687,7 @@ static void fts_backend_xapian_commitclose(Xapian::WritableDatabase * db, long n
 	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
 	else if(fts_xapian_settings.verbose>0) syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdocs,fts_backend_xapian_current_time()-t);
 	delete(dbpath);
-	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit closed");
+	if(fts_xapian_settings.verbose>0) syslog(LOG_INFO,"Commit done");
         closelog();
 	delete(title);
 }
@@ -695,10 +696,14 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 
 static bool fts_backend_xapian_commitdocs(struct xapian_fts_backend *backend, const char * reason)
 {
+	backend->qadded=0; 
+
 	if(backend->qdocs == NULL) return true;
 
 	bool ok=true;
 
+	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Writing %ld (old) + %ld (new) = %ld (total)",backend->nbdocs,backend->qsize,backend->nbdocs + backend->qsize); }
+	
 	if(backend->qsize>0)
 	{
         	if(!fts_backend_xapian_check_access(backend))
@@ -708,10 +713,11 @@ static bool fts_backend_xapian_commitdocs(struct xapian_fts_backend *backend, co
         	}
 		else
         	{
-        		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing docIDs"); }
+        		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing %ld docIDs (%s)",backend->qsize,reason); }
 			long i=0;
                 	while(i < backend->qsize)
 			{
+				if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Closing %ld/%ld (%s)",i,backend->qsize,reason); }
 				try { backend->dbw->add_document(*((backend->qdocs)[i])); }
 				catch(Xapian::Error e)
 				{
@@ -732,6 +738,7 @@ static bool fts_backend_xapian_commitdocs(struct xapian_fts_backend *backend, co
 						}
 					}
 				}
+				if(ok) backend->qadded++;
 				delete((backend->qdocs)[i]);
 				i++;
 			}
@@ -770,12 +777,14 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 	{
 		if(fts_xapian_settings.verbose>0) { i_info("%s - Closing dbw",title->c_str()); }
 
+		long n = backend->nbdocs + backend->total_added_docs - backend->qadded;
+
 		if(fts_backend_xapian_isnormalprocess() && threaded)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("%s - Launching Thread for closing",title->c_str());
 			try
 			{
-				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, backend->nbdocs,backend->qsize,dbpath,title))->detach();
+				(new std::thread(fts_backend_xapian_commitclose,backend->dbw, n, backend->qadded, dbpath, title))->detach();
 			}
 			catch (const std::exception &ex)
 			{
@@ -789,7 +798,7 @@ static void fts_backend_xapian_release(struct xapian_fts_backend *backend, const
 		else
 		{
 			if(fts_xapian_settings.verbose>0) i_info("%s - Lauching direct closing",title->c_str());
-			fts_backend_xapian_commitclose(backend->dbw, backend->nbdocs,backend->qsize,dbpath,title);
+			fts_backend_xapian_commitclose(backend->dbw, n, backend->qadded,dbpath, title);
 		}
 	}
 	backend->dbw = NULL;
@@ -1054,12 +1063,12 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	{
 		if(backend->qdocs == NULL)
 		{
-			backend->qdocs=(Xapian::Document * *)i_malloc(sizeof(Xapian::Document * *));
+			backend->qdocs=(Xapian::Document * *)malloc(sizeof(Xapian::Document *));
 			backend->qsize=0;
 		}
         	else
         	{
-                	backend->qdocs=(Xapian::Document * *)i_realloc(backend->qdocs,backend->qsize * sizeof(Xapian::Document * *),(backend->qsize + 1)*sizeof(Xapian::Document * *));
+                	backend->qdocs=(Xapian::Document * *)realloc(backend->qdocs,(backend->qsize + 1)*sizeof(Xapian::Document *));
         	}
         	(backend->qdocs)[backend->qsize] = new Xapian::Document();
 		(backend->qdocs)[backend->qsize]->add_value(1,Xapian::sortable_serialise(backend->lastuid));
@@ -1072,18 +1081,23 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 		if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Indexing new doc %ld/%ld #%ld %s (%s)",backend->qcur,XAPIAN_ADDED_DOCS,backend->lastuid, backend->boxname, backend->db); }
 	}
 
+	if(fts_xapian_settings.verbose>0)
+        {
+                i_info("FTS Xapian: Ngram(%s) -> Input lenght : %ld",h,(long)(data->length()));
+        }
+
 	XNGram * ngram = new XNGram(h);
 	ngram->add(data);
 
-	if(fts_xapian_settings.verbose>1)
+	if(fts_xapian_settings.verbose>0)
 	{
-		i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, ngram->memory/1024);
+		i_info("FTS Xapian: Ngram(%s) -> %ld items (total %ld KB)",h,ngram->size, (long)(ngram->memory/1024));
 	}
 
 	for(i=0;i<ngram->size;i++)
 	{
 		u = i_strdup_printf("%s%s",h,ngram->data[i]);
-		backend->qdocs[backend->qcur]->add_term(u);
+		(backend->qdocs)[backend->qcur]->add_term(u);
 		i_free(u);
 	}
 	delete(ngram);

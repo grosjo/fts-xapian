@@ -35,6 +35,7 @@ struct xapian_fts_backend
         Xapian::Document * * qdocs;
 	long qcur;
 	long qsize; 
+	long qadded;
 
 	long lastuid;
 	long total_added_docs;
@@ -342,7 +343,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                 {
                         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->qsize, XAPIAN_ADDED_DOCS,backend->total_added_docs);
 			fts_backend_xapian_commitdocs(backend,"refreshing max docs");
-                        fts_backend_xapian_release(backend,"refreshing max docs", fts_backend_xapian_current_time(), false);
+                        fts_backend_xapian_release(backend,"refreshing max docs suite", fts_backend_xapian_current_time(), false);
                 }
 
 		backend->qcur = -1;
