@@ -18,6 +18,10 @@ extern "C" {
 #include <sys/stat.h>
 #include <syslog.h>
 
+class XDoc;
+
+typedef std::vector<XDoc *> XDocs;
+
 struct xapian_fts_backend
 {
 	struct fts_backend backend;
@@ -31,17 +35,11 @@ struct xapian_fts_backend
 	char * old_guid;
 	char * old_boxname;
 
-	Xapian::WritableDatabase * dbw;
-        Xapian::Document * * qdocs;
-	long qcur;
-	long qsize; 
-	long qadded;
+        XDocs * docs;
 
 	long lastuid;
 	long total_added_docs;
 	long start_time;
-
-	long nbdocs = 0;
 };
 
 struct xapian_fts_backend_update_context
@@ -74,12 +72,10 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
 	backend->db = NULL;
-	backend->dbw = NULL;
 
-	backend->qdocs = NULL;
-	backend->qcur = -1;
-	backend->qsize = 0;
+	backend->docs = NULL;
 	backend->lastuid = -1;
+	backend->total_added_docs=0;
 
 	backend->guid = NULL;
 	backend->path = NULL;
@@ -179,8 +175,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
-	fts_backend_xapian_commitdocs(backend,"update_deinit");
-	fts_backend_xapian_release(backend,"update_deinit",0,true);
+	fts_backend_xapian_flush(backend,"update_deinit");
 
 	i_free(ctx);
 
@@ -253,7 +248,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		fts_backend_xapian_oldbox(backend);
 		backend->old_guid = i_strdup(backend->guid);
 		backend->old_boxname = i_strdup(backend->boxname);
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing '%s' (%s)",backend->boxname,backend->db);
 	}
 
 	const char * field=key->hdr_name;
@@ -332,22 +326,24 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
+		if(backend->docs == NULL) backend->docs = new XDocs();
 		long fri = fts_backend_xapian_test_memory();
 		if(fri>=0)
         	{
                 	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-			fts_backend_xapian_commitdocs(backend,"Low memory indexing");
-                	fts_backend_xapian_release(backend,"Low memory indexing", 0, false);
+			fts_backend_xapian_flush(backend,"Low memory indexing");
         	}
-                else if(backend->qsize>=XAPIAN_ADDED_DOCS)
+                else if(backend->docs->size() >= XAPIAN_ADDED_DOCS)
                 {
-                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->qsize, XAPIAN_ADDED_DOCS,backend->total_added_docs);
-			fts_backend_xapian_commitdocs(backend,"refreshing max docs");
-                        fts_backend_xapian_release(backend,"refreshing max docs suite", fts_backend_xapian_current_time(), false);
+                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Refreshing after %ld updates (vs %ld) over %ld added docs ...", backend->docs->size(), XAPIAN_ADDED_DOCS,backend->total_added_docs);
+			fts_backend_xapian_flush(backend,"refreshing max docs");
                 }
 
-		backend->qcur = -1;
+		if(backend->docs == NULL) backend->docs = new XDocs();
                 backend->lastuid = ctx->tbi_uid;
+		backend->docs->push_back(new XDoc(backend->lastuid));
+		backend->total_added_docs++;
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%ld/%ld) : %s",backend->lastuid,backend->docs->size(),XAPIAN_ADDED_DOCS, backend->boxname);
         }
 
 	return TRUE;
@@ -373,8 +369,7 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
-	fts_backend_xapian_commitdocs(backend,"refresh");
-	fts_backend_xapian_release(backend,"refresh", 0, true);
+	fts_backend_xapian_flush(backend,"refresh");
 
 	return 0;
 }
