@@ -692,102 +692,102 @@ static bool fts_backend_xapian_isnormalprocess()
 
 static void fts_backend_xapian_flush_thread(char * title, char * dbpath, XDocs * docs, int verbose)
 {
-	openlog(title, LOG_PID|LOG_CONS, LOG_MAIL);
+	openlog(title, LOG_PID, LOG_MAIL);
 
 	if(verbose>0) syslog(LOG_INFO,"fts_backend_xapian_opendb");
        
 	try
 	{
- 
-        if((dbpath == NULL) || (strlen(dbpath)<1))
-        {
-                syslog(LOG_WARNING,"OpenDB: no DB name");
-		free(dbpath);
-		free(title);
-		delete(docs);
-		closelog();
-                return;
-        }
-      
-	if((docs == NULL) || (docs->size()<1))
-	{
-		syslog(LOG_WARNING,"OpenDB: no docs to write");
-		free(dbpath);
-                free(title);
-                delete(docs);
-		closelog();
-                return; 
-        }
- 
-	long t = fts_backend_xapian_current_time();
-	Xapian::WritableDatabase * dbw=NULL;
-
-        try
-        {
-		syslog(LOG_INFO,"WritableDatabase %s",dbpath);
-                dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
-		syslog(LOG_INFO,"WritableDatabase 2");
-        }
-        catch(Xapian::Error e)
-        {
-                syslog(LOG_INFO,"Can't open Xapian DB : %s - %s",e.get_type(),e.get_error_string());
-		free(dbpath);
-		free(title);
-		delete(docs);
-		closelog();
-                return;
-        }
-	
-        long nbdocs = dbw->get_doccount();
-        if(verbose>0) syslog(LOG_INFO,"OpenDB successful (%ld docs existing)",nbdocs);
-
-	bool err=false;	
-	long newdoc=0;
-	long i=docs->size();
-	XDoc * doc;
-	while(i>0) 
-	{
-		i--;
-		doc = docs->at(i);
-		docs->pop_back();
-		if(verbose>0) syslog(LOG_INFO,"Pushing Doc %ld (uid=%ld)",i,doc->uid);
-		if(doc->data.size() > 0)
+	 
+	        if((dbpath == NULL) || (strlen(dbpath)<1))
+	        {
+	                syslog(LOG_WARNING,"OpenDB: no DB name");
+			free(dbpath);
+			free(title);
+			delete(docs);
+			closelog();
+	                return;
+	        }
+	      
+		if((docs == NULL) || (docs->size()<1))
 		{
-			try
-			{
-				Xapian::Document *d = doc->get_document();
-				dbw->add_document(*d);
-				delete(d);
-			}
-			catch(Xapian::Error e)
-			{
-				syslog(LOG_ERR,"Can't add document : %s - %s",e.get_type(),e.get_error_string());
-				err=true;
-			}
-		}
-		delete(doc);
-		newdoc++;
-	}
-
-	if(verbose>0) syslog(LOG_INFO,"Commiting docs: %ld (old) + %ld (new) = %ld (total)",nbdocs,newdoc,nbdocs+newdoc);
+			syslog(LOG_WARNING,"OpenDB: no docs to write");
+			free(dbpath);
+	                free(title);
+	                delete(docs);
+			closelog();
+	                return; 
+	        }
+	 
+		long t = fts_backend_xapian_current_time();
+		Xapian::WritableDatabase * dbw=NULL;
 	
-        try     
-        {
-                dbw->close();
-        }
-        catch(Xapian::Error e)
-        {
-                if(verbose>0) syslog(LOG_ERR,"%s - %s",e.get_type(),e.get_error_string());
-		err=true;
-        }
-        delete(dbw);
-        
-	if(err) { syslog(LOG_ERR,"Could not commit this time, but will do a bit later"); }
-        else if(verbose>0) syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdoc,fts_backend_xapian_current_time()-t);
-        free(dbpath);
-	delete(docs);
-        if(verbose>0) syslog(LOG_INFO,"Commit done");
-	free(title);
+	        try
+	        {
+			syslog(LOG_INFO,"Opening %s",dbpath);
+	                dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
+			syslog(LOG_INFO,"DBW created");
+	        }
+	        catch(Xapian::Error e)
+	        {
+	                syslog(LOG_WARNING,"Can't open Xapian DB : %s - %s",e.get_type(),e.get_error_string());
+			free(dbpath);
+			free(title);
+			delete(docs);
+			closelog();
+	                return;
+	        }
+		
+	        long nbdocs = dbw->get_doccount();
+	        if(verbose>0) syslog(LOG_INFO,"OpenDB successful (%ld docs existing)",nbdocs);
+	
+		bool err=false;	
+		long newdoc=0;
+		long i=docs->size();
+		XDoc * doc;
+		while(i>0) 
+		{
+			i--;
+			doc = docs->at(i);
+			docs->pop_back();
+			if(verbose>0) syslog(LOG_INFO,"Pushing Doc %ld (uid=%ld)",i,doc->uid);
+			if(doc->data.size() > 0)
+			{
+				try
+				{
+					Xapian::Document *d = doc->get_document();
+					dbw->add_document(*d);
+					delete(d);
+				}
+				catch(Xapian::Error e)
+				{
+					syslog(LOG_ERR,"Can't add document : %s - %s",e.get_type(),e.get_error_string());
+					err=true;
+				}
+			}
+			delete(doc);
+			newdoc++;
+		}
+	
+		if(verbose>0) syslog(LOG_INFO,"Commiting docs: %ld (old) + %ld (new) = %ld (total)",nbdocs,newdoc,nbdocs+newdoc);
+		
+        	try     
+        	{
+                	dbw->close();
+        	}
+        	catch(Xapian::Error e)
+        	{
+                	if(verbose>0) syslog(LOG_ERR,"%s - %s",e.get_type(),e.get_error_string());
+			err=true;
+        	}
+        	delete(dbw);
+        	
+		if(err) { syslog(LOG_WARNING,"Could not commit this time, but will do a bit later"); }
+        	else if(verbose>0) syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdoc,fts_backend_xapian_current_time()-t);
+        	free(dbpath);
+		delete(docs);
+        	if(verbose>0) syslog(LOG_INFO,"Commit done");
+		free(title);
 	}
 	catch(Xapian::Error e)
         {
