@@ -664,20 +664,18 @@ class XDocsWriter
 		long * totaldocs;
 	public:
 		
-	XDocsWriter(struct xapian_fts_backend *backend, const char* reason)
+	XDocsWriter(struct xapian_fts_backend *backend)
 	{
 		dbpath=(char *)malloc((strlen(backend->db)+1)*sizeof(char));
 		strcpy(dbpath,backend->db);
         	backend->threads_total++;
                         
         	std::string s;
-		s.clear(); s.append("FTS Xapian: Flush #");
+		s.clear(); s.append("FTS Xapian: DocsWriter #");
         	s.append(std::to_string(backend->threads_total));
         	s.append(" (");
         	s.append(backend->boxname);
         	s.append(") - ");
-        	s.append(reason);
-        	s.append(" - ");
 		title=(char *)malloc((s.length()+1)*sizeof(char));
 		strcpy(title,s.c_str());
 
@@ -709,16 +707,16 @@ class XDocsWriter
 
 	void lock(const char * reason)
 	{       
-        	if(verbose) syslog(LOG_INFO,"Mutex ON : %s",reason);
+        	if(verbose) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
         	m->lock();
-		if(verbose) syslog(LOG_INFO,"Mutex ON OK : %s",reason);
+		if(verbose) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
 	}
 
 	void unlock(const char * reason)
         {
-                if(verbose) syslog(LOG_INFO,"Mutex OFF : %s",reason);
+                if(verbose) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
                 m->unlock();
-                if(verbose) syslog(LOG_INFO,"Mutex OFF OK : %s",reason);
+                if(verbose) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
         }
 
 	void terminate()
@@ -777,19 +775,17 @@ class XDocsWriter
 	void worker()
 	{
 		start_time = fts_backend_xapian_current_time();
-                long i=docs->size();
-                while(i>0)
+                long n=docs->size();
+		long i=0;
+                while(i<n)
                 {
-                        if(verbose) syslog(LOG_INFO,"%sProcessing #%ld",title,i);
-                        i--;
+                        if(verbose) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,docs->at(i)->uid,i+1,n);
                         docs->at(i)->populate_stems();
                         docs->at(i)->create_document();
-			if(verbose) syslog(LOG_INFO,"%sProcessing #%ld done",title,i+1);
+			i++;
                 }
-
                 bool err=false;
                 long newdoc=0;
-                long n=docs->size();
 		i=n;
                 XDoc * doc;
                 while(i>0)
@@ -941,7 +937,7 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 
 	if((backend->threads).size()<(backend->threads_max))
 	{
-		XDocsWriter * x = new XDocsWriter(backend,reason);
+		XDocsWriter * x = new XDocsWriter(backend);
 		(backend->threads).push_back(x);
 		x->launch();
 		return true;
@@ -957,7 +953,7 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	{
 		found=true;
 		if((backend->threads)[i]!=NULL) delete((backend->threads)[i]);
-		(backend->threads)[i] = new XDocsWriter(backend,reason);
+		(backend->threads)[i] = new XDocsWriter(backend);
 	}
 	fts_backend_xapian_unlock(backend,"push");
 	if(found) (backend->threads)[i]->launch();
