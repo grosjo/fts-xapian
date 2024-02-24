@@ -343,8 +343,9 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			while((!fts_backend_xapian_push(backend,s.c_str())) && (backend->docs->size()>XAPIAN_BUFFER_DOCS))
 			{
 				i_info("SLEEP 1");
-				sleep(1); //usleep(500000);
+				sleep(1);
 			}
+			i_info("SLEEP 1 OUT");
 		}
 		else if(backend->docs == NULL) backend->docs = new XDocs();
 		long fri = fts_backend_xapian_test_memory();

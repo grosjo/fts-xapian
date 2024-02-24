@@ -635,45 +635,44 @@ class XDoc
 
 	void create_document()
 	{
+		long i;
 		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
 		xdoc->add_term(uterm);
-		for(long i=0;i<data->size();i++)
+		while((i=data->size())>0)
 		{
- 			xdoc->add_term(data->at(i)->c_str());
-			delete(data->at(i)); 
-			data->at(i)=NULL;
+ 			xdoc->add_term(data->at(i-1)->c_str());
+			delete(data->at(i-1)); 
+			data->at(i-1)=NULL;
+			data->pop_back();
 		}
-		data->clear();
 	} 
 };
 
-static void fts_backend_xapian_worker(void *p);
+static void fts_backend_xapian_worker(void *p, const char* c);
 
 class XDocsWriter
 {
 	private:
-		char * title;
 		char * dbpath;
 		XDocs * docs;
 		std::mutex * m;
 		bool terminated;
 		Xapian::WritableDatabase * * dbw;
 		bool verbose;
-		long start_time;
 		long * totaldocs;
+		long tid;
 	public:
+		char * title;
 		
 	XDocsWriter(struct xapian_fts_backend *backend)
 	{
 		dbpath=(char *)malloc((strlen(backend->db)+1)*sizeof(char));
 		strcpy(dbpath,backend->db);
         	backend->threads_total++;
-                        
+                tid = backend->threads_total; 
         	std::string s;
-		s.clear(); s.append("FTS Xapian: DocsWriter #");
-        	s.append(std::to_string(backend->threads_total));
-        	s.append(" (");
+		s.clear(); s.append("DocsWriter(");
         	s.append(backend->boxname);
         	s.append(") - ");
 		title=(char *)malloc((s.length()+1)*sizeof(char));
@@ -745,7 +744,8 @@ class XDocsWriter
 			terminate();
 			return;
 		}
-		new std::thread(fts_backend_xapian_worker,this);
+		std::string s("xapian_worker_"+std::to_string(tid));
+		new std::thread(fts_backend_xapian_worker,this,s.c_str());
 	}
 
 	bool checkDB()
@@ -761,7 +761,6 @@ class XDocsWriter
                         catch(Xapian::Error e)
                         {
                                 syslog(LOG_ERR,"%sCan't open Xapian DB : %s - %s",title,e.get_type(),e.get_error_string());
-                                terminate();
                                 return false;
                         }
                         long nbdocs = (*dbw)->get_doccount();
@@ -772,25 +771,20 @@ class XDocsWriter
 
 	void worker()
 	{
-		start_time = fts_backend_xapian_current_time();
+		long start_time = fts_backend_xapian_current_time();
                 long n=docs->size();
-		long i=0;
-                while(i<n)
-                {
-                        if(verbose) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,docs->at(i)->uid,i+1,n);
-                        docs->at(i)->populate_stems();
-                        docs->at(i)->create_document();
-			i++;
-                }
                 bool err=false;
-                long newdoc=0;
-		i=n;
+                long i,newdoc=0;
                 XDoc * doc;
-                while(i>0)
+                while((i=docs->size())>0)
                 {
                         i--;
                         doc = docs->at(i);
-                        docs->pop_back();
+			docs->at(i) = NULL;
+			docs->pop_back();
+			if(verbose) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,doc->uid,i+1,n);
+			doc->populate_stems();
+			doc->create_document();
                         if(verbose) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
                         if(doc->stems > 0)
                         {
@@ -801,7 +795,7 @@ class XDocsWriter
 					{
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
 						(*totaldocs)++;
-					}
+					} else err=true;
                                 }
                                 catch(Xapian::Error e)
                                 {
@@ -815,7 +809,7 @@ class XDocsWriter
                                 }
 				if(err)
 				{
-					syslog(LOG_ERR,"%s Retrying");
+					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
 					try
 					{
 						(*dbw)->close();
@@ -846,9 +840,9 @@ class XDocsWriter
 	}
 };
 
-static void fts_backend_xapian_worker(void *p)
+static void fts_backend_xapian_worker(void *p, const char * slog)
 {
-	openlog("xapian_worker",LOG_PID,LOG_MAIL);
+	openlog(slog,0,LOG_MAIL);
 	XDocsWriter *xw = (XDocsWriter *)p;
 	xw->worker();
 	closelog();
@@ -991,23 +985,26 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		fts_backend_xapian_lock(backend,"close");
 		if((backend->threads)[i]==NULL)
 		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread %ld because null",i);
 			(backend->threads).pop_back();
 			fts_backend_xapian_unlock(backend,"close1");
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread %ld because terminated",i);
 			delete((backend->threads)[i]);
+			(backend->threads)[i]=NULL;
 			(backend->threads).pop_back();
 			fts_backend_xapian_unlock(backend,"close2");
 		}
 		else
 		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld",i);
 			fts_backend_xapian_unlock(backend,"close3");
-			i_info("SLEEP 2");
-			//usleep(500000);
 			sleep(1);
 		}
 	}
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DB");
 	try     
         {
 		if(backend->dbw != NULL) backend->dbw->close();        
@@ -1018,6 +1015,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
         {
                 i_error("FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());      
         }
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All closed");
 }
 
 static bool fts_backend_xapian_isnormalprocess()
@@ -1075,7 +1073,7 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	while(!fts_backend_xapian_push(backend,"unset_box")) 
 	{ 
 		i_info("SLEEP 3");
-		sleep(1); //usleep(500000); 
+		sleep(1);
 	}
 	fts_backend_xapian_close(backend,"unset box");
 	fts_backend_xapian_oldbox(backend);
