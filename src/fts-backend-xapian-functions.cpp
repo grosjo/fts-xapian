@@ -516,14 +516,26 @@ class XNGram
 
 class XDoc
 {
-        public:
-		long uid;
+	private:
                 std::vector<std::string *> data;
+		std::vector<icu::UnicodeString *> strings;
+		std::vector<std::string *> headers;
+	public:
+		long uid,size,stems;
+		std::string uterm;
+		Xapian::Document * xdoc;
  
         XDoc(long luid)
 	{
 		uid=luid;
 		data.clear();
+		strings.clear();
+		headers.clear();
+		size=0;
+		stems=0;
+		uterm.clear();
+                uterm.append("Q"+std::to_string(uid));
+		xdoc=NULL;
 	}
 
 	~XDoc() 
@@ -532,21 +544,49 @@ class XDoc
 		{
 			delete(s);
 		}
-		data.clear(); 
+		data.clear();
+		for (std::string *s : headers)
+		{
+			delete(s);
+		}
+		headers.clear();
+		for (icu::UnicodeString * t : strings)
+		{
+			delete(t);
+		}
+		strings.clear();
+		if(xdoc!=NULL) delete(xdoc);
 	}
 
 	void add(const char *h, icu::UnicodeString* t)
 	{
-		XNGram ngram(h);
-		ngram.add(t);
+		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
+		strings.push_back(t2);
+
+		std::string * h2 = new std::string(h);
+		headers.push_back(h2);
+	
+		size++;
+	}
+
+	void populate_stems()
+	{
+		long i,j; 
+		while((j=headers.size())>0)
+		{
+			XNGram ngram(headers[j-1]->c_str());
+			ngram.add(strings[j-1]);
  
-		for(long i=0;i<ngram.size;i++)
-                {
-			std::string *s = new std::string();
-			s->clear();
-			s->append(h); 
-			s->append(ngram.data[i]);
-                        add(s);
+			for(i=0;i<ngram.size;i++)
+                	{
+				std::string *s = new std::string();
+				s->clear();
+				s->append(headers[j-1]->c_str()); 
+				s->append(ngram.data[i]);
+                        	add(s);
+			}
+			delete(headers[j-1]); headers.pop_back();
+			delete(strings[j-1]); strings.pop_back();
                 }
 	}
 
@@ -562,21 +602,21 @@ class XDoc
 			delete(s);
 			return;
 		}
+		stems++;
 		data.insert(data.begin()+i,s);
 	}
 
-	Xapian::Document*  get_document()
+	void create_document()
 	{
-		Xapian::Document* xdoc = new Xapian::Document();
+		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
-		char u[100];
-		sprintf(u,"Q%ld",uid);
-		xdoc->add_term(u);
+		xdoc->add_term(uterm.c_str());
 		for(long i=0;i<data.size();i++)
 		{
  			xdoc->add_term(data[i]->c_str());
+			delete(data[i]);
 		}
-		return xdoc;
+		data.clear();
 	} 
 };
 
@@ -690,113 +730,146 @@ static bool fts_backend_xapian_isnormalprocess()
     	return (strstr(buff,"doveadm")==NULL);
 }
 
-static void fts_backend_xapian_flush_thread(char * title, char * dbpath, XDocs * docs, int verbose)
+static void fts_backend_xapian_flush_thread(char * title, char * dbpath, XDocs * docs, int verbose, int * status)
 {
-	openlog(title, LOG_PID, LOG_MAIL);
+	openlog("flush_thread", LOG_PID, LOG_MAIL);
 
-	if(verbose>0) syslog(LOG_INFO,"fts_backend_xapian_opendb");
-       
 	try
 	{
-	 
 	        if((dbpath == NULL) || (strlen(dbpath)<1))
 	        {
-	                syslog(LOG_WARNING,"OpenDB: no DB name");
+	                syslog(LOG_WARNING,"%sOpenDB: no DB name",title);
 			free(dbpath);
 			free(title);
 			delete(docs);
 			closelog();
+			*status=0;
 	                return;
 	        }
 	      
 		if((docs == NULL) || (docs->size()<1))
 		{
-			syslog(LOG_WARNING,"OpenDB: no docs to write");
+			syslog(LOG_WARNING,"%sOpenDB: no docs to write",title);
 			free(dbpath);
 	                free(title);
 	                delete(docs);
 			closelog();
+			*status=0;
 	                return; 
 	        }
-	 
+	
 		long t = fts_backend_xapian_current_time();
+		long i=docs->size();
+                while(i>0)
+                {
+			if(verbose>0) syslog(LOG_INFO,"%sProcessing %ld",title,i);
+                        i--;
+                        docs->at(i)->populate_stems();
+			docs->at(i)->create_document();
+		}
+
+                // TEST if database is locked
+                {
+                        Xapian::Database * db = new Xapian::Database(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+                        while(db->locked())
+                        {
+                                db->close();
+                                delete(db); db=NULL;
+                                if(verbose>0) syslog(LOG_INFO,"%sWaiting for write lock",title);
+                                sleep(2);
+                                db = new Xapian::Database(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+                        }
+                        db->close();
+                        delete(db); db=NULL;
+                }
+
 		Xapian::WritableDatabase * dbw=NULL;
 	
 	        try
 	        {
-			syslog(LOG_INFO,"Opening %s",dbpath);
+			if(verbose>0) syslog(LOG_INFO,"%sOpening %s",title,dbpath);
 	                dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
-			syslog(LOG_INFO,"DBW created");
+			syslog(LOG_INFO,"%sDBW created",title);
 	        }
 	        catch(Xapian::Error e)
 	        {
-	                syslog(LOG_WARNING,"Can't open Xapian DB : %s - %s",e.get_type(),e.get_error_string());
+	                syslog(LOG_WARNING,"%sCan't open Xapian DB : %s - %s",title,e.get_type(),e.get_error_string());
 			free(dbpath);
 			free(title);
 			delete(docs);
 			closelog();
+			*status=0;
 	                return;
 	        }
 		
 	        long nbdocs = dbw->get_doccount();
-	        if(verbose>0) syslog(LOG_INFO,"OpenDB successful (%ld docs existing)",nbdocs);
+	        if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
 	
 		bool err=false;	
 		long newdoc=0;
-		long i=docs->size();
+		i=docs->size();
 		XDoc * doc;
 		while(i>0) 
 		{
 			i--;
 			doc = docs->at(i);
 			docs->pop_back();
-			if(verbose>0) syslog(LOG_INFO,"Pushing Doc %ld (uid=%ld)",i,doc->uid);
-			if(doc->data.size() > 0)
+			if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (uid=%ld) with %ld strings and %ld stems",title,i,doc->uid,doc->size,doc->stems);
+			if(doc->stems > 0)
 			{
 				try
 				{
-					Xapian::Document *d = doc->get_document();
-					dbw->add_document(*d);
-					delete(d);
+					dbw->replace_document(doc->uterm,*(doc->xdoc));
 				}
 				catch(Xapian::Error e)
 				{
-					syslog(LOG_ERR,"Can't add document : %s - %s",e.get_type(),e.get_error_string());
+					syslog(LOG_ERR,"%sCan't add document : %s - %s",title,e.get_type(),e.get_error_string());
 					err=true;
 				}
+				catch(std::exception e)
+				{
+                                        syslog(LOG_ERR,"%sCan't add document2 : %s",title,e.what());
+                                        err=true;
+                                }
 			}
 			delete(doc);
 			newdoc++;
 		}
 	
-		if(verbose>0) syslog(LOG_INFO,"Commiting docs: %ld (old) + %ld (new) = %ld (total)",nbdocs,newdoc,nbdocs+newdoc);
+		if(verbose>0) syslog(LOG_INFO,"%sCommiting docs: %ld (old) + %ld (new) = %ld (total)",title,nbdocs,newdoc,nbdocs+newdoc);
 		
         	try     
         	{
                 	dbw->close();
+			syslog(LOG_INFO,"JOJO0");
         	}
         	catch(Xapian::Error e)
         	{
-                	if(verbose>0) syslog(LOG_ERR,"%s - %s",e.get_type(),e.get_error_string());
+                	if(verbose>0) syslog(LOG_ERR,"%s%s - %s",title,e.get_type(),e.get_error_string());
 			err=true;
         	}
-        	delete(dbw);
-        	
-		if(err) { syslog(LOG_WARNING,"Could not commit this time, but will do a bit later"); }
-        	else if(verbose>0) syslog(LOG_INFO, "Committed %ld docs in %ld ms",newdoc,fts_backend_xapian_current_time()-t);
-        	free(dbpath);
+		if(err) { syslog(LOG_WARNING,"%sCould not commit this time, but will do a bit later",title); }
+        	else if(verbose>0) syslog(LOG_INFO, "%sCommitted %ld docs in %ld ms",title,newdoc,fts_backend_xapian_current_time()-t);
+		delete(dbw);
+        	syslog(LOG_INFO,"JOJO1");
+		free(dbpath);
+		syslog(LOG_INFO,"JOJO2");
 		delete(docs);
-        	if(verbose>0) syslog(LOG_INFO,"Commit done");
+		syslog(LOG_INFO,"JOJO3");
+        	if(verbose>0) syslog(LOG_INFO,"%sCommit done",title);
 		free(title);
 	}
 	catch(Xapian::Error e)
         {
-                syslog(LOG_INFO,"Thread execption1 : %s - %s",e.get_type(),e.get_error_string());
+                syslog(LOG_INFO,"Thread exception1 : %s - %s",e.get_type(),e.get_error_string());
 	}
 	catch(std::exception e)
         {
-                syslog(LOG_INFO,"Thread execption : %s",e.what());
+                syslog(LOG_INFO,"Thread exception : %s",e.what());
         }
+	syslog(LOG_INFO,"JOJO4");
+	*status=0;
+	syslog(LOG_INFO,"JOJO5");
         closelog();
 }
 
@@ -811,33 +884,49 @@ static bool fts_backend_xapian_flush(struct xapian_fts_backend *backend, const c
 
 	char * dbpath = (char *)malloc( (strlen(backend->db)+1) * sizeof(char));
 	strcpy(dbpath,backend->db);
+
+	backend->threads++;
 	
-	std::string s("FTS Xapian: Flush(");
+	std::string s("FTS Xapian: Flush #");
+	s.append(std::to_string(backend->threads));
+	s.append(" (");
         s.append(backend->boxname);
-        s.append(",");
-        s.append(dbpath);
         s.append(") - ");
         s.append(reason);
+	s.append(" - ");
 	char * title = (char *)malloc( (s.length()+1) * sizeof(char));
 	strcpy(title,s.c_str());
 
-	if(fts_xapian_settings.verbose>0) i_info("%s - Launching thread",title);
+	long i;
+	bool found=false;
+	while(!found)
+	{
+		i=0;
+		while((i<backend->threads_max) && ((backend->threads_status)[i]>0))
+		{
+			i++;
+		}
+		if(i<backend->threads_max) { found=true; }
+		else 
+		{
+			if(fts_xapian_settings.verbose>0) i_info("%sToo many threads vs %ld capacity",title,backend->threads_max);
+			sleep(2);
+		} 
+	}
+	(backend->threads_status)[i]=1;
+
+	//fts_backend_xapian_flush_thread(title,dbpath,backend->docs,fts_xapian_settings.verbose);
+
+	if(fts_xapian_settings.verbose>0) i_info("%sLaunching thread #%ld (vs %ld capacity)",title,backend->threads,backend->threads_max);
         try
         {
-		//fts_backend_xapian_flush_thread(title,dbpath,backend->docs,fts_xapian_settings.verbose);
-		//new std::thread(fts_backend_xapian_flush_thread,title,dbpath,backend->docs,fts_xapian_settings.verbose);
-                (new std::thread(fts_backend_xapian_flush_thread,title,dbpath,backend->docs,fts_xapian_settings.verbose))->detach(); 
+               	(new std::thread(fts_backend_xapian_flush_thread,title,dbpath,backend->docs,fts_xapian_settings.verbose,backend->threads_status+i))->detach(); 
         }
         catch (const std::exception &ex)
         {
                 i_error("%s - Thread Closing ERROR(%s)",s.c_str(),ex.what());
 		ok=false;
-        }
-        catch (const std::string &ex)
-        {
-                i_error("%s - Thread Closing ERROR2(%s)",s.c_str(),ex.c_str());
-		ok=false;
-        }
+       	}
 	if(ok) { backend->docs=NULL; }
 	return ok;
 }

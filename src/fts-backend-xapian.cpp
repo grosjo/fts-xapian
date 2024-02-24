@@ -36,6 +36,9 @@ struct xapian_fts_backend
 	char * old_boxname;
 
         XDocs * docs;
+	long threads;
+	int * threads_status;
+	long threads_max;
 
 	long lastuid;
 	long total_added_docs;
@@ -74,6 +77,10 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->db = NULL;
 
 	backend->docs = NULL;
+	backend->threads=0;
+	backend->threads_max = std::thread::hardware_concurrency();
+        backend->threads_status = (int*)i_malloc(sizeof(int) * backend->threads_max);
+        long i=backend->threads_max; while(i>0) { (backend->threads_status)[i-1]=0; i--; }
 	backend->lastuid = -1;
 	backend->total_added_docs=0;
 
@@ -109,6 +116,22 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
 
+	bool found=false;
+        while(!found)
+        {
+                long i=0;
+                while((i<backend->threads_max) && ((backend->threads_status)[i]>0))
+                {
+                        i++;
+                }
+                if(i<backend->threads_max) { found=true; }
+                else
+                {
+                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for threads to finish");
+                        sleep(2);
+                }
+        }
+	i_free(backend->threads_status);
 	i_free(backend);
 }
 
