@@ -721,9 +721,7 @@ class XDocsWriter
 
 	void terminate()
 	{
-		lock("xw terminate");
 		terminated=true;
-		unlock("xw terminate");
 	}
 
 	bool isTerminated()
@@ -796,15 +794,14 @@ class XDocsWriter
                         if(verbose) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
                         if(doc->stems > 0)
                         {
+				lock("replace doc");
                                 try
                                 {
-					lock("replace doc");
 					if(checkDB())
 					{
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
 						(*totaldocs)++;
 					}
-					unlock("replace doc");
                                 }
                                 catch(Xapian::Error e)
                                 {
@@ -816,6 +813,30 @@ class XDocsWriter
                                         syslog(LOG_ERR,"%sCan't add document2 : %s",title,e.what());
                                         err=true;
                                 }
+				if(err)
+				{
+					syslog(LOG_ERR,"%s Retrying");
+					try
+					{
+						(*dbw)->close();
+						delete(*dbw);
+						*dbw=NULL;
+						if(checkDB())
+                                        	{       
+                                        	        (*dbw)->replace_document(doc->uterm,*(doc->xdoc));
+                                        	        (*totaldocs)++;
+                                        	}
+					}
+					catch(Xapian::Error e)
+                                	{       
+                                        	syslog(LOG_ERR,"%sCan't add document3 : %s - %s",title,e.get_type(),e.get_error_string());
+                                	}
+                                	catch(std::exception e)
+                                	{       
+                                        	syslog(LOG_ERR,"%sCan't add document4 : %s",title,e.what());
+                                	}
+				}
+				unlock("replace doc");
                         }
                         delete(doc);
                         newdoc++;
