@@ -649,7 +649,7 @@ class XDoc
 	} 
 };
 
-static void fts_backend_xapian_worker(void *p, const char* c);
+static void fts_backend_xapian_worker(void *p);
 
 class XDocsWriter
 {
@@ -672,7 +672,7 @@ class XDocsWriter
         	backend->threads_total++;
                 tid = backend->threads_total; 
         	std::string s;
-		s.clear(); s.append("DocsWriter(");
+		s.clear(); s.append("DW #"+std::to_string(tid)+" (");
         	s.append(backend->boxname);
         	s.append(") - ");
 		title=(char *)malloc((s.length()+1)*sizeof(char));
@@ -680,6 +680,14 @@ class XDocsWriter
 
 		docs = backend->docs;
 		backend->docs = new XDocs();
+		long i; 
+		while((i=docs->size())>XAPIAN_THREAD_SIZE)
+		{
+			backend->docs->push_back(docs->at(i-1));
+			docs->at(i-1)=NULL;
+			docs->pop_back();
+		}
+		
 		m=&(backend->mutex);
 		terminated = false;
 		dbw=&(backend->dbw);
@@ -744,8 +752,7 @@ class XDocsWriter
 			terminate();
 			return;
 		}
-		std::string s("xapian_worker_"+std::to_string(tid));
-		new std::thread(fts_backend_xapian_worker,this,s.c_str());
+		new std::thread(fts_backend_xapian_worker,this);
 	}
 
 	bool checkDB()
@@ -840,12 +847,10 @@ class XDocsWriter
 	}
 };
 
-static void fts_backend_xapian_worker(void *p, const char * slog)
+static void fts_backend_xapian_worker(void *p)
 {
-	openlog(slog,0,LOG_MAIL);
 	XDocsWriter *xw = (XDocsWriter *)p;
 	xw->worker();
-	closelog();
 }
 	
 static long fts_backend_xapian_get_free_memory() // KB

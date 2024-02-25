@@ -100,6 +100,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
+	openlog("xapian-docswriter",0,LOG_MAIL);
+
         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
 
 	return 0;
@@ -123,6 +125,8 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	backend->path = NULL;
 
 	i_free(backend);
+
+	closelog();
 }
 
 
