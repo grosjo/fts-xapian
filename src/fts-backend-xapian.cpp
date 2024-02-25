@@ -340,19 +340,17 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
+		long fri = fts_backend_xapian_test_memory();
 		if(backend->lastuid>0)
 		{
 			std::string s("New doc ready to index "); s.append(std::to_string(backend->lastuid));
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
-			while((!fts_backend_xapian_push(backend,s.c_str())) && (backend->docs->size()>XAPIAN_BUFFER_DOCS))
+			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_BUFFER_DOCS) || (fri>=0)))
 			{
-				i_info("SLEEP 1");
 				sleep(1);
 			}
-			i_info("SLEEP 1 OUT");
 		}
 		else if(backend->docs == NULL) backend->docs = new XDocs();
-		long fri = fts_backend_xapian_test_memory();
 		if(fri>=0)
         	{
                 	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);

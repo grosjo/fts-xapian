@@ -678,14 +678,13 @@ class XDocsWriter
 		title=(char *)malloc((s.length()+1)*sizeof(char));
 		strcpy(title,s.c_str());
 
-		docs = backend->docs;
-		backend->docs = new XDocs();
-		long i; 
-		while((i=docs->size())>XAPIAN_THREAD_SIZE)
+		docs = new XDocs();
+		long i;
+		while((docs->size()<XAPIAN_THREAD_SIZE) && ((i=backend->docs->size())>0))
 		{
-			backend->docs->push_back(docs->at(i-1));
-			docs->at(i-1)=NULL;
-			docs->pop_back();
+			docs->push_back(backend->docs->at(i-1));
+			backend->docs->at(i-1)=NULL;
+			backend->docs->pop_back();	
 		}
 		
 		m=&(backend->mutex);
@@ -1077,7 +1076,6 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	while(!fts_backend_xapian_push(backend,"unset_box")) 
 	{ 
-		i_info("SLEEP 3");
 		sleep(1);
 	}
 	fts_backend_xapian_close(backend,"unset box");
