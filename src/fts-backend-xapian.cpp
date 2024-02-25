@@ -47,6 +47,7 @@ struct xapian_fts_backend
 
 	long lastuid;
 	long total_added_docs;
+	long batch_write;
 	long start_time;
 };
 
@@ -88,6 +89,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	
 	backend->lastuid = -1;
 	backend->total_added_docs=0;
+	backend->batch_write=0;
 
 	backend->dbw = NULL;
 	backend->guid = NULL;
@@ -354,25 +356,30 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		if(fri>=0)
         	{
                 	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
+		}
+		if((fri>=0) || (backend->batch_write > XAPIAN_WRITING_CACHE))
+		{ 
 			if(backend->dbw != NULL)
 			{
-				fts_backend_xapian_lock(backend,"low mem");
+				fts_backend_xapian_lock(backend,"sync to disk");
 				try
 				{
 					backend->dbw->close();
 				}
 				catch(Xapian::Error e)
 				{
-					i_error("FTS Xapian: Low meme, error closing db %s",e.get_msg().c_str());
+					i_error("FTS Xapian: Sync to disk, error closing db %s",e.get_msg().c_str());
 				}
 				delete(backend->dbw);
 				backend->dbw = NULL;
-				fts_backend_xapian_unlock(backend,"low mem");
+				backend->batch_write=0;
+				fts_backend_xapian_unlock(backend,"sync to disk");
 			}
         	}
                 backend->lastuid = ctx->tbi_uid;
 		backend->docs->push_back(new XDoc(backend->lastuid));
 		backend->total_added_docs++;
+		backend->batch_write++;
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Buffer %ld",backend->lastuid, backend->boxname,backend->docs->size());
         }
 
