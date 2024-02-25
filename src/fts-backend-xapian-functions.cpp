@@ -2,16 +2,16 @@
 
 static void fts_backend_xapian_lock(struct xapian_fts_backend *backend, const char * reason)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON : %s",reason);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex ON : %s",reason);
 	backend->mutex.lock();
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON OK : %s",reason);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex ON OK : %s",reason);
 }
 
 static void fts_backend_xapian_unlock(struct xapian_fts_backend *backend, const char * reason)
 {               
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF : %s",reason);
+        if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex OFF : %s",reason);
         backend->mutex.unlock();
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF OK : %s",reason);
+        if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex OFF OK : %s",reason);
 }
  
 static long fts_backend_xapian_current_time()
@@ -659,7 +659,7 @@ class XDocsWriter
 		std::mutex * m;
 		bool terminated;
 		Xapian::WritableDatabase * * dbw;
-		bool verbose;
+		long verbose;
 		long * totaldocs;
 		long tid;
 	public:
@@ -691,7 +691,7 @@ class XDocsWriter
 		terminated = false;
 		dbw=&(backend->dbw);
 		totaldocs = &(backend->total_added_docs);
-		verbose=(fts_xapian_settings.verbose>0);
+		verbose=fts_xapian_settings.verbose;
 	}
 
 	~XDocsWriter()
@@ -713,16 +713,16 @@ class XDocsWriter
 
 	void lock(const char * reason)
 	{       
-        	if(verbose) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
+        	if(verbose>1) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
         	m->lock();
-		if(verbose) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
+		if(verbose>1) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
 	}
 
 	void unlock(const char * reason)
         {
-                if(verbose) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
+                if(verbose>1) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
                 m->unlock();
-                if(verbose) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
+                if(verbose>1) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
         }
 
 	void terminate()
@@ -735,23 +735,45 @@ class XDocsWriter
 		return terminated;
 	}
 
-	void launch()
+	void recover(struct xapian_fts_backend *backend)
+        {
+		long i;
+		while((i=docs->size())>0)
+		{
+			backend->docs->push_back(docs->at(i-1));
+			docs->at(i-1)=NULL;
+			docs->pop_back();
+		}
+		terminate();
+	}
+
+	bool launch()
 	{
 		i_info("%s LAUNCH",title);
 		if(strlen(dbpath)<1)
                 {
                         i_info("%sOpenDB: no DB name",title);
 			terminate();
-			return;
+			return false;
 		}
 
                 if((docs == NULL) || (docs->size()<1))
                 {
                         i_info("%sOpenDB: no docs to write",title);
 			terminate();
-			return;
+			return false;
 		}
-		new std::thread(fts_backend_xapian_worker,this);
+		
+		try
+		{
+			new std::thread(fts_backend_xapian_worker,this);
+		}
+		catch(std::exception e)
+		{
+			i_error("%sThread error %s",e.what());
+			return false;
+		}
+		return true;
 	}
 
 	bool checkDB()
@@ -760,9 +782,9 @@ class XDocsWriter
                 {
                         try
                         {
-                                if(verbose) syslog(LOG_INFO,"%sOpening %s",title,dbpath);
+                                if(verbose>0) syslog(LOG_INFO,"%sOpening %s",title,dbpath);
                                 *dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
-                                if(verbose) syslog(LOG_INFO,"%sDBW created",title);
+                                if(verbose>1) syslog(LOG_INFO,"%sDBW created",title);
                         }
                         catch(Xapian::Error e)
                         {
@@ -770,7 +792,7 @@ class XDocsWriter
                                 return false;
                         }
                         long nbdocs = (*dbw)->get_doccount();
-                        if(verbose) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
+                        if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
                 }
 		return true;
 	}
@@ -788,10 +810,10 @@ class XDocsWriter
                         doc = docs->at(i);
 			docs->at(i) = NULL;
 			docs->pop_back();
-			if(verbose) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,doc->uid,i+1,n);
+			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,doc->uid,i+1,n);
 			doc->populate_stems();
 			doc->create_document();
-                        if(verbose) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
+                        if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
                         if(doc->stems > 0)
                         {
 				lock("replace doc");
@@ -841,7 +863,7 @@ class XDocsWriter
                         delete(doc);
                         newdoc++;
                 }
-                if(verbose) syslog(LOG_INFO,"%sWrote %ld new docs in %ld ms",title,newdoc,fts_backend_xapian_current_time() - start_time);
+                if(verbose>0) syslog(LOG_INFO,"%sWrote %ld new docs in %ld ms",title,newdoc,fts_backend_xapian_current_time() - start_time);
 		terminate();
 	}
 };
@@ -958,7 +980,12 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	{
 		XDocsWriter * x = new XDocsWriter(backend);
 		(backend->threads).push_back(x);
-		x->launch();
+		if(!(x->launch()))
+		{
+			x->recover(backend);
+			sleep(1);
+			return false;
+		}
 		return true;
 	}
 	fts_backend_xapian_lock(backend,"push");
@@ -975,7 +1002,15 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 		(backend->threads)[i] = new XDocsWriter(backend);
 	}
 	fts_backend_xapian_unlock(backend,"push");
-	if(found) (backend->threads)[i]->launch();
+	if(found) 
+	{
+		if(!((backend->threads)[i]->launch())) 
+		{
+			(backend->threads)[i]->recover(backend);
+			sleep(1);
+			return false;
+		}
+	}
 	return found;
 }
 
