@@ -345,7 +345,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		{
 			std::string s("New doc ready to index "); s.append(std::to_string(backend->lastuid));
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
-			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_BUFFER_DOCS) || (fri>=0)))
+			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_THREAD_SIZE*backend->threads_max) || (fri>=0)))
 			{
 				sleep(1);
 			}
