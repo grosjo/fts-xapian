@@ -612,8 +612,8 @@ class XDoc
 				s->append(ngram->data[i]);
                         	add(s);
 			}
-			delete(headers->at(j-1)); headers->pop_back();
-			delete(strings->at(j-1)); strings->pop_back();
+			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
+			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
                 }
 	}
 
@@ -646,6 +646,7 @@ class XDoc
 			data->at(i-1)=NULL;
 			data->pop_back();
 		}
+		data->clear();
 	} 
 };
 
@@ -661,9 +662,10 @@ class XDocsWriter
 		Xapian::WritableDatabase * * dbw;
 		long verbose;
 		long * totaldocs;
-		long tid;
+		std::thread *t;
 	public:
 		char * title;
+		long tid;
 		
 	XDocsWriter(struct xapian_fts_backend *backend)
 	{
@@ -702,6 +704,7 @@ class XDocsWriter
 			while((i=docs->size())>0)
 			{
 				delete(docs->at(i-1));
+				docs->at(i-1)=NULL;
 				docs->pop_back();
 			}
 			delete(docs);
@@ -738,6 +741,7 @@ class XDocsWriter
 	void recover(struct xapian_fts_backend *backend)
         {
 		long i;
+		if(verbose>0) syslog(LOG_INFO,"%sRecover docs",title);
 		while((i=docs->size())>0)
 		{
 			backend->docs->push_back(docs->at(i-1));
@@ -766,14 +770,21 @@ class XDocsWriter
 		
 		try
 		{
-			new std::thread(fts_backend_xapian_worker,this);
+			t = new std::thread(fts_backend_xapian_worker,this);
 		}
 		catch(std::exception e)
 		{
-			i_error("%sThread error %s",e.what());
+			i_error("%sThread error %s",title,e.what());
 			return false;
 		}
 		return true;
+	}
+
+	void close()
+	{
+		t->join();
+		delete(t);
+		t=NULL;
 	}
 
 	bool checkDB()
@@ -840,6 +851,7 @@ class XDocsWriter
 					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
 					try
 					{
+						(*dbw)->commit();
 						(*dbw)->close();
 						delete(*dbw);
 						*dbw=NULL;
@@ -914,7 +926,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 static long fts_backend_xapian_test_memory()
 {
 	long fri = fts_backend_xapian_get_free_memory(); // KB
-
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Free memory = %ld MB",(long)(fri/1024.0));
 	if(fri < ( fts_xapian_settings.lowmemory * 1024L ) ) return fri;
 	
 	return -1L;
@@ -982,36 +994,53 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 		(backend->threads).push_back(x);
 		if(!(x->launch()))
 		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep2");
 			x->recover(backend);
 			sleep(1);
 			return false;
 		}
 		return true;
 	}
-	fts_backend_xapian_lock(backend,"push");
-	long i=0;
-	bool found=false;
-	while((i<(backend->threads).size()) && ((backend->threads)[i]!=NULL) && !((backend->threads)[i]->isTerminated()))
+	//fts_backend_xapian_lock(backend,"push");
+	long i=0, found=-1;
+	// CLEANUP
+	while(i<(backend->threads).size())
 	{
+		if((backend->threads)[i]==NULL) 
+		{ 
+			if(found<0) found=i;
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread #- (%ld) null",i); 
+		}
+		else if((backend->threads)[i]->isTerminated())
+		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread #%ld (%ld) Terminated",(backend->threads)[i]->tid,i);
+			(backend->threads)[i]->close();
+                        delete((backend->threads)[i]);
+                        (backend->threads)[i]=NULL;
+			if(found<0) found=i;
+		}
+		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread #%ld (%ld) Active",(backend->threads)[i]->tid,i);
 		i++;
 	}
-	if(i<(backend->threads).size())
+	if(found>=0)
 	{
-		found=true;
-		if((backend->threads)[i]!=NULL) delete((backend->threads)[i]);
-		(backend->threads)[i] = new XDocsWriter(backend);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread found : %ld",found);
+		(backend->threads)[found] = new XDocsWriter(backend);
 	}
-	fts_backend_xapian_unlock(backend,"push");
-	if(found) 
+	//fts_backend_xapian_unlock(backend,"push");
+	if(found>=0) 
 	{
-		if(!((backend->threads)[i]->launch())) 
+		if(!((backend->threads)[found]->launch())) 
 		{
-			(backend->threads)[i]->recover(backend);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Could not launch %ld",found);
+			(backend->threads)[found]->recover(backend);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep3");
 			sleep(1);
 			return false;
 		}
+		return true;
 	}
-	return found;
+	return false;
 }
 
 static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
@@ -1031,6 +1060,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		else if((backend->threads)[i]->isTerminated())
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread %ld because terminated",i);
+			(backend->threads)[i]->close();
 			delete((backend->threads)[i]);
 			(backend->threads)[i]=NULL;
 			(backend->threads).pop_back();
@@ -1040,14 +1070,19 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld",i);
 			fts_backend_xapian_unlock(backend,"close3");
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep4");
 			sleep(1);
 		}
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DB");
 	try     
         {
-		if(backend->dbw != NULL) backend->dbw->close();        
-                delete(backend->dbw);
+		if(backend->dbw != NULL) 
+		{
+			backend->dbw->commit();
+			backend->dbw->close();
+                	delete(backend->dbw);
+		}
 		backend->dbw=NULL;
         }       
         catch(Xapian::Error e)
@@ -1109,8 +1144,9 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	long commit_time = fts_backend_xapian_current_time();
 
-	while(!fts_backend_xapian_push(backend,"unset_box")) 
+	while(!fts_backend_xapian_push(backend,"unset_box") && (backend->docs->size()>0)) 
 	{ 
+		i_info("FTS Xapian: Sleep5");
 		sleep(1);
 	}
 	fts_backend_xapian_close(backend,"unset box");

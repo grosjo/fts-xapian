@@ -349,6 +349,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
 			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_THREAD_SIZE*backend->threads_max) || (fri>=0)))
 			{
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep1");
 				sleep(1);
 			}
 		}
@@ -361,19 +362,19 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		{ 
 			if(backend->dbw != NULL)
 			{
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Documents written %ld above %ld, Writing to disk",backend->batch_write,XAPIAN_WRITING_CACHE);
 				fts_backend_xapian_lock(backend,"sync to disk");
 				try
 				{
-					backend->dbw->close();
+					backend->dbw->commit();
 				}
 				catch(Xapian::Error e)
 				{
-					i_error("FTS Xapian: Sync to disk, error closing db %s",e.get_msg().c_str());
+					i_error("FTS Xapian: Sync to disk, error committing db %s",e.get_msg().c_str());
 				}
-				delete(backend->dbw);
-				backend->dbw = NULL;
 				backend->batch_write=0;
 				fts_backend_xapian_unlock(backend,"sync to disk");
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sync to disc done");
 			}
         	}
                 backend->lastuid = ctx->tbi_uid;
