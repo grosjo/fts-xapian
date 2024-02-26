@@ -754,6 +754,7 @@ class XDocsWriter
 	bool launch()
 	{
 		i_info("%s LAUNCH",title);
+		t = NULL;
 		if(strlen(dbpath)<1)
                 {
                         i_info("%sOpenDB: no DB name",title);
@@ -782,8 +783,11 @@ class XDocsWriter
 
 	void close()
 	{
-		t->join();
-		delete(t);
+		if(t!=NULL)
+		{
+			t->join();
+			delete(t);
+		}
 		t=NULL;
 	}
 
@@ -982,26 +986,22 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 
 static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const char * reason)
 {
-	if(backend->docs == NULL) 
-	{
-		backend->docs = new XDocs();
-	}
 	if(backend->docs->size()<1) return true;
 
 	if((backend->threads).size()<(backend->threads_max))
 	{
 		XDocsWriter * x = new XDocsWriter(backend);
-		(backend->threads).push_back(x);
 		if(!(x->launch()))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep2");
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Could not launch DocsWriter (Sleep2)");
 			x->recover(backend);
+			delete(x);
 			sleep(1);
 			return false;
 		}
+		(backend->threads).push_back(x);
 		return true;
 	}
-	//fts_backend_xapian_lock(backend,"push");
 	long i=0, found=-1;
 	// CLEANUP
 	while(i<(backend->threads).size())
@@ -1025,16 +1025,16 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	if(found>=0)
 	{
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread found : %ld",found);
-		(backend->threads)[found] = new XDocsWriter(backend);
-	}
-	//fts_backend_xapian_unlock(backend,"push");
-	if(found>=0) 
-	{
-		if(!((backend->threads)[found]->launch())) 
+		XDocsWriter * x = new XDocsWriter(backend);
+		if(x->launch())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Could not launch %ld",found);
-			(backend->threads)[found]->recover(backend);
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep3");
+			(backend->threads)[found] = x;
+		}
+		else
+		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Could not launch %ld (Sleep3)",found);
+			x->recover(backend);
+			delete(x);
 			sleep(1);
 			return false;
 		}
@@ -1047,6 +1047,14 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing threads (%s)",reason);
 	long i;
+	while(backend->docs->size()>0)
+	{
+		if(!fts_backend_xapian_push(backend,"unset_box"))
+        	{       
+                	i_info("FTS Xapian: Waiting for all pending documents to be processed (Sleep5)");
+                	sleep(1);
+		}
+        }
 	while((i=(backend->threads).size())>0)
 	{
 		i--;
@@ -1068,12 +1076,15 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld",i);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld (%s) (Sleep4)",i,(backend->threads)[i]->title);
 			fts_backend_xapian_unlock(backend,"close3");
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep4");
 			sleep(1);
+			i++;
 		}
 	}
+	delete(backend->docs);
+	backend->docs=NULL;
+
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DB");
 	try     
         {
@@ -1144,11 +1155,6 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 
 	long commit_time = fts_backend_xapian_current_time();
 
-	while(!fts_backend_xapian_push(backend,"unset_box") && (backend->docs->size()>0)) 
-	{ 
-		i_info("FTS Xapian: Sleep5");
-		sleep(1);
-	}
 	fts_backend_xapian_close(backend,"unset box");
 	fts_backend_xapian_oldbox(backend);
 
@@ -1237,7 +1243,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->boxname = i_strdup(box->name);
 	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
 	backend->expdb = i_strdup_printf("%s_exp.db",backend->db);
-	backend->docs = NULL;
+	backend->docs = new XDocs();
         backend->threads.clear();
         backend->threads_total = 0;
 

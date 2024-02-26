@@ -353,7 +353,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 				sleep(1);
 			}
 		}
-		else if(backend->docs == NULL) backend->docs = new XDocs();
 		if(fri>=0)
         	{
                 	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
