@@ -146,13 +146,10 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 		return -1;
 	}
 
-	fts_backend_xapian_lock(backend,"get_last_uid");
 	Xapian::Database * dbr;
 	if(!fts_backend_xapian_open_readonly(backend, &dbr))
 	{
 		i_error("FTS Xapian: GetLastUID: Can not open db RO (%s)",backend->db);
-		fts_backend_xapian_unlock(backend,"get_last_uid");
-		backend->mutex.unlock();
 		return 0;
 	}
 
@@ -168,7 +165,6 @@ static int fts_backend_xapian_get_last_uid(struct fts_backend *_backend, struct 
 
 	dbr->close();
 	delete(dbr);
-	fts_backend_xapian_unlock(backend,"get_last_uid");
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Get last UID of %s (%s) = %d",backend->boxname,backend->guid,*last_uid_r);
 
 	return 0;
@@ -349,7 +345,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
 			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_THREAD_SIZE*backend->threads_max) || (fri>=0)))
 			{
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sleep1");
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for an available thread (Sleep1) : Pending are %ld",backend->docs->size());
 				sleep(1);
 			}
 		}

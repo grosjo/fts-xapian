@@ -2,16 +2,16 @@
 
 static void fts_backend_xapian_lock(struct xapian_fts_backend *backend, const char * reason)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex ON : %s",reason);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON : %s",reason);
 	backend->mutex.lock();
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex ON OK : %s",reason);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON OK : %s",reason);
 }
 
 static void fts_backend_xapian_unlock(struct xapian_fts_backend *backend, const char * reason)
 {               
-        if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex OFF : %s",reason);
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF : %s",reason);
         backend->mutex.unlock();
-        if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Mutex OFF OK : %s",reason);
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF OK : %s",reason);
 }
  
 static long fts_backend_xapian_current_time()
@@ -716,16 +716,16 @@ class XDocsWriter
 
 	void lock(const char * reason)
 	{       
-        	if(verbose>1) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
+        	if(verbose>0) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
         	m->lock();
-		if(verbose>1) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
+		if(verbose>0) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
 	}
 
 	void unlock(const char * reason)
         {
-                if(verbose>1) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
+                if(verbose>0) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
                 m->unlock();
-                if(verbose>1) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
+                if(verbose>0) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
         }
 
 	void terminate()
@@ -1058,12 +1058,10 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	while((i=(backend->threads).size())>0)
 	{
 		i--;
-		fts_backend_xapian_lock(backend,"close");
 		if((backend->threads)[i]==NULL)
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread %ld because null",i);
 			(backend->threads).pop_back();
-			fts_backend_xapian_unlock(backend,"close1");
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
@@ -1072,12 +1070,10 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 			delete((backend->threads)[i]);
 			(backend->threads)[i]=NULL;
 			(backend->threads).pop_back();
-			fts_backend_xapian_unlock(backend,"close2");
 		}
 		else
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld (%s) (Sleep4)",i,(backend->threads)[i]->title);
-			fts_backend_xapian_unlock(backend,"close3");
 			sleep(1);
 			i++;
 		}
