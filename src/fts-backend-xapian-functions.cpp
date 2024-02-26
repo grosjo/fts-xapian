@@ -666,6 +666,7 @@ class XDocsWriter
 	public:
 		char * title;
 		long tid;
+		long pos;
 		
 	XDocsWriter(struct xapian_fts_backend *backend)
 	{
@@ -679,6 +680,8 @@ class XDocsWriter
         	s.append(") - ");
 		title=(char *)malloc((s.length()+1)*sizeof(char));
 		strcpy(title,s.c_str());
+		
+		pos=0;
 
 		docs = new XDocs();
 		long i;
@@ -741,18 +744,22 @@ class XDocsWriter
 	void recover(struct xapian_fts_backend *backend)
         {
 		long i;
+		pos=1;
 		if(verbose>0) syslog(LOG_INFO,"%sRecover docs",title);
 		while((i=docs->size())>0)
 		{
+			pos=2;
 			backend->docs->push_back(docs->at(i-1));
 			docs->at(i-1)=NULL;
 			docs->pop_back();
 		}
+		pos=3;
 		terminate();
 	}
 
 	bool launch()
 	{
+		pos=4;
 		i_info("%s LAUNCH",title);
 		t = NULL;
 		if(strlen(dbpath)<1)
@@ -762,58 +769,69 @@ class XDocsWriter
 			return false;
 		}
 
+		pos=5;
                 if((docs == NULL) || (docs->size()<1))
                 {
                         i_info("%sOpenDB: no docs to write",title);
 			terminate();
 			return false;
 		}
-		
+	
+		pos=6;	
 		try
 		{
 			t = new std::thread(fts_backend_xapian_worker,this);
 		}
 		catch(std::exception e)
 		{
+			pos=7;
 			i_error("%sThread error %s",title,e.what());
 			return false;
 		}
+		pos=8;
 		return true;
 	}
 
 	void close()
 	{
+		pos=9;
 		if(t!=NULL)
 		{
 			t->join();
 			delete(t);
 		}
 		t=NULL;
+		pos=10;
 	}
 
 	bool checkDB()
 	{
+		pos=11;
 		if(*dbw == NULL)
                 {
                         try
                         {
+				pos=12;
                                 if(verbose>0) syslog(LOG_INFO,"%sOpening %s",title,dbpath);
                                 *dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS);
                                 if(verbose>1) syslog(LOG_INFO,"%sDBW created",title);
                         }
                         catch(Xapian::Error e)
                         {
+				pos=13;
                                 syslog(LOG_ERR,"%sCan't open Xapian DB : %s - %s",title,e.get_type(),e.get_error_string());
                                 return false;
                         }
                         long nbdocs = (*dbw)->get_doccount();
                         if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
                 }
+		pos=14;
 		return true;
 	}
 
 	void worker()
 	{
+		pos=15;
 		long start_time = fts_backend_xapian_current_time();
                 long n=docs->size();
                 bool err=false;
@@ -821,19 +839,25 @@ class XDocsWriter
                 XDoc * doc;
                 while((i=docs->size())>0)
                 {
+			pos=16;
                         i--;
                         doc = docs->at(i);
 			docs->at(i) = NULL;
 			docs->pop_back();
 			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,doc->uid,i+1,n);
+			pos=17;
 			doc->populate_stems();
+			pos=18;
 			doc->create_document();
                         if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
+			pos=19;
                         if(doc->stems > 0)
                         {
+				pos=20;	
 				lock("replace doc");
                                 try
                                 {
+					pos=21;
 					if(checkDB())
 					{
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
@@ -842,21 +866,26 @@ class XDocsWriter
                                 }
                                 catch(Xapian::Error e)
                                 {
+					pos=22;
                                         syslog(LOG_ERR,"%sCan't add document : %s - %s",title,e.get_type(),e.get_error_string());
                                         err=true;
                                 }
                                 catch(std::exception e)
                                 {
+					pos=23;
                                         syslog(LOG_ERR,"%sCan't add document2 : %s",title,e.what());
                                         err=true;
                                 }
 				if(err)
 				{
+					pos=24;
 					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
 					try
 					{
 						(*dbw)->commit();
+						pos=25;
 						(*dbw)->close();
+						pos=26;
 						delete(*dbw);
 						*dbw=NULL;
 						if(checkDB())
@@ -873,13 +902,18 @@ class XDocsWriter
                                 	{       
                                         	syslog(LOG_ERR,"%sCan't add document4 : %s",title,e.what());
                                 	}
+					pos=27;
 				}
+				pos=28;
 				unlock("replace doc");
+				pos=29;
                         }
-                        delete(doc);
+                        pos=30;
+			delete(doc);
                         newdoc++;
                 }
                 if(verbose>0) syslog(LOG_INFO,"%sWrote %ld new docs in %ld ms",title,newdoc,fts_backend_xapian_current_time() - start_time);
+		pos=31;
 		terminate();
 	}
 };
@@ -1019,7 +1053,7 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
                         (backend->threads)[i]=NULL;
 			if(found<0) found=i;
 		}
-		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread #%ld (%ld) Active",(backend->threads)[i]->tid,i);
+		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Thread #%ld (%ld) Active pos=%ld",(backend->threads)[i]->tid,i,(backend->threads)[i]->pos);
 		i++;
 	}
 	if(found>=0)
@@ -1073,7 +1107,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld (%s) (Sleep4)",i,(backend->threads)[i]->title);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for thread %ld (%s) (Sleep4) pos=%ld",i,(backend->threads)[i]->title,(backend->threads)[i]->pos);
 			sleep(1);
 			i++;
 		}
