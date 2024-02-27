@@ -1,19 +1,5 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
-static void fts_backend_xapian_lock(struct xapian_fts_backend *backend, const char * reason)
-{
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON : %s",reason);
-	backend->mutex.lock();
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex ON OK : %s",reason);
-}
-
-static void fts_backend_xapian_unlock(struct xapian_fts_backend *backend, const char * reason)
-{               
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF : %s",reason);
-        backend->mutex.unlock();
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Mutex OFF OK : %s",reason);
-}
- 
 static long fts_backend_xapian_current_time()
 {
         struct timeval tp;
@@ -585,6 +571,15 @@ class XDoc
 		free(uterm);
 	}
 
+	std::string getSummary()
+	{
+		std::string s("Doc ");
+		s.append(std::to_string(uid));
+		s.append(" Size(text)=" + std::to_string(size));
+		s.append(" Stems=" + std::to_string(stems));
+		return s;
+	}
+
 	void add(const char *h, icu::UnicodeString* t)
 	{
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
@@ -598,12 +593,14 @@ class XDoc
 
 	void populate_stems()
 	{
-		long i,j; 
+		long i,j;
+		XNGram * ngram; 
 		while((j=headers->size())>0)
 		{
-			XNGram * ngram = new XNGram(headers->at(j-1)->c_str());
+			ngram = new XNGram(headers->at(j-1)->c_str());
+			i=strings->at(j-1)->length();
 			ngram->add(strings->at(j-1));
-
+		
 			for(i=0;i<ngram->size;i++)
                 	{
 				std::string *s = new std::string();
@@ -614,6 +611,7 @@ class XDoc
 			}
 			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
 			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
+			delete(ngram);
                 }
 	}
 
@@ -657,7 +655,7 @@ class XDocsWriter
 	private:
 		char * dbpath;
 		XDocs * docs;
-		std::mutex * m;
+		std::timed_mutex * m;
 		bool terminated;
 		Xapian::WritableDatabase * * dbw;
 		long verbose;
@@ -716,20 +714,6 @@ class XDocsWriter
 		free(dbpath);
 		free(title);
 	}
-
-	void lock(const char * reason)
-	{       
-        	if(verbose>0) syslog(LOG_INFO,"%sMutex ON : %s",title,reason);
-        	m->lock();
-		if(verbose>0) syslog(LOG_INFO,"%sMutex ON OK : %s",title,reason);
-	}
-
-	void unlock(const char * reason)
-        {
-                if(verbose>0) syslog(LOG_INFO,"%sMutex OFF : %s",title,reason);
-                m->unlock();
-                if(verbose>0) syslog(LOG_INFO,"%sMutex OFF OK : %s",title,reason);
-        }
 
 	void terminate()
 	{
@@ -844,17 +828,27 @@ class XDocsWriter
                         doc = docs->at(i);
 			docs->at(i) = NULL;
 			docs->pop_back();
-			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld)",title,doc->uid,i+1,n);
+			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
 			pos=17;
 			doc->populate_stems();
 			pos=18;
+			if(verbose>0) syslog(LOG_INFO,"%sCreating doc #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
 			doc->create_document();
                         if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
 			pos=19;
                         if(doc->stems > 0)
                         {
 				pos=20;	
-				lock("replace doc");
+				if(verbose>0) syslog(LOG_INFO,"%sMutex thread",title);
+				std::unique_lock<std::timed_mutex> lck(*m,std::defer_lock);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+                		while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
+                		{
+                        		if(verbose>0) syslog(LOG_INFO,"%sMutex : Waiting unlock...",title);
+                		}
+#pragma GCC diagnostic pop
+                		if(verbose>0) syslog(LOG_INFO,"%sMutex ON OK",title);
                                 try
                                 {
 					pos=21;
@@ -904,8 +898,6 @@ class XDocsWriter
                                 	}
 					pos=27;
 				}
-				pos=28;
-				unlock("replace doc");
 				pos=29;
                         }
                         pos=30;

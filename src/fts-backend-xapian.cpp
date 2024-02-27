@@ -43,7 +43,7 @@ struct xapian_fts_backend
 	long threads_total;
 	std::vector<XDocsWriter *> threads;
 	long threads_max;
-	std::mutex mutex;
+	std::timed_mutex mutex;
 
 	long lastuid;
 	long total_added_docs;
@@ -357,8 +357,17 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		{ 
 			if(backend->dbw != NULL)
 			{
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Documents written %ld above %ld, Writing to disk",backend->batch_write,XAPIAN_WRITING_CACHE);
-				fts_backend_xapian_lock(backend,"sync to disk");
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Documents written %ld above %ld, Writing to disk (creating lock)",backend->batch_write,XAPIAN_WRITING_CACHE);
+                                
+				std::unique_lock<std::timed_mutex> lck(backend->mutex,std::defer_lock);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+                                while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
+                                {
+                                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting unlock...");
+                                }
+#pragma GCC diagnostic pop
+                                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Lock acquired");
 				try
 				{
 					backend->dbw->commit();
@@ -368,7 +377,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 					i_error("FTS Xapian: Sync to disk, error committing db %s",e.get_msg().c_str());
 				}
 				backend->batch_write=0;
-				fts_backend_xapian_unlock(backend,"sync to disk");
 				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sync to disc done");
 			}
         	}
