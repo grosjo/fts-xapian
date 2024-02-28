@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <vector>
 #include <mutex>
+#include <chrono>
 extern "C" {
 #include "fts-xapian-plugin.h"
 }
@@ -24,6 +25,8 @@ class XDoc;
 class XDocsWriter;
 
 typedef std::vector<XDoc *> XDocs;
+
+#define XSLEEP std::chrono::seconds(2)
 
 struct xapian_fts_backend
 {
@@ -47,7 +50,6 @@ struct xapian_fts_backend
 
 	long lastuid;
 	long total_added_docs;
-	long batch_write;
 	long start_time;
 };
 
@@ -89,7 +91,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	
 	backend->lastuid = -1;
 	backend->total_added_docs=0;
-	backend->batch_write=0;
 
 	backend->dbw = NULL;
 	backend->guid = NULL;
@@ -349,41 +350,33 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 				sleep(1);
 			}
 		}
-		if(fri>=0)
+		if((fri>=0) && (backend->dbw != NULL))
         	{
-                	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum",long(fri/1024.0),fts_xapian_settings.lowmemory);
-		}
-		if((fri>=0) || (backend->batch_write > XAPIAN_WRITING_CACHE))
-		{ 
-			if(backend->dbw != NULL)
-			{
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Documents written %ld above %ld, Writing to disk (creating lock)",backend->batch_write,XAPIAN_WRITING_CACHE);
+                	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum, Writing to disk (creating lock)",long(fri/1024.0),fts_xapian_settings.lowmemory);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Low memory, Writing to disk (creating lock)");
                                 
-				std::unique_lock<std::timed_mutex> lck(backend->mutex,std::defer_lock);
+			std::unique_lock<std::timed_mutex> lck(backend->mutex,std::defer_lock);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                                while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
-                                {
-                                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting unlock...");
-                                }
+                        while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
+                        {
+                                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting unlock... (main)");
+                        }
 #pragma GCC diagnostic pop
-                                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Lock acquired");
-				try
-				{
-					backend->dbw->commit();
-				}
-				catch(Xapian::Error e)
-				{
-					i_error("FTS Xapian: Sync to disk, error committing db %s",e.get_msg().c_str());
-				}
-				backend->batch_write=0;
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sync to disc done");
+                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Lock acquired (main)");
+			try
+			{
+				backend->dbw->commit();
 			}
+			catch(Xapian::Error e)
+			{
+				i_error("FTS Xapian: Sync to disk, error committing db %s",e.get_msg().c_str());
+			}
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sync to disc done");
         	}
                 backend->lastuid = ctx->tbi_uid;
 		backend->docs->push_back(new XDoc(backend->lastuid));
 		backend->total_added_docs++;
-		backend->batch_write++;
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Buffer %ld",backend->lastuid, backend->boxname,backend->docs->size());
         }
 
@@ -478,10 +471,10 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 		{
 			uids.clear();
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
-			if(fts_xapian_settings.verbose>0) i_info("Optimize (1) %s : Checking expunges",s);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
 			if(sqlite3_open(s,&expdb) == SQLITE_OK)
 			{
-				if(fts_xapian_settings.verbose>0) i_info("Optimize (1b) Executing %s",createTable);
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1b) Executing %s",createTable);
 				if(sqlite3_exec(expdb,createTable,NULL,0,&zErrMsg) != SQLITE_OK )
 				{
 					i_error("FTS Xapian: Optimize (2) Can not create table (%s) : %s",createTable,zErrMsg);
@@ -490,7 +483,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				else
 				{
-					if(fts_xapian_settings.verbose>0) i_info("Optimize (1c) Executing %s",selectUIDs);
+					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1c) Executing %s",selectUIDs);
 					if(sqlite3_exec(expdb,selectUIDs,fts_backend_xapian_optimize_callback,&uids,&zErrMsg) != SQLITE_OK)	
 					{
 						i_error("FTS Xapian: Optimize (3) Can not select IDs (%s) : %s",selectUIDs,zErrMsg);
@@ -500,10 +493,23 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				i_free(s);
 				s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
-				if(fts_xapian_settings.verbose>0) i_info("Optimize (4) Opening Xapian DB (%s)",s);
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (4) Opening Xapian DB (%s)",s);
 				try
 				{
-					db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_RETRY_LOCK | Xapian::DB_BACKEND_GLASS | Xapian::DB_NO_SYNC);
+					bool ok=false;
+					while(!ok)
+					{
+						try
+                                		{
+							db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+                                        		ok=true;
+                                		}
+                                		catch(Xapian::DatabaseLockError e)
+                                		{
+                                		        i_warning("FTS Xapian: Retrying opening DB %s - %s",e.get_msg(),e.get_error_string());
+                                        		std::this_thread::sleep_for(XSLEEP);
+						}
+                                	}
 					for(uint32_t n=0;n<uids.size();n++)
 					{
 						uid=uids[n];
@@ -538,14 +544,16 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						}
 						i_free(u);
 					}
+					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closing DB %s",s);
 					db->commit();
 					db->close();
-					delete(db);
+					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closed DB %s",s);
 				}
 				catch(Xapian::Error e)
 				{
-					i_error("FTS Xapian: Optimize (6) %s",e.get_msg().c_str());
+					i_error("FTS Xapian: Optimize (7) %s",e.get_msg().c_str());
 				}
+				if(db!=NULL) delete(db);
 				sqlite3_close(expdb);
 			}
 			i_free(s);
