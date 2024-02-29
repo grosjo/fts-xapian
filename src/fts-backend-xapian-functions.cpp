@@ -648,7 +648,6 @@ class XDocsWriter
 		char * title;
 		long pos;
 	public:
-		long tid;
 		
 	XDocsWriter(struct xapian_fts_backend *backend)
 	{
@@ -656,9 +655,8 @@ class XDocsWriter
 		dbpath=(char *)malloc((strlen(backend->db)+1)*sizeof(char));
 		strcpy(dbpath,backend->db);
         	backend->threads_total++;
-                tid = backend->threads_total; 
         	std::string s;
-		s.clear(); s.append("DW #"+std::to_string(tid)+" (");
+		s.clear(); s.append("DW #"+std::to_string(backend->threads_total)+" (");
         	s.append(backend->boxname);
 		s.append(",");
 		s.append(dbpath);
@@ -1037,17 +1035,17 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 		if((backend->threads)[i]==NULL) 
 		{ 
 			if(found<0) found=i;
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #- (%ld) null",i); 
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Cleanup %ld : null",i); 
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) : Terminated : %s",(backend->threads)[i]->tid,i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Cleanup %ld : Terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
                         delete((backend->threads)[i]);
                         (backend->threads)[i]=NULL;
 			if(found<0) found=i;
 		}
-		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) : Active : %s",(backend->threads)[i]->tid,i,(backend->threads)[i]->getSummary().c_str());
+		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Cleanup %ld : Active : %s",i,(backend->threads)[i]->getSummary().c_str());
 		i++;
 	}
 	if(found>=0)
@@ -1088,12 +1086,12 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		i--;
 		if((backend->threads)[i]==NULL)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DW #%ld because null",i);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because null",i);
 			(backend->threads).pop_back();
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DW #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
 			delete((backend->threads)[i]);
 			(backend->threads)[i]=NULL;
@@ -1101,7 +1099,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for DW #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
 			std::this_thread::sleep_for(XSLEEP);
 			i++;
 		}
