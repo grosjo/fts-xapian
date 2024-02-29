@@ -29,7 +29,7 @@
 
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245L
-#define XAPIAN_THREAD_SIZE 2L
+#define XAPIAN_THREAD_SIZE 3L
 #define XAPIAN_WRITING_CACHE 500L
 
 #define XAPIAN_WILDCARD "wldcrd"

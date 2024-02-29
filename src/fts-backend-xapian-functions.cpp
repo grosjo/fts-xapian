@@ -593,13 +593,15 @@ class XDoc
 
 	void populate_stems(bool verbose, const char * title)
 	{
-		long i,j;
+		long i,j,k;
 		XNGram * ngram; 
-		if(verbose) syslog(LOG_INFO,"%s Populate %ld headers/strings (%s)",title,headers->size(),getSummary().c_str());
+	
+		k=headers->size();	
+		if(verbose) syslog(LOG_INFO,"%s Populate %ld headers/strings (%s)",title,k,getSummary().c_str());
 
 		while((j=headers->size())>0)
 		{
-			if(verbose) syslog(LOG_INFO,"%s Populate %ld",title,j);
+			if(verbose) syslog(LOG_INFO,"%s Populate %ld / %ld",title,j,k);
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,(verbose>0));
 			ngram->add(strings->at(j-1));
 			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();

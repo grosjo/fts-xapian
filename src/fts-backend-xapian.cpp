@@ -564,7 +564,6 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				{
 					i_error("FTS Xapian: Optimize (7) %s",e.get_msg().c_str());
 				}
-				if(db!=NULL) delete(db);
 				sqlite3_close(expdb);
 			}
 			i_free(s);
@@ -663,7 +662,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 	XResultSet * r=fts_backend_xapian_query(dbr,qs);
 
 	long n=r->size;
-	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: QUery '%s' -> %ld results",qs->get_string().c_str(),n); }
+	if(fts_xapian_settings.verbose>0) { i_info("FTS Xapian: Query '%s' -> %ld results",qs->get_string().c_str(),n); }
 
 	i_array_init(&(result->definite_uids),r->size);
 
