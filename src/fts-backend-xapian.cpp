@@ -50,6 +50,7 @@ struct xapian_fts_backend
 
 	long lastuid;
 	long total_added_docs;
+	long batch;
 	long start_time;
 };
 
@@ -90,7 +91,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
         backend->threads_total = 0;
 	
 	backend->lastuid = -1;
-	backend->total_added_docs=0;
+	backend->total_added_docs = 0;
+	backend->batch = 0;
 
 	backend->dbw = NULL;
 	backend->guid = NULL;
@@ -229,6 +231,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	else
 	{
 		char * u = i_strdup_printf("replace into docs values (%d)",uid);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Expunged %ld on %s",uid,backend->expdb);
 		if(sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK)
 		{
 			i_error("FTS Xapian: Expunging (3) UID=%d : Can not add UID : %s",uid,zErrMsg);
@@ -237,6 +240,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 		i_free(u);
 	}
 	sqlite3_close(expdb);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Expunge done");
 }
 
 static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_context *_ctx, const struct fts_backend_build_key *key)
@@ -376,7 +380,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
         	}
                 backend->lastuid = ctx->tbi_uid;
 		backend->docs->push_back(new XDoc(backend->lastuid));
-		backend->total_added_docs++;
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Buffer %ld",backend->lastuid, backend->boxname,backend->docs->size());
         }
 

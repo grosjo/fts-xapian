@@ -642,6 +642,7 @@ class XDocsWriter
 		bool terminated;
 		Xapian::WritableDatabase * * dbw;
 		long verbose;
+		long * batch;
 		long * totaldocs;
 		std::thread *t;
 	public:
@@ -673,7 +674,8 @@ class XDocsWriter
 			backend->docs->pop_back();	
 		}
 		
-		m=&(backend->mutex);
+		m = &(backend->mutex);
+		batch = &(backend->batch);
 		terminated = false;
 		dbw=&(backend->dbw);
 		totaldocs = &(backend->total_added_docs);
@@ -828,6 +830,13 @@ class XDocsWriter
 					{
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
 						(*totaldocs)++;
+						(*batch)++;
+						if( (*batch) > XAPIAN_WRITING_CACHE) 
+						{
+							if(verbose>0) syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
+							(*dbw)->commit();
+							*batch  = 0;
+						}
 					} else err=true;
                                 }
                                 catch(Xapian::Error e)
