@@ -645,13 +645,14 @@ class XDocsWriter
 		long * batch;
 		long * totaldocs;
 		std::thread *t;
-	public:
 		char * title;
-		long tid;
 		long pos;
+	public:
+		long tid;
 		
 	XDocsWriter(struct xapian_fts_backend *backend)
 	{
+		pos=0;
 		dbpath=(char *)malloc((strlen(backend->db)+1)*sizeof(char));
 		strcpy(dbpath,backend->db);
         	backend->threads_total++;
@@ -664,7 +665,8 @@ class XDocsWriter
         	s.append(") - ");
 		title=(char *)malloc((s.length()+1)*sizeof(char));
 		strcpy(title,s.c_str());
-		
+	
+			
 		docs = new XDocs();
 		long i;
 		while((docs->size()<XAPIAN_THREAD_SIZE) && ((i=backend->docs->size())>0))
@@ -710,8 +712,18 @@ class XDocsWriter
 		return terminated;
 	}
 
+	std::string getSummary()
+	{
+		std::string s(title);
+		s.append(" pos="+std::to_string(pos));
+		s.append(" remaining docs="+std::to_string(docs->size()));
+		s.append(" terminated="+std::to_string(terminated));
+		return s;
+	}
+
 	void recover(struct xapian_fts_backend *backend)
         {
+		pos=1;
 		long i;
 		if(verbose>0) syslog(LOG_INFO,"%sRecover docs",title);
 		while((i=docs->size())>0)
@@ -725,6 +737,7 @@ class XDocsWriter
 
 	bool launch()
 	{
+		pos=2;
 		i_info("%s LAUNCH",title);
 		t = NULL;
 		if(strlen(dbpath)<1)
@@ -740,7 +753,8 @@ class XDocsWriter
 			terminate();
 			return false;
 		}
-	
+
+		pos=3;	
 		try
 		{
 			t = new std::thread(fts_backend_xapian_worker,this);
@@ -755,20 +769,24 @@ class XDocsWriter
 
 	void close()
 	{
+		pos=4;
 		if(t!=NULL)
 		{
 			t->join();
 			delete(t);
 		}
+		pos=5;
 		t=NULL;
 	}
 
 	bool checkDB()
 	{
+		pos=6;
 		bool ok=true;
 		if(*dbw == NULL)
                 {
 			ok=false;
+			pos=7;
 			while(!ok)
 			{
                         	try
@@ -788,6 +806,7 @@ class XDocsWriter
                                 	return false;
                         	}
 			}
+			pos=8;
                         long nbdocs = (*dbw)->get_doccount();
                         if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
                 }
@@ -796,6 +815,7 @@ class XDocsWriter
 
 	void worker()
 	{
+		pos=9;
 		long start_time = fts_backend_xapian_current_time();
                 long n=docs->size();
                 bool err=false;
@@ -808,12 +828,15 @@ class XDocsWriter
 			docs->at(i) = NULL;
 			docs->pop_back();
 			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
+			pos=10;
 			doc->populate_stems((verbose>0),title);
 			if(verbose>0) syslog(LOG_INFO,"%sCreating doc #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
+			pos=11;
 			doc->create_document((verbose>0),title);
                         if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
                         if(doc->stems > 0)
                         {
+				pos=12;
 				if(verbose>0) syslog(LOG_INFO,"%sMutex thread",title);
 				std::unique_lock<std::timed_mutex> lck(*m,std::defer_lock);
 #pragma GCC diagnostic push
@@ -826,14 +849,17 @@ class XDocsWriter
                 		if(verbose>0) syslog(LOG_INFO,"%sMutex : Lock acquired (thread)",title);
                                 try
                                 {
+					pos=13;
 					if(checkDB())
 					{
+						pos=14;
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
 						(*totaldocs)++;
 						(*batch)++;
 						if( (*batch) > XAPIAN_WRITING_CACHE) 
 						{
 							if(verbose>0) syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
+							pos=15;
 							(*dbw)->commit();
 							*batch  = 0;
 						}
@@ -851,6 +877,7 @@ class XDocsWriter
                                 }
 				if(err)
 				{
+					pos=16;
 					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
 					try
 					{
@@ -858,8 +885,10 @@ class XDocsWriter
 						(*dbw)->close();
 						delete(*dbw);
 						*dbw=NULL;
+						pos=17;
 						if(checkDB())
-                                        	{       
+                                        	{      
+							pos=18; 
                                         	        (*dbw)->replace_document(doc->uterm,*(doc->xdoc));
                                         	        (*totaldocs)++;
                                         	}
@@ -874,6 +903,7 @@ class XDocsWriter
                                 	}
 				}
                         }
+			pos=19;
 			delete(doc);
                         newdoc++;
                 }
@@ -1011,13 +1041,13 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) Terminated",(backend->threads)[i]->tid,i);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) : Terminated : %s",(backend->threads)[i]->tid,i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
                         delete((backend->threads)[i]);
                         (backend->threads)[i]=NULL;
 			if(found<0) found=i;
 		}
-		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) Active1",(backend->threads)[i]->tid,i);
+		else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW #%ld (%ld) : Active : %s",(backend->threads)[i]->tid,i,(backend->threads)[i]->getSummary().c_str());
 		i++;
 	}
 	if(found>=0)
@@ -1063,7 +1093,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DW $%ld because terminated",i);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DW #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
 			delete((backend->threads)[i]);
 			(backend->threads)[i]=NULL;
@@ -1071,7 +1101,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for DW #%ld (%s) (Sleep4)",i,(backend->threads)[i]->title,(backend->threads)[i]->pos);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for DW #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
 			std::this_thread::sleep_for(XSLEEP);
 			i++;
 		}
