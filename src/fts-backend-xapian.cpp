@@ -522,7 +522,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						xq->add("uid",u);
 						i_free(u);
 						result=fts_backend_xapian_query(db,xq,1);
-						docid=0;
+						docid=0; long c=0;
 						if((result!=NULL) && (result->size>0))
 						{
 							try
@@ -530,6 +530,13 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 								docid = result->data[0];
 								if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d DOCID=%d",uid,docid);
 								db->delete_document(docid);
+								c++;
+								if(c>XAPIAN_WRITING_CACHE) 
+								{
+									if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing changes on disk");
+									db->commit();
+									c=0;
+								}
 							}
 							catch(Xapian::Error e)
 							{
@@ -550,6 +557,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closing DB %s",s);
 					db->commit();
 					db->close();
+					delete(db);
 					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closed DB %s",s);
 				}
 				catch(Xapian::Error e)
