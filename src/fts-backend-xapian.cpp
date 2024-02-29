@@ -513,6 +513,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
                                         		std::this_thread::sleep_for(XSLEEP);
 						}
                                 	}
+					long c=0;
 					for(uint32_t n=0;n<uids.size();n++)
 					{
 						uid=uids[n];
@@ -522,7 +523,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						xq->add("uid",u);
 						i_free(u);
 						result=fts_backend_xapian_query(db,xq,1);
-						docid=0; long c=0;
+						docid=0; 
 						if((result!=NULL) && (result->size>0))
 						{
 							try
