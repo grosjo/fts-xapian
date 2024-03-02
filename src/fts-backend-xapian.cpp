@@ -509,7 +509,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
                                 		}
                                 		catch(Xapian::DatabaseLockError e)
                                 		{
-                                		        i_warning("FTS Xapian: Retrying opening DB %s - %s",e.get_msg(),e.get_error_string());
+                                		        i_warning("FTS Xapian: Retrying opening DB %s - %s %s",e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         		std::this_thread::sleep_for(XSLEEP);
 						}
                                 	}

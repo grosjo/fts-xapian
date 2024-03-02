@@ -799,12 +799,12 @@ class XDocsWriter
                         	}
 				catch(Xapian::DatabaseLockError e)
 				{
-					syslog(LOG_WARNING,"%sCan't lock the DB %s : %s - %s",title,dbpath,e.get_msg(),e.get_error_string());
+					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 : %s - %s",title,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 					std::this_thread::sleep_for(XSLEEP);
 				}
                         	catch(Xapian::Error e)
                         	{
-                                	syslog(LOG_ERR,"%sCan't open Xapian DB : %s - %s",title,e.get_type(),e.get_error_string());
+                                	syslog(LOG_ERR,"%sCan't open Xapian DB %s 2 : %s - %s %s ",title,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                 	return false;
                         	}
 			}
@@ -869,7 +869,7 @@ class XDocsWriter
                                 }
                                 catch(Xapian::Error e)
                                 {
-                                        syslog(LOG_ERR,"%sCan't add document1 : %s - %s",title,e.get_type(),e.get_error_string());
+                                        syslog(LOG_ERR,"%sCan't add document1 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         err=true;
                                 }
                                 catch(std::exception e)
@@ -899,7 +899,7 @@ class XDocsWriter
 					}
 					catch(Xapian::Error e)
                                 	{       
-                                        	syslog(LOG_ERR,"%sCan't add document3 : %s - %s",title,e.get_type(),e.get_error_string());
+                                        	syslog(LOG_ERR,"%sCan't add document3 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                 	}
                                 	catch(std::exception e)
                                 	{       
@@ -985,7 +985,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can not open RO index (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
+		i_error("FTS Xapian: Can not open RO index (%s) %s : %s - %s %s ",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 		return false;
 	}
 	return true;
@@ -1090,7 +1090,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	}
         catch(Xapian::Error e)
         {
-                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s %s : %s - %s",boxname,dbpath,e.get_type(),e.get_error_string());
+                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
         }
 	if(verbose) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
 	free(dbpath);
@@ -1191,7 +1191,7 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: xapian_query %s - %s",e.get_type(),e.get_error_string());
+		i_error("FTS Xapian: xapian_query %s - %s %s",e.get_type(),e.get_msg().c_str(),e.get_error_string());
 	}
 	delete(q);
 	return set;
@@ -1308,7 +1308,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		}
 		catch(Xapian::Error e)
 		{
-			i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());
+			i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s %s",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 		}
 	}
 	i_free(t);
