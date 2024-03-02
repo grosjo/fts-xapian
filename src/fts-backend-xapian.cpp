@@ -26,7 +26,7 @@ class XDocsWriter;
 
 typedef std::vector<XDoc *> XDocs;
 
-#define XSLEEP std::chrono::seconds(2)
+#define XSLEEP std::chrono::milliseconds(200)
 
 struct xapian_fts_backend
 {

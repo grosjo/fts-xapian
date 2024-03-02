@@ -787,11 +787,13 @@ class XDocsWriter
                 {
 			ok=false;
 			pos=7;
+			long t=0;
 			while(!ok)
 			{
                         	try
                         	{
-                                	if(verbose>0) syslog(LOG_INFO,"%sOpening %s",title,dbpath);
+					t++;
+                                	if(verbose>0) syslog(LOG_INFO,"%sOpening (%ld) %s",title,t,dbpath);
 					*dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 					ok=true;
                         	}
@@ -881,10 +883,12 @@ class XDocsWriter
 					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
 					try
 					{
-						(*dbw)->commit();
-						(*dbw)->close();
-						delete(*dbw);
-						*dbw=NULL;
+						if((*dbw)!=NULL)
+						{
+							(*dbw)->close();
+							delete(*dbw);
+							*dbw=NULL;
+						}
 						pos=17;
 						if(checkDB())
                                         	{      
@@ -1003,7 +1007,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
 		/* End Performance calculator*/
 
-		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->old_guid,backend->total_added_docs,dt,r);
+		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->db,backend->total_added_docs,dt,r);
 
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
@@ -1071,6 +1075,29 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	return false;
 }
 
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,bool verbose)
+{
+	long t = fts_backend_xapian_current_time();
+	openlog("xapian-docswriter-closer",0,LOG_MAIL);
+        if(verbose)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
+        try
+        {
+                if(dbw != NULL)
+                {
+                        dbw->close();
+                        delete(dbw);
+                }
+	}
+        catch(Xapian::Error e)
+        {
+                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s %s : %s - %s",boxname,dbpath,e.get_type(),e.get_error_string());
+        }
+	if(verbose) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
+	free(dbpath);
+	free(boxname);
+	closelog();
+}
+
 static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing all DWs (%s)",reason);
@@ -1109,22 +1136,19 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	delete(backend->docs);
 	backend->docs=NULL;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing DB");
-	try     
+	char * dbpath = (char*) malloc(sizeof(char)*(strlen(backend->db)+1));	
+	strcpy(dbpath,backend->db);
+	char * boxname = (char*) malloc(sizeof(char)*(strlen(backend->boxname)+1));
+	strcpy(boxname,backend->boxname);
+	try
         {
-		if(backend->dbw != NULL) 
-		{
-			backend->dbw->commit();
-			backend->dbw->close();
-                	delete(backend->dbw);
-		}
-		backend->dbw=NULL;
-        }       
-        catch(Xapian::Error e)
-        {
-                i_error("FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s",backend->boxname,backend->db,e.get_type(),e.get_error_string());      
+        	(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,(fts_xapian_settings.verbose>0)))->detach();
         }
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All closed");
+        catch(std::exception e)
+        {
+                i_error("FTS Xapian : CLosing Thread error %s",e.what());
+        }
+	backend->dbw=NULL;
 }
 
 static bool fts_backend_xapian_isnormalprocess()
