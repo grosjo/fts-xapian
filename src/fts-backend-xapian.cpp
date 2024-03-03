@@ -467,12 +467,15 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	char *zErrMsg = 0;
 	XResultSet * result = NULL;
 	Xapian::docid docid =0;
-
+	struct stat info;
 	while ((dp = readdir(dirp)) != NULL)
 	{
 		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
 			uids.clear();
+			s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+			stat(s, &info);
+			i_free(s);
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
 			if(sqlite3_open(s,&expdb) == SQLITE_OK)
@@ -496,6 +499,8 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				i_free(s);
 				s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+				std::string iamglass(s);
+				iamglass.append("/iamglass");
 				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (4) Opening Xapian DB (%s)",s);
 				try
 				{
@@ -559,6 +564,8 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					db->commit();
 					db->close();
 					delete(db);
+					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Chown %s to (%ld,%ld)",iamglass.c_str(),(long)(info.st_uid),(long)(info.st_gid));
+					if(chown(iamglass.c_str(),info.st_uid,info.st_gid)<0) { i_error("FTS Xapian: Optimize - Can not chown %s",iamglass.c_str()); }
 					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closed DB %s",s);
 				}
 				catch(Xapian::Error e)

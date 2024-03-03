@@ -1075,21 +1075,17 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	return false;
 }
 
-static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,bool verbose)
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,uid_t user,uid_t group,bool verbose)
 {
 	long t = fts_backend_xapian_current_time();
+
 	openlog("xapian-docswriter-closer",0,LOG_MAIL);
-	struct stat info;
-	stat(dbpath, &info);
         
         if(verbose)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
         try
         {
-                if(dbw != NULL)
-                {
-                        dbw->close();
-                        delete(dbw);
-                }
+		dbw->close();
+                delete(dbw);
 	}
         catch(Xapian::Error e)
         {
@@ -1098,7 +1094,8 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 
 	std::string iamglass(dbpath);
 	iamglass.append("/iamglass");
-	if(chown(iamglass.c_str(),info.st_uid,info.st_gid)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
+	if(verbose) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
+	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 
 	if(verbose) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
 	free(dbpath);
@@ -1144,19 +1141,24 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	delete(backend->docs);
 	backend->docs=NULL;
 
-	char * dbpath = (char*) malloc(sizeof(char)*(strlen(backend->db)+1));	
-	strcpy(dbpath,backend->db);
-	char * boxname = (char*) malloc(sizeof(char)*(strlen(backend->boxname)+1));
-	strcpy(boxname,backend->boxname);
-	try
-        {
-        	(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,(fts_xapian_settings.verbose>0)))->detach();
-        }
-        catch(std::exception e)
-        {
-                i_error("FTS Xapian : CLosing Thread error %s",e.what());
-        }
-	backend->dbw=NULL;
+	if(backend->dbw!=NULL)
+	{
+		char * dbpath = (char*) malloc(sizeof(char)*(strlen(backend->db)+1));	
+		strcpy(dbpath,backend->db);
+		char * boxname = (char*) malloc(sizeof(char)*(strlen(backend->boxname)+1));
+		strcpy(boxname,backend->boxname);
+		struct stat info;
+        	stat(dbpath, &info);
+		try
+        	{
+        		(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,(fts_xapian_settings.verbose>0)))->detach();
+        	}
+        	catch(std::exception e)
+        	{
+        	        i_error("FTS Xapian : CLosing Thread error %s",e.what());
+        	}
+		backend->dbw=NULL;
+	}
 }
 
 static bool fts_backend_xapian_isnormalprocess()
