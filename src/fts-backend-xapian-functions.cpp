@@ -347,7 +347,7 @@ class XNGram
 		long memory;
 		long maxlength;
 
-	XNGram(std::string *pre, char * * * d, long * asize, const char * t, int v)
+	XNGram(std::string *pre, char * * * d, long * asize, const char * t, long v)
 	{
 		verbose=v;
 		size = 0;
@@ -801,7 +801,7 @@ class XDocsWriter
                         	}
 				catch(Xapian::DatabaseLockError e)
 				{
-					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 from %s : %s - %s",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 from %s : %s - %s %s",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 					std::this_thread::sleep_for(XSLEEP);
 				}
                         	catch(Xapian::Error e)
