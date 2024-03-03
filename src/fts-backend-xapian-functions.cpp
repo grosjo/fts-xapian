@@ -341,13 +341,13 @@ class XNGram
 		char * * * storage;
 		long * size;
 		const char * title;
-		bool verbose;
+		long verbose;
 	
 	public:
 		long memory;
 		long maxlength;
 
-	XNGram(std::string *pre, char * * * d, long * asize, const char * t, bool v)
+	XNGram(std::string *pre, char * * * d, long * asize, const char * t, int v)
 	{
 		verbose=v;
 		size = 0;
@@ -591,31 +591,33 @@ class XDoc
 		size++;
 	}
 
-	void populate_stems(bool verbose, const char * title)
+	void populate_stems(long verbose, const char * title)
 	{
 		long i,j,k;
 		XNGram * ngram; 
-	
+
+		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
-		if(verbose) syslog(LOG_INFO,"%s Populate %ld headers/strings (%s)",title,k,getSummary().c_str());
+		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers/strings",title,getSummary().c_str(),k);
 
 		while((j=headers->size())>0)
 		{
-			if(verbose) syslog(LOG_INFO,"%s Populate %ld / %ld Header=%s TextLength=%ld stems=%ld",title,j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length(),stems);
-			ngram = new XNGram(headers->at(j-1),&data,&stems,title,(verbose>0));
+			if(verbose>1) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length());
+			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
 			ngram->add(strings->at(j-1));
 			delete(ngram);
 			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
 			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
                 }
-		if(verbose) syslog(LOG_INFO,"%s done populating (%s)",title,getSummary().c_str());
+		t = fts_backend_xapian_current_time() -t;
+		if(verbose>0) syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
 	}
 
-	void create_document(bool verbose, const char * title)
+	void create_document(long verbose, const char * title)
 	{
 		long i=stems;
 
-		if(verbose) syslog(LOG_INFO,"%s adding %ld terms to doc (%s)",title,stems,getSummary().c_str());
+		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms to doc (%s)",title,stems,getSummary().c_str());
 		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
 		xdoc->add_term(uterm);
@@ -623,13 +625,13 @@ class XDoc
 		{
 			i--;
  			xdoc->add_term(data[i]);
-			//if(verbose) syslog(LOG_INFO,"%s adding terms : %s",title,data[i]);
+			if(verbose>1) syslog(LOG_INFO,"%s adding terms : %s",title,data[i]);
 			free(data[i]);
 			data[i]=NULL;
 		}
 		free(data);
 		data=NULL;
-		if(verbose) syslog(LOG_INFO,"%s create_doc done (%s)",title,getSummary().c_str());
+		if(verbose>0) syslog(LOG_INFO,"%s create_doc done (%s)",title,getSummary().c_str());
 	} 
 };
 
@@ -779,11 +781,11 @@ class XDocsWriter
 		t=NULL;
 	}
 
-	bool checkDB()
+	bool checkDB(const char * from)
 	{
 		pos=6;
 		bool ok=true;
-		if(*dbw == NULL)
+		if((*dbw) == NULL)
                 {
 			ok=false;
 			pos=7;
@@ -793,24 +795,24 @@ class XDocsWriter
                         	try
                         	{
 					t++;
-                                	if(verbose>0) syslog(LOG_INFO,"%sOpening (%ld) %s",title,t,dbpath);
-					*dbw = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+                                	if(verbose>0) syslog(LOG_INFO,"%sOpening (%ld) %s from %s",title,t,dbpath,from);
+					(*dbw) = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 					ok=true;
                         	}
 				catch(Xapian::DatabaseLockError e)
 				{
-					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 : %s - %s",title,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 from %s : %s - %s",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 					std::this_thread::sleep_for(XSLEEP);
 				}
                         	catch(Xapian::Error e)
                         	{
-                                	syslog(LOG_ERR,"%sCan't open Xapian DB %s 2 : %s - %s %s ",title,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                	syslog(LOG_ERR,"%sCan't open Xapian DB %s 2 from %s : %s - %s %s ",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                 	return false;
                         	}
 			}
 			pos=8;
                         long nbdocs = (*dbw)->get_doccount();
-                        if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing)",title,nbdocs);
+                        if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing) from %s",title,nbdocs,from);
                 }
 		return ok;
 	}
@@ -831,28 +833,29 @@ class XDocsWriter
 			docs->pop_back();
 			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
 			pos=10;
-			doc->populate_stems((verbose>0),title);
+			doc->populate_stems(verbose,title);
 			if(verbose>0) syslog(LOG_INFO,"%sCreating doc #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
 			pos=11;
-			doc->create_document((verbose>0),title);
+			doc->create_document(verbose,title);
                         if(verbose>0) syslog(LOG_INFO,"%sPushing Doc %ld (%ld/%ld) with %ld strings and %ld stems",title,doc->uid,i+1,n,doc->size,doc->stems);
                         if(doc->stems > 0)
                         {
 				pos=12;
-				if(verbose>0) syslog(LOG_INFO,"%sMutex thread",title);
+				if(verbose>1) syslog(LOG_INFO,"%sMutex thread",title);
 				std::unique_lock<std::timed_mutex> lck(*m,std::defer_lock);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
                 		while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
                 		{
-                        		if(verbose>0) syslog(LOG_INFO,"%sMutex : Waiting unlock... (thread)",title);
+                        		if(verbose>1) syslog(LOG_INFO,"%sMutex : Waiting unlock... (thread)",title);
                 		}
 #pragma GCC diagnostic pop
-                		if(verbose>0) syslog(LOG_INFO,"%sMutex : Lock acquired (thread)",title);
+                		if(verbose>1) syslog(LOG_INFO,"%sMutex : Lock acquired (thread)",title);
+				std::string err_s; err_s.clear();
                                 try
                                 {
 					pos=13;
-					if(checkDB())
+					if(checkDB("NormalThread"))
 					{
 						pos=14;
                                         	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
@@ -860,22 +863,29 @@ class XDocsWriter
 						(*batch)++;
 						if( (*batch) > XAPIAN_WRITING_CACHE) 
 						{
-							if(verbose>0) syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
+							syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
 							pos=15;
 							(*dbw)->commit();
 							*batch  = 0;
 						}
-					} else err=true;
+					} 
+					else 
+					{
+						err=true;
+						err_s.append("CheckDB failed");
+					}
                                 }
                                 catch(Xapian::Error e)
                                 {
                                         syslog(LOG_ERR,"%sCan't add document1 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         err=true;
+					err_s.append(e.get_type());
                                 }
                                 catch(std::exception e)
                                 {
                                         syslog(LOG_ERR,"%sCan't add document2 : %s",title,e.what());
                                         err=true;
+					err_s.append(e.what());
                                 }
 				if(err)
 				{
@@ -890,7 +900,7 @@ class XDocsWriter
 							*dbw=NULL;
 						}
 						pos=17;
-						if(checkDB())
+						if(checkDB(err_s.c_str()))
                                         	{      
 							pos=18; 
                                         	        (*dbw)->replace_document(doc->uterm,*(doc->xdoc));
@@ -974,13 +984,13 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 	if((backend->db == NULL) || (strlen(backend->db)<1))
 	{
-		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Open DB Read Only : no DB name");
+		i_warning("FTS Xapian: Open DB Read Only : no DB name");
 		return false;
 	}
 
 	try
 	{
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
 		*dbr = new Xapian::Database(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 	}
 	catch(Xapian::Error e)
@@ -1041,11 +1051,11 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 		if((backend->threads)[i]==NULL) 
 		{ 
 			if(found<0) found=i;
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Cleanup %ld : null",i); 
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Cleanup %ld : null",i); 
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Cleanup %ld : Terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Cleanup %ld : Terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
                         delete((backend->threads)[i]);
                         (backend->threads)[i]=NULL;
@@ -1075,13 +1085,13 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	return false;
 }
 
-static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,uid_t user,uid_t group,bool verbose)
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,uid_t user,uid_t group,long verbose)
 {
 	long t = fts_backend_xapian_current_time();
 
 	openlog("xapian-docswriter-closer",0,LOG_MAIL);
         
-        if(verbose)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
+        if(verbose>0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
         try
         {
 		dbw->close();
@@ -1089,15 +1099,19 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	}
         catch(Xapian::Error e)
         {
-                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+        }
+	catch(std::exception e)
+        {
+                syslog(LOG_ERR, "FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
         }
 
 	std::string iamglass(dbpath);
 	iamglass.append("/iamglass");
-	if(verbose) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
+	if(verbose>1) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
 	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 
-	if(verbose) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
+	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
 	free(dbpath);
 	free(boxname);
 	closelog();
@@ -1120,12 +1134,12 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		i--;
 		if((backend->threads)[i]==NULL)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because null",i);
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because null",i);
 			(backend->threads).pop_back();
 		}
 		else if((backend->threads)[i]->isTerminated())
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			(backend->threads)[i]->close();
 			delete((backend->threads)[i]);
 			(backend->threads)[i]=NULL;
@@ -1140,6 +1154,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	}
 	delete(backend->docs);
 	backend->docs=NULL;
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);
 
 	if(backend->dbw!=NULL)
 	{
@@ -1151,7 +1166,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
         	stat(dbpath, &info);
 		try
         	{
-        		(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,(fts_xapian_settings.verbose>0)))->detach();
+        		(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose))->detach();
         	}
         	catch(std::exception e)
         	{
@@ -1248,7 +1263,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = i_strconcat(path, "/" XAPIAN_FILE_PREFIX, static_cast<const char*>(NULL));
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Index path = %s",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Index path = %s",backend->path);
 
 	struct stat sb;
 	if(!( (stat(backend->path, &sb)==0) && S_ISDIR(sb.st_mode)))
@@ -1268,7 +1283,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if (box == NULL)
 	{
 		if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Box is empty");
+		i_warning("FTS Xapian: Box is empty");
 		return 0;
 	}
 

@@ -116,7 +116,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 {
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)_backend;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Deinit %s)",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Deinit %s)",backend->path);
 
 	if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 
@@ -190,7 +190,7 @@ static int fts_backend_xapian_update_deinit(struct fts_backend_update_context *_
 	struct xapian_fts_backend_update_context *ctx = (struct xapian_fts_backend_update_context *)_ctx;
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *)ctx->ctx.backend;
 
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_update_deinit (%s)",backend->path);
 
 	i_free(ctx);
 
@@ -320,7 +320,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 	if(i>=HDRS_NB)
 	{
-		// if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
 		i_free(ctx->tbi_field);
 		ctx->tbi_field=NULL;
 		return FALSE;
@@ -350,8 +350,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
 			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_THREAD_SIZE*backend->threads_max) || (fri>=0)))
 			{
-				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for an available thread (Sleep1) : Pending are %ld",backend->docs->size());
-				sleep(1);
+				if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Waiting for an available thread (Sleep1) : Pending are %ld",backend->docs->size());
+				std::this_thread::sleep_for(XSLEEP);
 			}
 		}
 		if((fri>=0) && (backend->dbw != NULL))
@@ -364,7 +364,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
                         while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
                         {
-                                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting unlock... (main)");
+                                if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Waiting unlock... (main)");
                         }
 #pragma GCC diagnostic pop
                         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Lock acquired (main)");
@@ -402,7 +402,7 @@ static void fts_backend_xapian_update_unset_build_key(struct fts_backend_update_
 
 static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_refresh");
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_refresh");
 
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
 
@@ -477,7 +477,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 			stat(s, &info);
 			i_free(s);
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
+			i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
 			if(sqlite3_open(s,&expdb) == SQLITE_OK)
 			{
 				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (1b) Executing %s",createTable);
@@ -539,7 +539,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 								c++;
 								if(c>XAPIAN_WRITING_CACHE) 
 								{
-									if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Flushing changes on disk");
+									i_info("FTS Xapian: Flushing changes on disk");
 									db->commit();
 									c=0;
 								}
@@ -603,7 +603,7 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 
 		if((dp->d_type == DT_REG) && (strncmp(dp->d_name,"expunge_",8)==0))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("Removing[1] %s",s);
+			i_info("Removing[1] %s",s);
 			remove(s);
 		}
 		else if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
@@ -615,13 +615,13 @@ static int fts_backend_xapian_rescan(struct fts_backend *_backend)
 				s2 = i_strdup_printf("%s/%s",s,dp2->d_name);
 				if(dp2->d_type == DT_REG)
 				{
-					if(fts_xapian_settings.verbose>0) i_info("Removing[2] %s",s2);
+					i_info("Removing[2] %s",s2);
 					remove(s2);
 				}
 				i_free(s2);
 			}
 			closedir(d2);
-			if(fts_xapian_settings.verbose>0) i_info("Removing dir %s",s);
+			i_info("Removing dir %s",s);
 			remove(s);
 		}
 		i_free(s);

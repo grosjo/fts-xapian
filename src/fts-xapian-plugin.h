@@ -52,7 +52,7 @@ static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", 
 
 struct fts_xapian_settings
 {
-	int verbose;
+	long verbose;
 	unsigned long pagesize;
 	long lowmemory;
 	long partial,full;
