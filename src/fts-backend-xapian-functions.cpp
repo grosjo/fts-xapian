@@ -601,12 +601,12 @@ class XDoc
 
 		while((j=headers->size())>0)
 		{
-			if(verbose) syslog(LOG_INFO,"%s Populate %ld / %ld",title,j,k);
+			if(verbose) syslog(LOG_INFO,"%s Populate %ld / %ld Header=%s TextLength=%ld stems=%ld",title,j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length(),stems);
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,(verbose>0));
 			ngram->add(strings->at(j-1));
+			delete(ngram);
 			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
 			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
-			delete(ngram);
                 }
 		if(verbose) syslog(LOG_INFO,"%s done populating (%s)",title,getSummary().c_str());
 	}
@@ -1079,6 +1079,9 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 {
 	long t = fts_backend_xapian_current_time();
 	openlog("xapian-docswriter-closer",0,LOG_MAIL);
+	struct stat info;
+	stat(dbpath, &info);
+        
         if(verbose)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
         try
         {
@@ -1092,6 +1095,11 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
         {
                 syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
         }
+
+	std::string iamglass(dbpath);
+	iamglass.append("/iamglass");
+	if(chown(iamglass.c_str(),info.st_uid,info.st_gid)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
+
 	if(verbose) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
 	free(dbpath);
 	free(boxname);
