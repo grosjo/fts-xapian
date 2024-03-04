@@ -598,11 +598,11 @@ class XDoc
 
 		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
-		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers/strings",title,getSummary().c_str(),k);
+		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
 
 		while((j=headers->size())>0)
 		{
-			if(verbose>1) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length());
+			if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length());
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
 			ngram->add(strings->at(j-1));
 			delete(ngram);
@@ -644,7 +644,7 @@ class XDocsWriter
 		XDocs * docs;
 		std::timed_mutex * m;
 		bool terminated;
-		Xapian::WritableDatabase * * dbw;
+		Xapian::WritableDatabase * dbw;
 		long verbose;
 		long * batch;
 		long * totaldocs;
@@ -681,7 +681,7 @@ class XDocsWriter
 		m = &(backend->mutex);
 		batch = &(backend->batch);
 		terminated = false;
-		dbw=&(backend->dbw);
+		dbw=backend->dbw;
 		totaldocs = &(backend->total_added_docs);
 		verbose=fts_xapian_settings.verbose;
 	}
@@ -781,42 +781,6 @@ class XDocsWriter
 		t=NULL;
 	}
 
-	bool checkDB(const char * from)
-	{
-		pos=6;
-		bool ok=true;
-		if((*dbw) == NULL)
-                {
-			ok=false;
-			pos=7;
-			long t=0;
-			while(!ok)
-			{
-                        	try
-                        	{
-					t++;
-                                	if(verbose>0) syslog(LOG_INFO,"%sOpening (%ld) %s from %s",title,t,dbpath,from);
-					(*dbw) = new Xapian::WritableDatabase(dbpath,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
-					ok=true;
-                        	}
-				catch(Xapian::DatabaseLockError e)
-				{
-					syslog(LOG_WARNING,"%sCan't lock the DB %s 1 from %s : %s - %s %s",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-					std::this_thread::sleep_for(XSLEEP);
-				}
-                        	catch(Xapian::Error e)
-                        	{
-                                	syslog(LOG_ERR,"%sCan't open Xapian DB %s 2 from %s : %s - %s %s ",title,dbpath,from,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-                                	return false;
-                        	}
-			}
-			pos=8;
-                        long nbdocs = (*dbw)->get_doccount();
-                        if(verbose>0) syslog(LOG_INFO,"%sOpenDB successful (%ld docs existing) from %s",title,nbdocs,from);
-                }
-		return ok;
-	}
-
 	void worker()
 	{
 		pos=9;
@@ -855,24 +819,15 @@ class XDocsWriter
                                 try
                                 {
 					pos=13;
-					if(checkDB("NormalThread"))
+                                        dbw->replace_document(doc->uterm,*(doc->xdoc));
+					(*totaldocs)++;
+					(*batch)++;
+					if( (*batch) > XAPIAN_WRITING_CACHE) 
 					{
-						pos=14;
-                                        	(*dbw)->replace_document(doc->uterm,*(doc->xdoc));
-						(*totaldocs)++;
-						(*batch)++;
-						if( (*batch) > XAPIAN_WRITING_CACHE) 
-						{
-							syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
-							pos=15;
-							(*dbw)->commit();
-							*batch  = 0;
-						}
-					} 
-					else 
-					{
-						err=true;
-						err_s.append("CheckDB failed");
+						syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
+						pos=15;
+						dbw->commit();
+						*batch  = 0;
 					}
                                 }
                                 catch(Xapian::Error e)
@@ -893,19 +848,10 @@ class XDocsWriter
 					syslog(LOG_ERR,"%s Retrying (%s) from %s",title,dbpath,err_s.c_str());
 					try
 					{
-						if((*dbw)!=NULL)
-						{
-							(*dbw)->close();
-							delete(*dbw);
-							*dbw=NULL;
-						}
+						dbw->commit();
 						pos=17;
-						if(checkDB(err_s.c_str()))
-                                        	{      
-							pos=18; 
-                                        	        (*dbw)->replace_document(doc->uterm,*(doc->xdoc));
-                                        	        (*totaldocs)++;
-                                        	}
+                                        	dbw->replace_document(doc->uterm,*(doc->xdoc));
+                                        	(*totaldocs)++;
 					}
 					catch(Xapian::Error e)
                                 	{       
@@ -915,6 +861,7 @@ class XDocsWriter
                                 	{       
                                         	syslog(LOG_ERR,"%sCan't add document4 : %s",title,e.what());
                                 	}
+					pos=18;
 				}
                         }
 			pos=19;
