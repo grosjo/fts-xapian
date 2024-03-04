@@ -832,20 +832,20 @@ class XDocsWriter
                                 }
                                 catch(Xapian::Error e)
                                 {
-                                        syslog(LOG_ERR,"%sCan't add document1 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        syslog(LOG_WARNING,"%sCan't add document1 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         err=true;
 					err_s.append(e.get_type());
                                 }
                                 catch(std::exception e)
                                 {
-                                        syslog(LOG_ERR,"%sCan't add document2 : %s",title,e.what());
+                                        syslog(LOG_WARNING,"%sCan't add document2 : %s",title,e.what());
                                         err=true;
 					err_s.append(e.what());
                                 }
 				if(err)
 				{
 					pos=16;
-					syslog(LOG_ERR,"%s Retrying (%s) from %s",title,dbpath,err_s.c_str());
+					syslog(LOG_WARNING,"%s Retrying (%s) from %s",title,dbpath,err_s.c_str());
 					try
 					{
 						dbw->commit();
@@ -1113,7 +1113,8 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
         	stat(dbpath, &info);
 		try
         	{
-        		(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose))->detach();
+			fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose);
+        		//(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose))->detach();
         	}
         	catch(std::exception e)
         	{
