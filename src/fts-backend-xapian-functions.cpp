@@ -890,7 +890,7 @@ class XDocsWriter
 				if(err)
 				{
 					pos=16;
-					syslog(LOG_ERR,"%s Retrying (%s)",title,dbpath);
+					syslog(LOG_ERR,"%s Retrying (%s) from %s",title,dbpath,err_s.c_str());
 					try
 					{
 						if((*dbw)!=NULL)
@@ -1108,7 +1108,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 
 	std::string iamglass(dbpath);
 	iamglass.append("/iamglass");
-	if(verbose>1) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
+	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
 	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
