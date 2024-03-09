@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <vector>
 #include <mutex>
+#include <regex>
 #include <chrono>
 extern "C" {
 #include "fts-xapian-plugin.h"

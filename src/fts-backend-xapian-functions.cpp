@@ -367,6 +367,19 @@ class XNGram
 		if(accentsConverter != NULL) delete(accentsConverter);
 	}
 
+	bool isBase64(icu::UnicodeString *d)
+	{
+		std::string s;
+		s.clear();
+                d->toUTF8String(s);
+    	
+		if (s.length()<16) return false;	
+		if (s.length() % 4 != 0)  return false;
+
+        	std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
+        	return std::regex_match(s, base64Regex);
+	}
+
 	void add(icu::UnicodeString *d)
 	{
 		long i,j,k;
@@ -410,9 +423,10 @@ class XNGram
                         }
                 }
                 if(accentsConverter != NULL) accentsConverter->transliterate(*d);
-       
+      
                 k = d->length();
                 if(k<fts_xapian_settings.partial) return;
+		if(isBase64(d)) return;
 
 		if(onlyone)
                 {
