@@ -43,8 +43,8 @@ static const char * selectUIDs = "select ID from docs;";
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
 
-#define CHARS_PB 15
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "~", "^", "/", "\\" };
+#define CHARS_PB 14
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "~", "^", "\\" };
 
 #define CHARS_SEP 12
 static const char * chars_sep[] = { "'", "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!" };
