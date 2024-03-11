@@ -373,7 +373,7 @@ class XNGram
 		s.clear();
                 d->toUTF8String(s);
     	
-		if (s.length()<16) return false;	
+		if (s.length()<56) return false;	
 		if (s.length() % 4 != 0)  return false;
 
         	std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
@@ -836,7 +836,7 @@ class XDocsWriter
                                         dbw->replace_document(doc->uterm,*(doc->xdoc));
 					(*totaldocs)++;
 					(*batch)++;
-					if( (*batch) > XAPIAN_WRITING_CACHE) 
+					if( false && ((*batch) > XAPIAN_WRITING_CACHE)) 
 					{
 						syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
 						pos=15;
