@@ -372,12 +372,14 @@ class XNGram
 		std::string s;
 		s.clear();
                 d->toUTF8String(s);
-    	
-		if (s.length()<56) return false;	
-		if (s.length() % 4 != 0)  return false;
-
-        	std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
-        	return std::regex_match(s, base64Regex);
+		bool ok=false;
+		std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
+		if( (s.length()>=56) && (s.length() % 4 == 0))
+		{
+			ok=std::regex_match(s, base64Regex);
+		}
+		if(ok) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
+		return ok;
 	}
 
 	void add(icu::UnicodeString *d)
