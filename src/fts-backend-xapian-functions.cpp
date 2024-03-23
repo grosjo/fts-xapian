@@ -1248,7 +1248,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if (box == NULL)
 	{
 		if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
-		i_warning("FTS Xapian: Box is empty");
+		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Box is empty");
 		return 0;
 	}
 
