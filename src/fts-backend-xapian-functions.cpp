@@ -1056,8 +1056,6 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 {
 	long t = fts_backend_xapian_current_time();
 
-	//openlog("xapian-docswriter-closer",0,LOG_MAIL);
-        
         if(verbose>=0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
         try
         {
@@ -1078,10 +1076,9 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
 	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 	t = fts_backend_xapian_current_time()-t;
-	if(verbose>=0) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
+	syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	free(dbpath);
 	free(boxname);
-	//closelog();
 }
 
 static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
