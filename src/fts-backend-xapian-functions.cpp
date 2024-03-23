@@ -980,7 +980,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
 		/* End Performance calculator*/
 
-		i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->db,backend->total_added_docs,dt,r);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->db,backend->total_added_docs,dt,r);
 
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
@@ -1076,7 +1076,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
 	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 	t = fts_backend_xapian_current_time()-t;
-	syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
+	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	free(dbpath);
 	free(boxname);
 }
