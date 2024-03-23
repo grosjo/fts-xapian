@@ -348,19 +348,19 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		if(backend->dbw == NULL)
 		{
 			bool ok=false;
-			long t=0;
+			long t=0,dt = fts_backend_xapian_current_time();
 			while(!ok)
                         {
                                 try
                                 {
                                         t++;
-                                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening (%s, %s) : Attempt %ld",backend->boxname,backend->db,t);
+                                        if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: Opening (%s, %s) : Attempt %ld",backend->boxname,backend->db,t);
                                         backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
                                         ok=true;
                                 }
                                 catch(Xapian::DatabaseLockError e)
                                 {
-                                        i_warning("FTS Xapian: Can't lock the DB %s 1 : %s - %s %s",backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        if((t-1) % 20 ==0) i_warning("FTS Xapian: Can't lock the DB %s 1 : %s - %s %s",backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         std::this_thread::sleep_for(XSLEEP);
                                 }
                                 catch(Xapian::Error e)
@@ -369,6 +369,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                                         return false;
                                 }
                         }
+			dt=fts_backend_xapian_current_time() - dt;
+			if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: DB (%s,%s) opened ! in %ld ms",backend->boxname,backend->db,dt);
 		}
 		if(backend->lastuid>0)
 		{

@@ -753,23 +753,23 @@ class XDocsWriter
 		terminate();
 	}
 
-	bool launch()
+	bool launch(const char * from)
 	{
 		pos=2;
-		i_info("%s LAUNCH",title);
+		if(verbose>0) i_info("%s Launching thread from %s",title,from);
 		t = NULL;
 		if(strlen(dbpath)<1)
                 {
-                        i_info("%sOpenDB: no DB name",title);
+                        i_error("%sOpenDB: no DB name (%s)",title,from);
 			terminate();
 			return false;
 		}
 
                 if((docs == NULL) || (docs->size()<1))
                 {
-                        i_info("%sOpenDB: no docs to write",title);
+                        if(verbose>0) i_info("%sOpenDB: no docs to write from %s",title,from);
 			terminate();
-			return false;
+			return true;
 		}
 
 		pos=3;	
@@ -838,7 +838,7 @@ class XDocsWriter
                                         dbw->replace_document(doc->uterm,*(doc->xdoc));
 					(*totaldocs)++;
 					(*batch)++;
-					if( false && ((*batch) > XAPIAN_WRITING_CACHE)) 
+					if((*batch) > XAPIAN_WRITING_CACHE)
 					{
 						syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
 						pos=15;
@@ -996,7 +996,9 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	if((backend->threads).size()<(backend->threads_max))
 	{
 		XDocsWriter * x = new XDocsWriter(backend);
-		if(!(x->launch()))
+		std::string s("Push 1 pos=");
+		s.append(std::to_string((backend->threads).size()));
+		if(!(x->launch(s.c_str())))
 		{
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Could not launch DocsWriter (Sleep2)");
 			x->recover(backend);
@@ -1031,7 +1033,9 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	{
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DW found : %ld",found);
 		XDocsWriter * x = new XDocsWriter(backend);
-		if(x->launch())
+		std::string s("Push 2 pos=");
+		s.append(std::to_string(found));
+		if(x->launch(s.c_str()))
 		{
 			(backend->threads)[found] = x;
 		}
@@ -1052,9 +1056,9 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 {
 	long t = fts_backend_xapian_current_time();
 
-	openlog("xapian-docswriter-closer",0,LOG_MAIL);
+	//openlog("xapian-docswriter-closer",0,LOG_MAIL);
         
-        if(verbose>0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s) %s",boxname,dbpath);
+        if(verbose>=0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
         try
         {
 		dbw->close();
@@ -1073,11 +1077,11 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	iamglass.append("/iamglass");
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
 	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
-
-	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : DB (%s) %s closed in %ld ms",boxname,dbpath,fts_backend_xapian_current_time()-t);
+	t = fts_backend_xapian_current_time()-t;
+	if(verbose>=0) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	free(dbpath);
 	free(boxname);
-	closelog();
+	//closelog();
 }
 
 static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
