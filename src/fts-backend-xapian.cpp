@@ -354,7 +354,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                                 try
                                 {
                                         t++;
-                                        if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: Opening (%s, %s) : Attempt %ld",backend->boxname,backend->db,t);
+                                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening (%s, %s) : Attempt %ld",backend->boxname,backend->db,t);
                                         backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
                                         ok=true;
                                 }
@@ -370,7 +370,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                                 }
                         }
 			dt=fts_backend_xapian_current_time() - dt;
-			if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: DB (%s,%s) opened ! in %ld ms",backend->boxname,backend->db,dt);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DB (%s,%s) opened ! in %ld ms",backend->boxname,backend->db,dt);
 		}
 		if(backend->lastuid>0)
 		{
