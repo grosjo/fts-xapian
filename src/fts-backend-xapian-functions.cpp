@@ -144,16 +144,19 @@ class XQuerySet
 		st1.clear();
 		h->toUTF8String(st1);
 		char * h2 = i_strdup(st1.c_str());
-		i=0;
-                while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
-                {
-                        i++;
-                }
-                if(i>=HDRS_NB)
-                {
-                        i_free(h2);
-                        return;
-                }
+		if(strcmp(h2, XAPIAN_WILDCARD)!=0)
+		{
+			i=0;
+                	while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
+                	{
+                	        i++;
+                	}
+                	if(i>=HDRS_NB)
+                	{
+                	        i_free(h2);
+                	        return;
+                	}
+		}
 
 		if(accentsConverter == NULL)
 		{
@@ -1056,7 +1059,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 {
 	long t = fts_backend_xapian_current_time();
 
-        if(verbose>=0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
+        if(verbose>0)  syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
         try
         {
 		dbw->close();
