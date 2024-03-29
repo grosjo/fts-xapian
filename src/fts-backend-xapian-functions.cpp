@@ -141,22 +141,6 @@ class XQuerySet
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
-		st1.clear();
-		h->toUTF8String(st1);
-		char * h2 = i_strdup(st1.c_str());
-		if(strcmp(h2, XAPIAN_WILDCARD)!=0)
-		{
-			i=0;
-                	while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
-                	{
-                	        i++;
-                	}
-                	if(i>=HDRS_NB)
-                	{
-                	        i_free(h2);
-                	        return;
-                	}
-		}
 
 		if(accentsConverter == NULL)
 		{
@@ -176,6 +160,10 @@ class XQuerySet
                         t->findAndReplace(chars_pb[k-1],CHAR_KEY);
                         k--;
                 }
+
+		st1.clear();
+                h->toUTF8String(st1);
+                char * h2 = i_strdup(st1.c_str());
 		st2.clear();
 		t->toUTF8String(st2);
 		char * t2 = i_strdup(st2.c_str());
@@ -199,6 +187,20 @@ class XQuerySet
 			i_free(t2);
 			return;
 		}
+                else
+		{
+                        i=0;
+                        while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
+                        {
+                                i++;
+                        }
+                        if(i>=HDRS_NB)
+                        {
+                                i_free(h2);
+				i_free(t2);
+                                return;
+                        }
+                }
 
 		if(text==NULL)
 		{
