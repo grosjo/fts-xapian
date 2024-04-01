@@ -623,7 +623,7 @@ class XDoc
 
 		while((j=headers->size())>0)
 		{
-			if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),strings->at(j-1)->length());
+			if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),(long)strings->at(j-1)->length());
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
 			ngram->add(strings->at(j-1));
 			delete(ngram);
