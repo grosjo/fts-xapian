@@ -383,7 +383,7 @@ class XNGram
 		{
 			ok=std::regex_match(s, base64Regex);
 		}
-		if(ok) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
+		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
 		return ok;
 	}
 
