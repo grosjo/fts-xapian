@@ -108,7 +108,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%d lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%ld lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
 
 	return 0;
 }
@@ -232,7 +232,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	else
 	{
 		char * u = i_strdup_printf("replace into docs values (%d)",uid);
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Expunged %ld on %s",uid,backend->expdb);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Expunged %d on %s",uid,backend->expdb);
 		if(sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK)
 		{
 			i_error("FTS Xapian: Expunging (3) UID=%d : Can not add UID : %s",uid,zErrMsg);
