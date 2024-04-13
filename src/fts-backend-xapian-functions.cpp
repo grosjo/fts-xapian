@@ -1057,7 +1057,7 @@ static bool fts_backend_xapian_push(struct xapian_fts_backend *backend, const ch
 	return false;
 }
 
-static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,uid_t user,uid_t group,long verbose)
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname,long verbose)
 {
 	long t = fts_backend_xapian_current_time();
 
@@ -1076,10 +1076,6 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
                 syslog(LOG_ERR, "FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
         }
 
-	std::string iamglass(dbpath);
-	iamglass.append("/iamglass");
-	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : Chown %s to (%ld,%ld)",iamglass.c_str(),(long)user,(long)group);
-	if(chown(iamglass.c_str(),user,group)<0) { syslog(LOG_ERR,"Can not chown %s",iamglass.c_str()); }
 	t = fts_backend_xapian_current_time()-t;
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	free(dbpath);
@@ -1131,16 +1127,20 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		strcpy(dbpath,backend->db);
 		char * boxname = (char*) malloc(sizeof(char)*(strlen(backend->boxname)+1));
 		strcpy(boxname,backend->boxname);
-		struct stat info;
-        	stat(dbpath, &info);
 		try
         	{
-			fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose);
-        		//(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,info.st_uid,info.st_gid,fts_xapian_settings.verbose))->detach();
+			if(fts_xapian_settings.detach)
+			{
+				(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,fts_xapian_settings.verbose))->detach();
+			}
+			else
+			{
+				fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,fts_xapian_settings.verbose);
+			}
         	}
         	catch(std::exception e)
         	{
-        	        i_error("FTS Xapian : CLosing Thread error %s",e.what());
+        	        i_error("FTS Xapian : Closing process error %s",e.what());
         	}
 		backend->dbw=NULL;
 	}

@@ -32,6 +32,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.lowmemory 	= XAPIAN_MIN_RAM;
         fuser->set.partial 	= XAPIAN_DEFAULT_PARTIAL;
         fuser->set.full 	= XAPIAN_DEFAULT_FULL;
+	fuser->set.detach	= 0;
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 	size_t len = sizeof(fuser->set.pagesize);
@@ -60,6 +61,10 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 	        }
                 	        fuser->set.partial = len;
                 	}
+			else if (strncmp(*tmp,"detach=",7)==0)
+			{
+				fuser->set.detach=(atol(*tmp + 7)>0);
+			}
                 	else if (strncmp(*tmp,"full=",5)==0)
                 	{
                 	        len=atol(*tmp + 5);
