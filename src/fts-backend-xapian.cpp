@@ -360,7 +360,17 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                                 }
                                 catch(Xapian::DatabaseLockError e)
                                 {
-                                        if((t-1) % 20 ==0) i_warning("FTS Xapian: Can't lock the DB %s 1 : %s - %s %s",backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        if((t-1) % 20 ==0) 
+					{
+						long delay = fts_backend_xapian_current_time() -dt;
+						delay = delay / 1000;
+						if(delay > XAPIAN_MAX_SEC_WAIT) 
+						{
+							i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : Will try later",backend->boxname,backend->db,delay);
+							return FALSE;
+						}
+						i_warning("FTS Xapian: Can't lock the DB (%s,%s)  : %s - %s %s",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+					}
                                         std::this_thread::sleep_for(XSLEEP);
                                 }
                                 catch(Xapian::Error e)
@@ -495,14 +505,14 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	char *zErrMsg = 0;
 	XResultSet * result = NULL;
 	Xapian::docid docid =0;
-	struct stat info;
+	struct stat fileinfo;
 	while ((dp = readdir(dirp)) != NULL)
 	{
 		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
 			uids.clear();
 			s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
-			stat(s, &info);
+			stat(s, &fileinfo);
 			i_free(s);
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
 			i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
@@ -527,8 +537,6 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				}
 				i_free(s);
 				s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
-				std::string iamglass(s);
-				iamglass.append("/iamglass");
 				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (4) Opening Xapian DB (%s)",s);
 				try
 				{
@@ -589,12 +597,18 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						i_free(u);
 					}
 					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closing DB %s",s);
-					db->commit();
-					db->close();
-					delete(db);
-					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Chown %s to (%ld,%ld)",iamglass.c_str(),(long)(info.st_uid),(long)(info.st_gid));
-					if(chown(iamglass.c_str(),info.st_uid,info.st_gid)<0) { i_error("FTS Xapian: Optimize - Can not chown %s",iamglass.c_str()); }
-					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closed DB %s",s);
+					char * s1 = (char *)malloc(sizeof(char) * (strlen(s)+1));
+					strcpy(s1,s);
+					char * s2 = (char *)malloc(sizeof(char) * 13);
+					strcpy(s2,"fts_optimize");
+					if(fts_xapian_settings.detach)
+					{
+						(new std::thread(fts_backend_xapian_close_db,db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose))->detach();
+					}
+					else
+					{
+						fts_backend_xapian_close_db(db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose);
+					}
 				}
 				catch(Xapian::Error e)
 				{
