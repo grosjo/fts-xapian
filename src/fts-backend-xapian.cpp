@@ -368,7 +368,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 							i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : Will try later",backend->boxname,backend->db,delay);
 							return FALSE;
 						}
-						i_warning("FTS Xapian: Can't lock the DB (%s,%s)  : %s - %s %s",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+						if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : %s - %s %s",backend->boxname,backend->db,delay,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 					}
                                         std::this_thread::sleep_for(XSLEEP);
                                 }
@@ -602,11 +602,11 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					strcpy(s2,"fts_optimize");
 					if(fts_xapian_settings.detach)
 					{
-						(new std::thread(fts_backend_xapian_close_db,db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose))->detach();
+						(new std::thread(fts_backend_xapian_close_db,db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose,true))->detach();
 					}
 					else
 					{
-						fts_backend_xapian_close_db(db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose);
+						fts_backend_xapian_close_db(db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose,false);
 					}
 				}
 				catch(Xapian::Error e)
