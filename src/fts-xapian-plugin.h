@@ -35,7 +35,7 @@
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
 
-#define XAPIAN_MAX_SEC_WAIT 30L
+#define XAPIAN_MAX_SEC_WAIT 15L
 
 #define HDRS_NB 10
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", ""  };

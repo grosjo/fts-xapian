@@ -362,8 +362,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
                                 {
                                         if((t-1) % 20 ==0) 
 					{
-						long delay = fts_backend_xapian_current_time() -dt;
-						delay = delay / 1000;
+						long delay = (fts_backend_xapian_current_time() -dt)/1000.0;
 						if(delay > XAPIAN_MAX_SEC_WAIT) 
 						{
 							i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : Will try later",backend->boxname,backend->db,delay);
