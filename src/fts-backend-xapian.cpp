@@ -7,6 +7,7 @@
 #include <mutex>
 #include <regex>
 #include <chrono>
+#include <cmath>
 extern "C" {
 #include "fts-xapian-plugin.h"
 }

@@ -30,7 +30,7 @@
 #define XAPIAN_FILE_PREFIX "xapian-indexes"
 #define XAPIAN_TERM_SIZELIMIT 245L
 #define XAPIAN_THREAD_SIZE 3L
-#define XAPIAN_WRITING_CACHE 6000L
+#define XAPIAN_WRITING_CACHE 2000L
 
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
@@ -44,6 +44,8 @@ static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMAR
 static const char * selectUIDs = "select ID from docs;";
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
+#define TRIM_SPACE " "
+#define TRIM_ALL "_ "
 
 #define CHARS_PB 14
 static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "~", "^", "\\" };
