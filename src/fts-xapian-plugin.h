@@ -44,8 +44,6 @@ static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMAR
 static const char * selectUIDs = "select ID from docs;";
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
-#define TRIM_SPACE " "
-#define TRIM_ALL "_ "
 
 #define CHARS_PB 14
 static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "~", "^", "\\" };

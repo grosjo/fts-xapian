@@ -342,8 +342,8 @@ class XNGram
 		long hardlimit;
 		bool onlyone;
 		icu::Transliterator *accentsConverter;
-		std::string * prefix;
-		std::string * * * storage;
+		icu::UnicodeString * prefix;
+		icu::UnicodeString * * * storage;
 		long * size;
 		const char * title;
 		long verbose;
@@ -352,7 +352,7 @@ class XNGram
 	public:
 		long maxlength;
 
-	XNGram(std::string *pre, std::string * * * d, long * asize, const char * t, long v)
+	XNGram(icu::UnicodeString *pre, icu::UnicodeString * * * d, long * asize, const char * t, long v)
 	{
 		verbose=v;
 		size = 0;
@@ -372,15 +372,17 @@ class XNGram
 		if(accentsConverter != NULL) delete(accentsConverter);
 	}
 
-	bool isBase64(std::string *s)
+	bool isBase64(icu::UnicodeString *d)
 	{
+		std::string s;
+                d->toUTF8String(s);
 		bool ok=false;
 		std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
-		if( (s->length()>=56) && (s->length() % 4 == 0))
+		if( (s.length()>=56) && (s.length() % 4 == 0))
 		{
-			ok=std::regex_match(*s, base64Regex);
+			ok=std::regex_match(s, base64Regex);
 		}
-		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s->c_str(),(long)ok);
+		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
 		return ok;
 	}
 
@@ -433,110 +435,106 @@ class XNGram
 
 		std::string s;
 		d->toUTF8String(s);
-		if(isBase64(&s)) return;
+		if(isBase64(d)) return;
 
 		if(onlyone)
                 {
-                        add_stem(&s);
+                        add_stem(d);
                         return;
                 }
 
-		k=s.length();
-		std::string sub;
+		icu::UnicodeString sub;
 
 		for(i=0;i<=k-fts_xapian_settings.partial;i++)
 		{
 			for(j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
 			{
-				sub= s.substr(i,j);
+				sub.remove();
+				d->extract(i,j,sub);
 				add_stem(&sub);
 			}
 		}
-		if(k>fts_xapian_settings.full) add_stem(&s);
+		if(k>fts_xapian_settings.full) add_stem(d);
 	}
 
-	bool stem_trim(std::string *s, bool onlyspace)
+	bool stem_trim(icu::UnicodeString *d)
 	{
 		bool res=false;
 
-		const char * trimers;
-		if(onlyspace) trimers=TRIM_SPACE; else trimers=TRIM_ALL;
-
-		size_t pos = s->find_last_not_of(trimers);
-		if(pos<s->length()-1)
+		while(d->startsWith(CHAR_SPACE) || d->startsWith(CHAR_KEY))
 		{
-			s->erase(pos+1,s->length()-pos-1);
+			d->remove(0,1);
 			res=true;
 		}
-
-		pos = s->find_first_not_of(trimers);
-		if((pos != std::string::npos)&&(pos>0))
+		while(d->endsWith(CHAR_SPACE) || d->endsWith(CHAR_KEY))
 		{
-			s->erase(0,pos);
+			d->truncate(d->length()-1);
 			res=true;
 		}
+		
         	return res;
 	} 
 
-	int search(std::string * s,long a, long b)
+	int search(icu::UnicodeString *d,long a, long b)
 	{
-		long i,c;
+		int8_t i;
+		long c;
 		if(a==b) return a;
 		if(a==b-1) { c=a; }
 		else { c = std::floor((a+b)*0.5f); }
-		i = (*storage)[c]->compare(*s);
-		if(i>0) return search(s,a,c);
-		if(i<0) return search(s,c+1,b);
+		i = (*storage)[c]->compare(*d);
+		if(i>0) return search(d,a,c);
+		if(i<0) return search(d,c+1,b);
 		return -1;
 	}
 
-	void add_stem(std::string *s)
+	void add_stem(icu::UnicodeString *d)
 	{
 		long l,i,p;
 
-		stem_trim(s,true);
-		l=s->length();
+		d->trim();
+		l=d->length();
 		if(l<fts_xapian_settings.partial) return;
 
-		s->insert(0,*prefix);
+		d->insert(0,*prefix);
 		
-		i = s->length();
-		if(i<=hardlimit)
+		l = d->length();
+		if(l<=hardlimit)
 		{
 			if((*size)<1)
 			{
-				*storage=(std::string **)malloc(sizeof(std::string *));
+				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
 				(*size)=1;
-				(*storage)[0]=new std::string(*s);
+				(*storage)[0]=new icu::UnicodeString(*d);
 			}
 			else
 			{
-				p=search(s,0,*size);
+				p=search(d,0,*size);
 				if(p>=0)
 				{
-					(*storage)=(std::string **)realloc((*storage),((*size) + 1)*sizeof(std::string *));
+					(*storage)=(icu::UnicodeString **)realloc((*storage),((*size) + 1)*sizeof(icu::UnicodeString *));
 					i=(*size);
 					while(i>p)
 					{
 						(*storage)[i]=(*storage)[i-1];
 						i--;
 					}
-					(*storage)[p]=new std::string(*s);
+					(*storage)[p]=new icu::UnicodeString(*d);
 					(*size)++;
 				}
 			}
 			if(l>maxlength) { maxlength=l; }
 		}
-		if(stem_trim(s,false)) add_stem(s);
+		if(stem_trim(d)) add_stem(d);
 	}
 };
 
 class XDoc
 {
 	private:
-                std::string * * data;
+                icu::UnicodeString * * data;
 		std::vector<icu::UnicodeString *> * strings;
-		std::vector<std::string *> * headers;
+		std::vector<icu::UnicodeString *> * headers;
 	public:
 		long uid,size,stems;
 		char * uterm;
@@ -548,7 +546,7 @@ class XDoc
 		data = NULL;
 		strings = new std::vector<icu::UnicodeString *>;
 		strings->clear();
-		headers = new std::vector<std::string *>;
+		headers = new std::vector<icu::UnicodeString *>;
 		headers->clear();
 		size=0;
 		stems=0;
@@ -571,9 +569,9 @@ class XDoc
 			data=NULL;
 		}
 		
-		for (std::string *s : *headers)
+		for (icu::UnicodeString * h : *headers)
 		{
-			delete(s);
+			delete(h);
 		}
 		headers->clear(); delete(headers);
 		for (icu::UnicodeString * t : *strings)
@@ -596,8 +594,8 @@ class XDoc
 
 	void add(const char *h, icu::UnicodeString* t)
 	{
-		std::string * s = new std::string(h);
-		headers->push_back(s);
+		icu::UnicodeString * prefix = new icu::UnicodeString(h);
+		headers->push_back(prefix);
 
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
 		strings->push_back(t2);
@@ -616,7 +614,11 @@ class XDoc
 
 		while((j=headers->size())>0)
 		{
-			if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,headers->at(j-1)->c_str(),(long)strings->at(j-1)->length());
+			if(verbose>0) 
+			{
+				std::string s; headers->at(j-1)->toUTF8String(s);
+				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,s.c_str(),(long)strings->at(j-1)->length());
+			}
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
 			ngram->add(strings->at(j-1));
 			delete(ngram);
@@ -635,11 +637,13 @@ class XDoc
 		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
 		xdoc->add_term(uterm);
+		std::string s;
 		while(i>0)
 		{
 			i--;
- 			xdoc->add_term(data[i]->c_str());
-			if(verbose>1) syslog(LOG_INFO,"%s adding terms : %s",title,data[i]->c_str());
+			s.clear(); data[i]->toUTF8String(s);
+ 			xdoc->add_term(s.c_str());
+			if(verbose>1) syslog(LOG_INFO,"%s adding terms : %s",title,s.c_str());
 			delete(data[i]);
 			data[i]=NULL;
 		}
