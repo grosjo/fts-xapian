@@ -558,7 +558,7 @@ class XDoc
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<icu::UnicodeString *> * headers;
 	public:
-		long uid,size,stems;
+		long uid,size,stems,tsize;
 		char * uterm;
 		Xapian::Document * xdoc;
  
@@ -572,6 +572,7 @@ class XDoc
 		headers->clear();
 		size=0;
 		stems=0;
+		tsize=0;
 		std::string s;
                 s.append("Q"+std::to_string(uid));
 		uterm = (char*)malloc((s.length()+1)*sizeof(char));
@@ -609,20 +610,29 @@ class XDoc
 	{
 		std::string s("Doc ");
 		s.append(std::to_string(uid));
-		s.append(" Size(text)=" + std::to_string(size));
-		s.append(" Stems=" + std::to_string(stems));
+		s.append(" #add=" + std::to_string(size));
+		s.append(" #length=" + std::to_string(tsize));
+		s.append(" #stems=" + std::to_string(stems));
 		return s;
 	}
 
-	void add(const char *h, icu::UnicodeString* t)
+	void add(const char *h, icu::UnicodeString* t,long verbose, const char * title)
 	{
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
 		headers->push_back(prefix);
 
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
 		strings->push_back(t2);
-	
+
+		if(verbose>0) 
+		{
+			std::string s;
+			t->toUTF8String(s);
+			s= s.substr(0,100);
+			syslog(LOG_INFO,"%s %s : Adding [%s] [%s]",title,getSummary().c_str(),h,s.c_str());
+		}
 		size++;
+		tsize+=t2->length();
 	}
 
 	void populate_stems(long verbose, const char * title)
@@ -1448,7 +1458,7 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	if(i>=HDRS_NB) i=HDRS_NB-1;
 	const char * h = hdrs_xapian[i];
 
-	backend->docs->back()->add(h,data);
+	backend->docs->back()->add(h,data,fts_xapian_settings.verbose,"FTS Xapian: fts_backend_xapian_index");
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
 
