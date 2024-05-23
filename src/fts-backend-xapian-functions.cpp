@@ -619,9 +619,11 @@ class XDoc
 	void add(const char *h, icu::UnicodeString* t,long verbose, const char * title)
 	{
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
+		prefix->trim();
 		headers->push_back(prefix);
 
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
+		t2->trim();
 		strings->push_back(t2);
 
 		if(verbose>0) 
