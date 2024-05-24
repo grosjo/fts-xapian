@@ -517,21 +517,23 @@ class XNGram
 		d->trim();
 		l=d->length();
 		if(l<fts_xapian_settings.partial) return;
-
-		d->insert(0,*prefix);
+		if((*size)>XAPIAN_MAXTERMS_PERDOC) return;
 		
-		l = d->length();
+		icu::UnicodeString * st = new icu::UnicodeString(*d);
+		st->insert(0,*prefix);
+		
+		l = st->length();
 		if(l<=hardlimit)
 		{
 			if((*size)<1)
 			{
 				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
 				(*size)=1;
-				(*storage)[0]=new icu::UnicodeString(*d);
+				(*storage)[0]=st;
 			}
 			else
 			{
-				p=search(d,0,*size);
+				p=search(st,0,*size);
 				if(p>=0)
 				{
 					(*storage)=(icu::UnicodeString **)realloc((*storage),((*size) + 1)*sizeof(icu::UnicodeString *));
@@ -541,9 +543,10 @@ class XNGram
 						(*storage)[i]=(*storage)[i-1];
 						i--;
 					}
-					(*storage)[p]=new icu::UnicodeString(*d);
+					(*storage)[p]=st;
 					(*size)++;
 				}
+				else delete(st);
 			}
 			if(l>maxlength) { maxlength=l; }
 		}
@@ -660,7 +663,26 @@ class XDoc
 			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
                 }
 		t = fts_backend_xapian_current_time() -t;
-		if(verbose>0) syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
+		if(verbose>0) 
+		{
+			syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
+			std::string s;
+			for(long i=0; i<10 && i<stems;i++)
+			{
+				std::string s2;
+				data[i]->toUTF8String(s2);
+				s+=" ";
+				s+=s2;
+			}
+			for(long i=stems-1; i>=0 && i>stems-10; i--)
+			{
+                                std::string s2;
+                                data[i]->toUTF8String(s2);
+                                s+=" ";
+                                s+=s2;
+                        }
+			syslog(LOG_INFO, "STEMS populated : %ld [%s]",stems,s.c_str());
+		}
 	}
 
 	void create_document(long verbose, const char * title)
@@ -1168,7 +1190,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
 			std::this_thread::sleep_for(XSLEEP);
 			i++;
 		}
