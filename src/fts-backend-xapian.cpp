@@ -54,6 +54,8 @@ struct xapian_fts_backend
 	long total_added_docs;
 	long batch;
 	long start_time;
+
+	icu::Transliterator * accentsConverter;
 };
 
 struct xapian_fts_backend_update_context
@@ -107,6 +109,14 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
+	UErrorCode status = U_ZERO_ERROR;
+	backend->accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+	if(U_FAILURE(status))
+        { 
+		i_warning("FTS Xapian: Can not allocate ICU translator (2)");
+                backend->accentsConverter = NULL;
+	}
+
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%ld lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
@@ -130,6 +140,9 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
+
+	if(backend->accentsConverter != NULL) i_free(backend->accentsConverter);
+	backend->accentsConverter = NULL;
 
 	i_free(backend);
 
@@ -561,7 +574,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
 						XQuerySet * xq = new XQuerySet();
 						char *u = i_strdup_printf("%d",uid);
-						xq->add("uid",u);
+						xq->add("uid",u,backend->accentsConverter);
 						i_free(u);
 						result=fts_backend_xapian_query(db,xq,1);
 						docid=0; 
@@ -707,7 +720,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		qs = new XQuerySet(Xapian::Query::OP_OR,fts_xapian_settings.partial);
 	}
 
-	fts_backend_xapian_build_qs(qs,args);
+	fts_backend_xapian_build_qs(qs,args,backend->accentsConverter);
 
 	XResultSet * r=fts_backend_xapian_query(dbr,qs);
 
