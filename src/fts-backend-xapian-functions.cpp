@@ -34,8 +34,8 @@ class XResultSet
 class XQuerySet
 {
 	private:
-		char * header;
-		char * text;
+		const char * header;
+		icu::UnicodeString * text;
 		XQuerySet ** qs;
 		Xapian::Query::op global_op;
 		bool item_neg; // for the term
@@ -65,8 +65,7 @@ class XQuerySet
 
 	~XQuerySet()
 	{
-		if(text!=NULL) { i_free(text); text=NULL; }
-		if(header!=NULL) { i_free(header); header=NULL; }
+		if(text!=NULL) { delete(text); text=NULL; }
 
 		for(long j=0;j<qsize;j++)
 		{
@@ -76,48 +75,47 @@ class XQuerySet
 		qsize=0; qs=NULL;
 	}
 
-	void add(const char * h,const char * t,icu::Transliterator * ac)
+	void add(long uid)
 	{
-		add(h,t,false,ac);
+		std::string s = std::format("{}",uid);
+		icu::UnicodeString t(s.c_str());
+		add(hdrs_emails[0],&t,false,NULL,false);
 	}
-
-	void add(const char * h,const char * t, bool is_neg,icu::Transliterator * ac)
+		
+	void add(const char * h2, icu::UnicodeString *t, bool is_neg,icu::Transliterator * ac, bool checklength=true)
 	{
-		if(h==NULL) return;
+		if(h2==NULL) return;
 		if(t==NULL) return;
 
-		icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(icu::StringPiece(h));
-		icu::UnicodeString t2 = icu::UnicodeString::fromUTF8(icu::StringPiece(t));
-
-		add(&h2,&t2,is_neg,ac);
-	}
-
-	void add(const char * h, icu::UnicodeString *t, bool is_neg,icu::Transliterator * ac)
-	{
-		if(h==NULL) return;
-		if(t==NULL) return;
-		icu::UnicodeString h2 = icu::UnicodeString::fromUTF8(icu::StringPiece(h));
-		add(&h2,t,is_neg,ac);
-	}
-
-	void add(icu::UnicodeString *h, icu::UnicodeString *t, bool is_neg,icu::Transliterator * ac)
-	{
-		h->trim();
-                h->toLower();
-                if(h->length()<1) return;
+		icu::UnicodeString h(h2);
+		h.trim();
+                if(h.length()<1) return;
 
 		long i,j,k;
 		XQuerySet * q2;
 		icu::UnicodeString *r1,*r2;
 
-		t->toLower();
+		if(ac!=NULL)
+		{
+			h.toLower();
+			t->toLower();
+		
+			k=CHARS_PB;
+                	while(k>0)
+                	{
+                	        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
+                	        k--;
+                	}
 
-		k=CHARS_SEP;
-		while(k>0)
-                {
-                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
-                        k--;
-                }
+			k=CHARS_SEP;
+			while(k>0)
+                	{
+                	        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                	        k--;
+                	}
+			
+			ac->transliterate(*t);
+		}
 		t->trim();
 		if(t->length()<limit) return;
 	
@@ -136,32 +134,18 @@ class XQuerySet
                         {
                                 j = t->length();
                                 r1 = new icu::UnicodeString(*t,i+1,j-i-1);
-                                q2->add(h,r1,false,ac);
+                                q2->add(h2,r1,false,NULL,true);
                                 delete(r1);
                                 t->truncate(i);
                                 t->trim();
                                 i = t->lastIndexOf(CHAR_SPACE);
                         }
-                        q2->add(h,t,false,ac);
+                        q2->add(h2,t,false,NULL,true);
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
 
-		k=CHARS_PB;
-                while(k>0)
-                {
-                        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
-                        k--;
-                }
-
-		if(ac !=NULL) ac->transliterate(*t);
-
-		std::string st1;
-		st1.clear();
-                h->toUTF8String(st1);
-                char * h2 = i_strdup(st1.c_str());
-
-		if(strcmp(h2,XAPIAN_WILDCARD)==0)
+		if(h.compare(XAPIAN_WILDCARD)==0)
 		{
 			if(is_neg)
 			{
@@ -173,62 +157,63 @@ class XQuerySet
 			}
 			for(i=1;i<HDRS_NB;i++)
 			{
-				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false,ac);
+				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false,NULL,true);
 			}
 			add(q2);
-			i_free(h2);
 			return;
 		}
                 else
 		{
                         i=0;
-                        while((i<HDRS_NB) && (strcmp(h2,hdrs_emails[i])!=0))
+                        while((i<HDRS_NB) && (h.compare(hdrs_emails[i])!=0))
                         {
                                 i++;
                         }
                         if(i>=HDRS_NB)
                         {
-                                i_free(h2);
                                 return;
                         }
+			h2=hdrs_emails[i];
                 }
 
 		k=t->length()-fts_xapian_settings.full;
-		if(k>0)
+		if(checklength && (k>0))
 		{
-			i_free(h2); 
-                	q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
-			q2->add(h,t,false,ac);
-			
+			if(is_neg)
+                        {
+                                q2 = new XQuerySet(Xapian::Query::OP_AND_NOT,limit);
+                        }
+                        else 
+                        {
+                                q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
+                        }
+			q2->add(h2,t,false,NULL,false);
+	
 			icu::UnicodeString sub;
-			for(i=0;i<k;i++)
+			for(j=0;j<k;j++)
 			{
 				sub.remove();
-                                t->extract(i,fts_xapian_settings.full,sub);
-                                q2->add(h,&sub,false,ac);
+                                t->extract(j,j+fts_xapian_settings.full,sub);
+                                q2->add(h2,&sub,false,NULL,false);
 			}
 			add(q2);
 			return;
-		}	
+		}
 		if(text==NULL)
 		{
-			st1.clear();
-			t->toUTF8String(st1);
-			text=i_strdup(st1.c_str());;
+			text=new icu::UnicodeString(*t);
 			header=h2;
 			item_neg=is_neg;
 			return;
 		}
 
-		i_free(h2); 
-		q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
-		q2->add(h,t,false,ac);
+                q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
+		q2->add(h2,t,is_neg,NULL,false);
 		add(q2);
 	}
 
 	void add(XQuerySet *q2)
 	{
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: XQuerySet->addQ()");
 		if(qsize<1)
 		{
 			qs=(XQuerySet **)i_malloc(sizeof(XQuerySet*));
@@ -261,7 +246,7 @@ class XQuerySet
 			s.append(header);
 			s.append(":");
 			s.append("\"");
-			s.append(text);
+			text->toUTF8String(s);
 			s.append("\"");
 			if(item_neg) s.append(")");
 		}
@@ -303,7 +288,7 @@ class XQuerySet
 			std::string s(header);
                         s.append(":");
                         s.append("\"");
-                        s.append(text);
+                        text->toUTF8String(s);
                         s.append("\"");
 
 			Xapian::QueryParser * qp = new Xapian::QueryParser();
@@ -349,7 +334,6 @@ class XQuerySet
 class XNGram
 {
 	private:
-		long hardlimit;
 		bool onlyone;
 		icu::UnicodeString * prefix;
 		icu::UnicodeString * * * storage;
@@ -367,7 +351,6 @@ class XNGram
 		size = 0;
 		debug = 0;
 		maxlength = 0;
-		hardlimit = XAPIAN_TERM_SIZELIMIT - pre->length();
 		onlyone = (pre->compare("XMID")==0);
 		prefix = pre;
 		storage = d;
@@ -483,9 +466,12 @@ class XNGram
 		
 		icu::UnicodeString * st = new icu::UnicodeString(*d);
 		st->insert(0,*prefix);
-		
+	
+		std::string s;
+		st->toUTF8String(s);
+	
 		l = st->length();
-		if(l<=hardlimit)
+		if(strlen(s.c_str())<XAPIAN_TERM_SIZELIMIT)
 		{
 			if((*size)<1)
 			{
@@ -1439,8 +1425,9 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				}
 				i++;
 			}
+			icu::UnicodeString t(a->value.str);
 			char * h = i_strdup(f2.c_str());
-			qs->add(h,a->value.str,a->match_not,ac);
+			qs->add(h,&t,a->match_not,ac,true);
 			i_free(h);
 		}
 		a->match_always=true;

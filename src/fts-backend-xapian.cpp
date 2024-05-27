@@ -113,8 +113,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
 	if(U_FAILURE(status))
         { 
-		i_warning("FTS Xapian: Can not allocate ICU translator (2)");
+		i_error("FTS Xapian: Can not allocate ICU translator (2)");
                 backend->accentsConverter = NULL;
+		return -1;
 	}
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
@@ -573,9 +574,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						uid=uids[n];
 						if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize (5) Removing DOC UID=%d",uid);
 						XQuerySet * xq = new XQuerySet();
-						char *u = i_strdup_printf("%d",uid);
-						xq->add("uid",u,backend->accentsConverter);
-						i_free(u);
+						xq->add(uid);
 						result=fts_backend_xapian_query(db,xq,1);
 						docid=0; 
 						if((result!=NULL) && (result->size>0))
@@ -601,7 +600,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d (DOCID=%d) inexistent",uid,docid);
 						if(result!=NULL) { delete(result); result=NULL; }
 						delete(xq);
-						u = i_strdup_printf("delete from docs where ID=%d",uid);
+						char * u = i_strdup_printf("delete from docs where ID=%d",uid);
 						if (sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK )
 						{
 							i_error("FTS Xapian : Optimize Sqlite error %s",zErrMsg);
