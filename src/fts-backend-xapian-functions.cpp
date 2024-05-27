@@ -481,9 +481,7 @@ class XNGram
 			}
 			else
 			{
-				syslog(LOG_INFO, "(opulat)Search in %ld stems",*size);
 				p=search(st,0,*size);
-				syslog(LOG_INFO, "(opulat)Search in %ld stems => %ld",*size,p);
 				if(p>=0)
 				{
 					(*storage)=(icu::UnicodeString **)realloc((*storage),((*size) + 1)*sizeof(icu::UnicodeString *));
