@@ -77,7 +77,7 @@ class XQuerySet
 
 	void add(long uid)
 	{
-		std::string s = std::format("{}",uid);
+		std::string s = std::to_string(uid);
 		icu::UnicodeString t(s.c_str());
 		add(hdrs_emails[0],&t,false,NULL,false);
 	}
@@ -592,7 +592,7 @@ class XDoc
                         k--;
                 }
 
-		if(accentsConverter != NULL) accentsConverter->transliterate(*t2);
+		accentsConverter->transliterate(*t2);
 	
 		strings->push_back(t2);
 
