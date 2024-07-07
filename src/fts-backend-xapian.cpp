@@ -519,15 +519,15 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 	char *zErrMsg = 0;
 	XResultSet * result = NULL;
 	Xapian::docid docid =0;
-	struct stat fileinfo;
+//	struct stat fileinfo;
 	while ((dp = readdir(dirp)) != NULL)
 	{
 		if((dp->d_type == DT_DIR) && (strncmp(dp->d_name,"db_",3)==0))
 		{
 			uids.clear();
-			s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
+			/* s = i_strdup_printf("%s/%s",backend->path,dp->d_name);
 			stat(s, &fileinfo);
-			i_free(s);
+			i_free(s);*/
 			s = i_strdup_printf("%s/%s_exp.db",backend->path,dp->d_name);
 			i_info("FTS Xapian: Optimize (1) %s : Checking expunges",s);
 			if(sqlite3_open(s,&expdb) == SQLITE_OK)
@@ -615,11 +615,11 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					strcpy(s2,"fts_optimize");
 					if(fts_xapian_settings.detach)
 					{
-						(new std::thread(fts_backend_xapian_close_db,db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose,true))->detach();
+						(new std::thread(fts_backend_xapian_close_db,db,s1,s2,/*fileinfo.st_uid,fileinfo.st_gid,*/fts_xapian_settings.verbose,true))->detach();
 					}
 					else
 					{
-						fts_backend_xapian_close_db(db,s1,s2,fileinfo.st_uid,fileinfo.st_gid,fts_xapian_settings.verbose,false);
+						fts_backend_xapian_close_db(db,s1,s2,/*fileinfo.st_uid,fileinfo.st_gid,*/fts_xapian_settings.verbose,false);
 					}
 				}
 				catch(Xapian::Error e)
