@@ -473,8 +473,6 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	icu::StringPiece sp_d((const char *)data,(int32_t )size);
 	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
 	
-	if(d2.length() < fts_xapian_settings.partial) return 0;
-
 	if(fts_backend_xapian_index(backend,ctx->tbi_field, &d2)) return 0;
         	
 	i_error("FTS Xapian: Buildmore: Error Index");

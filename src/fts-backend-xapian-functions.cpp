@@ -369,7 +369,7 @@ class XNGram
 		bool ok=false;
 		std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
 		if( (s.length()>=56) && (s.length() % 4 == 0))
-		{
+	{
 			ok=std::regex_match(s, base64Regex);
 		}
 		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
@@ -587,9 +587,7 @@ class XDoc
                         t2->findAndReplace(chars_pb[k-1],CHAR_KEY);
                         k--;
                 }
-
 		accentsConverter->transliterate(*t2);
-	
 		strings->push_back(t2);
 
 		if(verbose>0) 
@@ -631,14 +629,15 @@ class XDoc
 		{
 			syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
 			std::string s,s2;
-			for(long i=0; i<10 && i<stems;i++)
+			long i;
+			for(i=0; i<10 && i<stems;i++)
 			{
 				s2.clear();
 				data[i]->toUTF8String(s2);
 				s+=" ";
 				s+=s2;
 			}
-			for(long i=stems-1; i>=0 && i>stems-10; i--)
+			for(i=stems-1; i>=0 && i>stems-10; i--)
 			{
                                 s2.clear();
                                 data[i]->toUTF8String(s2);
@@ -1413,7 +1412,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		else
 		{
 			long i=0,j=strlen(hdr);
-			std::string f2;
+			std::string f2; f2.clear();
 			while(i<j)
 			{
 				if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
@@ -1422,7 +1421,9 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				}
 				i++;
 			}
-			icu::UnicodeString t(a->value.str);
+			icu::StringPiece sp(a->value.str);
+			icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
+			
 			char * h = i_strdup(f2.c_str());
 			qs->add(h,&t,a->match_not,ac,true);
 			i_free(h);
