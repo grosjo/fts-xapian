@@ -54,8 +54,6 @@ struct xapian_fts_backend
 	long total_added_docs;
 	long batch;
 	long start_time;
-
-	icu::Transliterator * accentsConverter;
 };
 
 struct xapian_fts_backend_update_context
@@ -109,15 +107,6 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
-	UErrorCode status = U_ZERO_ERROR;
-	backend->accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
-	if(U_FAILURE(status))
-        { 
-		i_error("FTS Xapian: Can not allocate ICU translator (2)");
-                backend->accentsConverter = NULL;
-		return -1;
-	}
-
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
         if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%ld lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
@@ -141,9 +130,6 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
-
-	if(backend->accentsConverter != NULL) i_free(backend->accentsConverter);
-	backend->accentsConverter = NULL;
 
 	i_free(backend);
 
@@ -717,7 +703,7 @@ static int fts_backend_xapian_lookup(struct fts_backend *_backend, struct mailbo
 		qs = new XQuerySet(Xapian::Query::OP_OR,fts_xapian_settings.partial);
 	}
 
-	fts_backend_xapian_build_qs(qs,args,backend->accentsConverter);
+	fts_backend_xapian_build_qs(qs,args);
 
 	XResultSet * r=fts_backend_xapian_query(dbr,qs);
 
