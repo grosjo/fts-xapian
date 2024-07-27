@@ -399,8 +399,6 @@ class XNGram
                 k = d->length();
                 if(k<fts_xapian_settings.partial) return;
 
-		std::string s;
-		d->toUTF8String(s);
 		if(isBase64(d)) return;
 
 		if(onlyone)
