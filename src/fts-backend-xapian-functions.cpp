@@ -467,22 +467,24 @@ class XNGram
 
 	void add_stem(icu::UnicodeString *d)
 	{
-		long l,i,p;
+		long l,l2,i,p;
 
 		if((*size)>XAPIAN_MAXTERMS_PERDOC) return;
 
 		d->trim();
-		l=d->length();
-		if(l<fts_xapian_settings.partial) return;
+		if(d->length()<fts_xapian_settings.partial) return;
 		
 		icu::UnicodeString * st = new icu::UnicodeString(*d);
 		st->insert(0,*prefix);
-	
-		std::string s;
-		st->toUTF8String(s);
-	
 		l = st->length();
-		if(strlen(s.c_str())<XAPIAN_TERM_SIZELIMIT)
+
+		{	
+			std::string s;
+			st->toUTF8String(s);
+			l2 = strlen(s.c_str());
+		}
+
+		if(l2<XAPIAN_TERM_SIZELIMIT)
 		{
 			if((*size)<1)
 			{
@@ -509,6 +511,7 @@ class XNGram
 			}
 			if(l>maxlength) { maxlength=l; }
 		}
+		else delete(st);
 		if(stem_trim(d)) add_stem(d);
 	}
 };
