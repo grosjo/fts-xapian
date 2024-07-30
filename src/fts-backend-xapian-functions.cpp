@@ -454,14 +454,16 @@ class XNGram
 
 	int search(icu::UnicodeString *d,long a, long b)
 	{
-		int8_t i;
-		long c;
+		long i,c;
+
 		if(a==b) return a;
+
 		if(a==b-1) { c=a; }
 		else { c = std::floor((a+b)*0.5f); }
 		i = (*storage)[c]->compare(*d);
 		if(i>0) return search(d,a,c);
 		if(i<0) return search(d,c+1,b);
+
 		return -1;
 	}
 
