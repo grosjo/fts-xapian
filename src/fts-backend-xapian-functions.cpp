@@ -903,7 +903,7 @@ class XDocsWriter
                                 }
                                 catch(Xapian::Error e)
                                 {
-                                        syslog(LOG_WARNING,"%sCan't add document1 (%ld) : %s - %s %s",pos,title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        syslog(LOG_WARNING,"%sCan't add document1 (%ld) : %s - %s %s",title,pos,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         err=true;
 					err_s.append(e.get_type());
                                 }
