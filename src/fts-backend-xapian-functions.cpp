@@ -889,13 +889,13 @@ class XDocsWriter
                                 }
                                 catch(Xapian::Error e)
                                 {
-                                        syslog(LOG_WARNING,"%sCan't add document1 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        syslog(LOG_WARNING,"%sCan't add document1 (%ld) : %s - %s %s",pos,title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         err=true;
 					err_s.append(e.get_type());
                                 }
                                 catch(std::exception e)
                                 {
-                                        syslog(LOG_WARNING,"%sCan't add document2 : %s",title,e.what());
+                                        syslog(LOG_WARNING,"%sCan't add document2 (%ld) : %s",title,pos,e.what());
                                         err=true;
 					err_s.append(e.what());
                                 }
@@ -907,16 +907,27 @@ class XDocsWriter
 					{
 						dbw->commit();
 						pos=17;
+					}
+					catch(Xapian::Error e)
+                                        {
+                                                syslog(LOG_ERR,"%sCan't add document3 (%ld) : %s - %s %s",title,pos,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        }
+                                        catch(std::exception e)
+                                        {
+                                                syslog(LOG_ERR,"%sCan't add document4 (%ld) : %s",title,pos,e.what());
+                                        }
+					try
+					{
                                         	dbw->replace_document(doc->uterm,*(doc->xdoc));
                                         	(*totaldocs)++;
 					}
 					catch(Xapian::Error e)
                                 	{       
-                                        	syslog(LOG_ERR,"%sCan't add document3 : %s - %s %s",title,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                                        	syslog(LOG_ERR,"%sCan't add document5 (%ld) : %s - %s %s",title,pos,e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                 	}
                                 	catch(std::exception e)
                                 	{       
-                                        	syslog(LOG_ERR,"%sCan't add document4 : %s",title,e.what());
+                                        	syslog(LOG_ERR,"%sCan't add document6 (%ld) : %s",title,pos,e.what());
                                 	}
 					pos=18;
 				}
