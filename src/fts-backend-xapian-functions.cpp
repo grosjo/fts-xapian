@@ -354,6 +354,7 @@ class XNGram
 		const char * title;
 		long verbose;
 		long debug;
+		long mem;
 	
 	public:
 		long maxlength;
@@ -369,6 +370,12 @@ class XNGram
 		storage = d;
 		size = asize;
 		title=t;
+		mem=0;
+	}
+
+	long getMemoryUsed()
+	{
+		return mem;
 	}
 
 	~XNGram()
@@ -493,6 +500,7 @@ class XNGram
 				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
 				(*size)=1;
 				(*storage)[0]=st;
+				mem+=l2;
 			}
 			else
 			{
@@ -508,6 +516,7 @@ class XNGram
 					}
 					(*storage)[p]=st;
 					(*size)++;
+					mem+=l2;
 				}
 				else delete(st);
 			}
@@ -528,6 +537,7 @@ class XDoc
 		long uid,size,stems,tsize;
 		char * uterm;
 		Xapian::Document * xdoc;
+		long mem;
  
         XDoc(long luid)
 	{
@@ -545,6 +555,7 @@ class XDoc
 		uterm = (char*)malloc((s.length()+1)*sizeof(char));
 		strcpy(uterm,s.c_str());
 		xdoc=NULL;
+		mem=0;
 	}
 
 	~XDoc() 
@@ -640,6 +651,7 @@ class XDoc
 			
 			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
 			ngram->add(strings->at(j-1));
+			mem+= ngram->getMemoryUsed();
 			delete(ngram);
 			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
 			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
@@ -845,11 +857,13 @@ class XDocsWriter
                 long n=docs->size();
                 bool err=false;
                 long i,newdoc=0;
+		long mem=0;
                 XDoc * doc;
                 while((i=docs->size())>0)
                 {
                         i--;
                         doc = docs->at(i);
+			mem+=doc->mem;
 			docs->at(i) = NULL;
 			docs->pop_back();
 			if(verbose>0) syslog(LOG_INFO,"%sProcessing #%ld (%ld/%ld) %s",title,doc->uid,i+1,n,doc->getSummary().c_str());
@@ -881,7 +895,7 @@ class XDocsWriter
 					(*batch)++;
 					if((*batch) > XAPIAN_WRITING_CACHE)
 					{
-						syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit)",title,(*batch),XAPIAN_WRITING_CACHE);
+						syslog(LOG_INFO,"%s Committing %ld docs (vs %ld limit) (mem = %ld)",title,(*batch),XAPIAN_WRITING_CACHE,(long)(mem/1024/1024));
 						pos=15;
 						dbw->commit();
 						*batch  = 0;
