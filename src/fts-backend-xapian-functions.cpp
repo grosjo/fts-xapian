@@ -797,7 +797,6 @@ class XDocsWriter
 
 	public:
 		bool started,toclose,terminated;
-		long nbdocs;
 		
 	XDocsWriter(struct xapian_fts_backend *b, long n)
 	{
@@ -816,7 +815,6 @@ class XDocsWriter
 		toclose=false;
 		terminated=false;
 		started=false;
-		nbdocs=0;
 		mem=0; mem_t=0;
 		verbose=fts_xapian_settings.verbose;
 	}
@@ -929,13 +927,13 @@ class XDocsWriter
 		{
 			if(doc==NULL)
 			{
-				s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,s.c_str());
-				fts_backend_xapian_get_lock(backend, verbose, s.c_str());
+				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,s.c_str()); }
+
+				fts_backend_xapian_get_lock(backend, verbose, title);
 				n=backend->docs.size();
 				mem_t=0;
 				i=0;
 				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
-			
 				if(i<n)
                         	{
 					doc = backend->docs.at(i);
@@ -944,8 +942,7 @@ class XDocsWriter
 					mem_t = doc->mem;
 					totaldocs++;
 				}
-				
-				fts_backend_xapian_release_lock(backend, verbose, s.c_str());
+				fts_backend_xapian_release_lock(backend, verbose, title);
 			}
 
 			if(doc==NULL)
@@ -963,7 +960,7 @@ class XDocsWriter
 			else if(doc->status==2)
 			{
 				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
-				doc->create_document(verbose,s.c_str());
+				doc->create_document(verbose,title);
 				mem_t = 0; 
 				mem += doc->mem;
 				doc->status=3;
@@ -978,38 +975,24 @@ class XDocsWriter
 					{
 						// Memory check
 						k=backend->threads.size();
-						j=0; d=0;
+						j=0;
 						while(k>0)
 						{
 							k--;
 							j+=backend->threads.at(k)->getMemoryUsed();
-							d+=backend->threads.at(k)->nbdocs;
 						}
 						m=fts_backend_xapian_get_free_memory();
-						if(verbose>0)
-						{
-							s=title;
-							s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB // Nb docs ="+std::to_string(d));
-							syslog(LOG_INFO,s.c_str());
-						}
+						if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,s.c_str()); }
 
-						if(j>m*1024/3) // too little memory
+						if(j>m*1024/3.0) // too little memory
 						{
 							try
 							{
-								std::string s(title);
-								s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB");
-								syslog(LOG_INFO,s.c_str());
+								if(verbose>0) { s=title; s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,s.c_str()); }
                                                 		backend->dbw->close();
 								delete(backend->dbw);
 								backend->dbw=NULL;
 								checkDB();
-								k=backend->threads.size();
-								while(k>0)
-                                                		{
-                                                        		k--;
-									backend->threads.at(k)->nbdocs=0;
-								}
 							}
 							catch(Xapian::Error e)
                                 			{
@@ -1040,7 +1023,6 @@ class XDocsWriter
                                                                	syslog(LOG_INFO,s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
-                               	                	nbdocs++;
 							delete(doc);
 							doc=NULL;
 							if(verbose>0)
