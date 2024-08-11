@@ -26,8 +26,6 @@ extern "C" {
 class XDoc;
 class XDocsWriter;
 
-typedef std::vector<XDoc *> XDocs;
-
 #define XSLEEP std::chrono::milliseconds(200)
 
 struct xapian_fts_backend
@@ -44,15 +42,13 @@ struct xapian_fts_backend
 	char * old_guid;
 	char * old_boxname;
 
-        XDocs * docs;
-	long threads_total;
+        std::vector<XDoc *> docs;
 	std::vector<XDocsWriter *> threads;
-	long threads_max;
 	std::timed_mutex mutex;
+	std::unique_lock<std::timed_mutex> * mutex_t;
 
 	long lastuid;
-	long total_added_docs;
-	long batch;
+	long total_docs;
 	long start_time;
 };
 
@@ -87,14 +83,11 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	backend->db = NULL;
 
-	backend->docs = NULL;
+	backend->docs.clear();
 	backend->threads.clear();
-	backend->threads_max = std::thread::hardware_concurrency();
-        backend->threads_total = 0;
+	backend->total_docs =0;
 	
 	backend->lastuid = -1;
-	backend->total_added_docs = 0;
-	backend->batch = 0;
 
 	backend->dbw = NULL;
 	backend->guid = NULL;
@@ -345,80 +338,45 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
-		long fri = fts_backend_xapian_test_memory();
-		if(backend->dbw == NULL)
-		{
-			bool ok=false;
-			long t=0,dt = fts_backend_xapian_current_time();
-			while(!ok)
+		std::string s("FTS Xapian: New doc incoming (#");
+                s.append(std::to_string(ctx->tbi_uid)+")");
+
+		if(fts_xapian_settings.verbose>0) i_info(s.c_str());
+
+		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
+
+		if(backend->threads.size() < std::thread::hardware_concurrency())
+                {
+                        XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
+                        x->launch(s.c_str());
+			backend->threads.push_back(x);
+                }
+                       
+                long n = backend->threads.size();
+                while(n>0)
+                {
+                        n--;
+                        if(!(backend->threads.at(n)->started))
                         {
-                                try
-                                {
-                                        t++;
-                                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening (%s, %s) : Attempt %ld",backend->boxname,backend->db,t);
-                                        backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
-                                        ok=true;
-                                }
-                                catch(Xapian::DatabaseLockError e)
-                                {
-                                        if((t-1) % 20 ==0) 
-					{
-						long delay = (fts_backend_xapian_current_time() -dt)/1000.0;
-						if(delay > XAPIAN_MAX_SEC_WAIT) 
-						{
-							i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : Will try later",backend->boxname,backend->db,delay);
-							return FALSE;
-						}
-						if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Can't lock the DB (%s,%s) for %ld sec : %s - %s %s",backend->boxname,backend->db,delay,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-					}
-                                        std::this_thread::sleep_for(XSLEEP);
-                                }
-                                catch(Xapian::Error e)
-                                {
-                                        i_error("FTS Xapian: Can't open Xapian DB %s 2 : %s - %s %s ",backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-                                        return false;
-                                }
+                                backend->threads.at(n)->launch("Relaunch post error");
                         }
-			dt=fts_backend_xapian_current_time() - dt;
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: DB (%s,%s) opened ! in %ld ms",backend->boxname,backend->db,dt);
-		}
+                }
+
 		if(backend->lastuid>0)
 		{
-			std::string s("New doc ready to index "); s.append(std::to_string(backend->lastuid));
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: %s",s.c_str());
-			while((!fts_backend_xapian_push(backend,s.c_str())) && ((backend->docs->size()>XAPIAN_THREAD_SIZE*backend->threads_max) || (fri>=0)))
-			{
-				if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Waiting for an available thread (Sleep1) : Pending are %ld",backend->docs->size());
-				std::this_thread::sleep_for(XSLEEP);
-			}
+			std::string s("FTS Xapian: Previous doc ready to index (#"); 
+                        s.append(std::to_string(backend->lastuid)+")");
+
+			if(fts_xapian_settings.verbose>0) i_info(s.c_str());
+			
+			backend->docs.at(backend->docs.size()-1)->status=1;	
 		}
-		if((fri>=0) && (backend->dbw != NULL))
-        	{
-                	i_warning("FTS Xapian: Warning Free memory %ld MB < %ld MB minimum, Writing to disk (creating lock)",long(fri/1024.0),fts_xapian_settings.lowmemory);
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Low memory, Writing to disk (creating lock)");
-                                
-			std::unique_lock<std::timed_mutex> lck(backend->mutex,std::defer_lock);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-                        while(!(lck.try_lock_for(std::chrono::milliseconds(1000 + std::rand() % 1000))))
-                        {
-                                if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Waiting unlock... (main)");
-                        }
-#pragma GCC diagnostic pop
-                        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Lock acquired (main)");
-			try
-			{
-				backend->dbw->commit();
-			}
-			catch(Xapian::Error e)
-			{
-				i_error("FTS Xapian: Sync to disk, error committing db %s",e.get_msg().c_str());
-			}
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Sync to disc done");
-        	}
                 backend->lastuid = ctx->tbi_uid;
-		backend->docs->push_back(new XDoc(backend->lastuid));
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Buffer %ld",backend->lastuid, backend->boxname,backend->docs->size());
+		backend->docs.push_back(new XDoc(backend->lastuid));
+		
+		fts_backend_xapian_release_lock(backend, fts_xapian_settings.verbose, s.c_str());
+
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
         }
 
 	return TRUE;
