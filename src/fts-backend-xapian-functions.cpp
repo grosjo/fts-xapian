@@ -615,9 +615,8 @@ class XDoc
                 icu::UnicodeString * * data;
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<icu::UnicodeString *> * headers;
-		long mem;
 	public:
-		long uid,size,stems;
+		long uid,size,stems,mem;
 		char * uterm;
 		Xapian::Document * xdoc;
 		long status;
@@ -665,11 +664,6 @@ class XDoc
 		strings->clear(); delete(strings);
 		if(xdoc!=NULL) delete(xdoc);
 		free(uterm);
-	}
-
-	long getMemoryUsed()
-	{
-		return mem;
 	}
 
 	std::string getSummary()
@@ -798,7 +792,6 @@ class XDocsWriter
 		long verbose;
 		std::thread *t;
 		char * title;
-		long pos;
 		struct xapian_fts_backend *backend;
 		long mem, mem_t;
 
@@ -808,7 +801,6 @@ class XDocsWriter
 		
 	XDocsWriter(struct xapian_fts_backend *b, long n)
 	{
-		pos=0;
 		backend=b;
 		std::string s;
                 s.clear(); s.append("DW #"+std::to_string(n)+" (");
@@ -882,7 +874,6 @@ class XDocsWriter
 	std::string getSummary()
 	{
 		std::string s(title);
-		s.append(" pos="+std::to_string(pos));
 		s.append(" remaining docs="+std::to_string(backend->docs.size()));
 		s.append(" terminated="+std::to_string(terminated));
 		return s;
@@ -890,7 +881,6 @@ class XDocsWriter
 
 	bool launch(const char * from)
 	{
-		pos=2;
 		if(verbose>0)
 		{
 			std::string s(title);
@@ -917,21 +907,18 @@ class XDocsWriter
 
 	void close()
 	{
-		pos=4;
 		toclose=false;
 		if(t!=NULL)
 		{
 			t->join();
 			delete(t);
 		}
-		pos=5;
 		t=NULL;
 		terminated=true;
 	}
 
 	void worker()
 	{
-		pos=9;
 		long start_time = fts_backend_xapian_current_time();
 		long n,i,j,k,m,d;
 		XDoc *doc = NULL;
@@ -940,169 +927,155 @@ class XDocsWriter
 
 		while(!toclose)
 		{
-			s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,s.c_str());
-			fts_backend_xapian_get_lock(backend, verbose, s.c_str());
-			n=backend->docs.size();
-			mem_t=0;
-			i=0;
-			while((i<n) && (backend->docs.at(i)->status!=1)) i++;
+			if(doc==NULL)
+			{
+				s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,s.c_str());
+				fts_backend_xapian_get_lock(backend, verbose, s.c_str());
+				n=backend->docs.size();
+				mem_t=0;
+				i=0;
+				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
 			
-			if((doc==NULL) && (i<n))
-                        {
-				doc = backend->docs.at(i);
-				backend->docs.at(i) = NULL;
-				backend->docs.erase(backend->docs.begin() + i);
-				mem_t = doc->getMemoryUsed();
-				totaldocs++;
+				if(i<n)
+                        	{
+					doc = backend->docs.at(i);
+					backend->docs.at(i) = NULL;
+					backend->docs.erase(backend->docs.begin() + i);
+					mem_t = doc->mem;
+					totaldocs++;
+				}
+				
+				fts_backend_xapian_release_lock(backend, verbose, s.c_str());
 			}
-			fts_backend_xapian_release_lock(backend, verbose, s.c_str());
-		
+
 			if(doc==NULL)
 			{
 				if(verbose>0) { s=title; s.append("No-op"); syslog(LOG_INFO,s.c_str());	}
 				std::this_thread::sleep_for(XSLEEP);
 			}
-			else
+			else if(doc->status==1)	
 			{
-				s=title; s.append("Processing1 : "+doc->getSummary()); 
-				if(verbose>0) syslog(LOG_INFO,s.c_str());
-			
-				if(doc->status==1)	
-				{
-					pos=10;
-					doc->populate_stems(verbose,s.c_str());
-					mem_t = doc->getMemoryUsed();
-					doc->status=2;
-				}
-			
-				s=title; s.append("Processing2 : "+doc->getSummary());
-					
-				if(doc->status==2)
-				{
-					pos=11;
-					doc->create_document(verbose,s.c_str());
-					mem_t = 0; 
-					mem += doc->getMemoryUsed();
-					doc->status=3;
-				}
-
-				s=title; s.append("Processing3 : "+doc->getSummary());
-
-                        	if(doc->status==3)
-				{
-					if(verbose>0)
+				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+				doc->populate_stems(verbose,title);
+				mem_t = doc->mem;
+				doc->status=2;
+			}
+			else if(doc->status==2)
+			{
+				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+				doc->create_document(verbose,s.c_str());
+				mem_t = 0; 
+				mem += doc->mem;
+				doc->status=3;
+			}
+                        else
+			{
+				if(verbose>0) { s=title; s.append("Pushing : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+                        	if(doc->stems > 0)
+                        	{
+					fts_backend_xapian_get_lock(backend, verbose, title);
+					if(checkDB())
 					{
-						s=title; s.append("Pushing : "+doc->getSummary());
-						syslog(LOG_INFO,s.c_str());
-                                	}
-					pos=12;
-                        		if(doc->stems > 0)
-                        		{
-						pos=12;
-						fts_backend_xapian_get_lock(backend, verbose, title);
-						if(checkDB())
+						// Memory check
+						k=backend->threads.size();
+						j=0; d=0;
+						while(k>0)
 						{
-							// Memory check
-							k=backend->threads.size();
-							j=0; d=0;
-							while(k>0)
-							{
-								k--;
-								j+=backend->threads.at(k)->getMemoryUsed();
-								d+=backend->threads.at(k)->nbdocs;
-							}
-							m=fts_backend_xapian_get_free_memory();
-							if(verbose>0)
-							{
-								s=title;
-								s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB // Nb docs ="+std::to_string(d));
-								syslog(LOG_INFO,s.c_str());
-							}
-
-							if(j>m*1024/3) // too little memory
-							{
-								try
-								{
-									std::string s(title);
-									s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB");
-									syslog(LOG_INFO,s.c_str());
-                                        	        		pos=15;
-                                        	        		backend->dbw->close();
-									delete(backend->dbw);
-									backend->dbw=NULL;
-									checkDB();
-									k=backend->threads.size();
-									while(k>0)
-                                        	        		{
-                                        	                		k--;
-										backend->threads.at(k)->nbdocs=0;
-									}
-								}
-								catch(Xapian::Error e)
-                                				{
-									std::string s(title);
-									s.append("Can't commit DB1 : ");
-									s.append(e.get_type());
-									s.append(" - ");
-									s.append(e.get_msg());
-									s.append(" / ");
-									s.append(e.get_error_string());
-                                	        			syslog(LOG_ERR,s.c_str());
-								}
-                                				catch(std::exception e)
-                                				{
-									std::string s(title);
-                                	                                s.append("Can't commit DB2 : ");
-									s.append(e.what());
-									syslog(LOG_ERR,s.c_str());
-								}
-                                			}
-							try
-                                	        	{
-								if(verbose>0)
-                                                        	{
-                                                                	s=title;
-                                                                	s.append("Replace doc : "+doc->getSummary());
-                                                                	syslog(LOG_INFO,s.c_str());
-                                                        	}
-                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
-                                	                	nbdocs++;
-								delete(doc);
-								doc=NULL;
-								if(verbose>0)
-                                                                {
-                                                                        s=title;
-                                                                        s.append("Doc done");
-                                                                        syslog(LOG_INFO,s.c_str());
-                                                                }
-                                	        	}
-							catch(Xapian::Error e)
-                                	                {
-                                	                        std::string s(title);
-                                	                        s.append("Can't write doc1 : ");
-                                	                        s.append(e.get_type());
-                                	                        s.append(" - ");
-                                	                        s.append(e.get_msg());
-                                	                        s.append(" / ");
-                                	                        s.append(e.get_error_string());
-                                	                        syslog(LOG_ERR,s.c_str());
-                                	                }
-                                	                catch(std::exception e)
-                                	                {
-                                	                        std::string s(title);
-                                	                        s.append("Can't write doc2 : ");
-                                	                        s.append(e.what());
-                                	                        syslog(LOG_ERR,s.c_str());
-                                	                }
+							k--;
+							j+=backend->threads.at(k)->getMemoryUsed();
+							d+=backend->threads.at(k)->nbdocs;
 						}
-						fts_backend_xapian_release_lock(backend, verbose, title);	
+						m=fts_backend_xapian_get_free_memory();
+						if(verbose>0)
+						{
+							s=title;
+							s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB // Nb docs ="+std::to_string(d));
+							syslog(LOG_INFO,s.c_str());
+						}
+
+						if(j>m*1024/3) // too little memory
+						{
+							try
+							{
+								std::string s(title);
+								s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB");
+								syslog(LOG_INFO,s.c_str());
+                                                		backend->dbw->close();
+								delete(backend->dbw);
+								backend->dbw=NULL;
+								checkDB();
+								k=backend->threads.size();
+								while(k>0)
+                                                		{
+                                                        		k--;
+									backend->threads.at(k)->nbdocs=0;
+								}
+							}
+							catch(Xapian::Error e)
+                                			{
+								std::string s(title);
+								s.append("Can't commit DB1 : ");
+								s.append(e.get_type());
+								s.append(" - ");
+								s.append(e.get_msg());
+								s.append(" / ");
+								s.append(e.get_error_string());
+                                	       			syslog(LOG_ERR,s.c_str());
+							}
+                                			catch(std::exception e)
+                                			{
+								std::string s(title);
+                                	                        s.append("Can't commit DB2 : ");
+								s.append(e.what());
+								syslog(LOG_ERR,s.c_str());
+							}
+                                		}
+
+						try
+                               	        	{
+							if(verbose>0)
+                                                       	{
+                                                               	s=title;
+                                                               	s.append("Replace doc : "+doc->getSummary());
+                                                               	syslog(LOG_INFO,s.c_str());
+                                                       	}
+                               	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
+                               	                	nbdocs++;
+							delete(doc);
+							doc=NULL;
+							if(verbose>0)
+                                                        {
+                                                                s=title;
+                                                                s.append("Doc done");
+                                                                syslog(LOG_INFO,s.c_str());
+                                                        }
+                        	        	}
+						catch(Xapian::Error e)
+                               	                {
+                               	                        s=title;
+                               	                        s.append("Can't write doc1 : ");
+                               	                        s.append(e.get_type());
+                               	                        s.append(" - ");
+                               	                        s.append(e.get_msg());
+                               	                        s.append(" / ");
+                               	                        s.append(e.get_error_string());
+                               	                        syslog(LOG_ERR,s.c_str());
+                               	                }
+                               	                catch(std::exception e)
+                               	                {
+                               	                        s=title;
+                               	                        s.append("Can't write doc2 : ");
+                               	                        s.append(e.what());
+                               	                        syslog(LOG_ERR,s.c_str());
+                               	                }
 					}
-					else 
-					{
-						delete(doc);
-						doc=NULL;
-					}
-                                }
+					fts_backend_xapian_release_lock(backend, verbose, title);	
+				}
+				else 
+				{
+					delete(doc);
+					doc=NULL;
+				}
                         }
                 }
 		terminated=true;
@@ -1247,13 +1220,13 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		if(!(backend->threads.at(i)->started))
 		{
 			delete(backend->threads.at(i));
-			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because not started",i);
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because not started",i);
 			backend->threads.at(i)=NULL;
 			backend->threads.pop_back();
 		}
 		else if(backend->threads.at(i)->terminated)
 		{
-			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
 			backend->threads.at(i)->close();
 			delete(backend->threads.at(i));
 			backend->threads.at(i)=NULL;
@@ -1261,7 +1234,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
 			std::this_thread::sleep_for(XSLEEP);
 			i++;
 		}
