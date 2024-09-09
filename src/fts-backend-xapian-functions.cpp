@@ -95,7 +95,8 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
 	icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
 	if(U_FAILURE(status))
 	{
-		syslog(LOG_ERR,"FTS Xapian: Can not allocate ICU translator (2)");
+		std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory()/1024.0))+"MB");
+		syslog(LOG_ERR,s.c_str());
 		accentsConverter = NULL;
 		return false;
 	}
@@ -984,7 +985,7 @@ class XDocsWriter
 						m=fts_backend_xapian_get_free_memory();
 						if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,s.c_str()); }
 
-						if(j>m*1024/3.0) // too little memory
+						if(j>m*1024.0/3.0) // too little memory
 						{
 							try
 							{
@@ -1019,7 +1020,7 @@ class XDocsWriter
 							if(verbose>0)
                                                        	{
                                                                	s=title;
-                                                               	s.append("Replace doc : "+doc->getSummary());
+                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
                                                                	syslog(LOG_INFO,s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
