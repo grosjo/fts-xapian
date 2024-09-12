@@ -341,7 +341,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		std::string s("FTS Xapian: New doc incoming (#");
                 s.append(std::to_string(ctx->tbi_uid)+")");
 
-		if(fts_xapian_settings.verbose>0) i_info(s.c_str());
+		if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
 
 		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
 
@@ -367,7 +367,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			std::string s("FTS Xapian: Previous doc ready to index (#"); 
                         s.append(std::to_string(backend->lastuid)+")");
 
-			if(fts_xapian_settings.verbose>0) i_info(s.c_str());
+			if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
 			
 			backend->docs.at(backend->docs.size()-1)->status=1;	
 		}
