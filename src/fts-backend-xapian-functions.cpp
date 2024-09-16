@@ -57,7 +57,7 @@ static void fts_backend_xapian_get_lock(struct xapian_fts_backend *backend, long
 			std::string sl("FTS Xapian: Waiting unlock... (");
 			sl.append(s);
 			sl.append(")");
-			syslog(LOG_INFO,sl.c_str());
+			syslog(LOG_INFO,"%s",sl.c_str());
                 }
 	}
 #pragma GCC diagnostic pop
@@ -66,7 +66,7 @@ static void fts_backend_xapian_get_lock(struct xapian_fts_backend *backend, long
 		std::string sl("FTS Xapian: Got lock (");
 		sl.append(s);
                 sl.append(")");
-                syslog(LOG_INFO,sl.c_str());
+                syslog(LOG_INFO,"%s",sl.c_str());
 	}
 	backend->mutex_t = lck;
 }
@@ -78,7 +78,7 @@ static void fts_backend_xapian_release_lock(struct xapian_fts_backend *backend, 
 		std::string sl("FTS Xapian: Releasing lock (");
 		sl.append(s);
 		sl.append(")");
-		syslog(LOG_INFO,sl.c_str());
+		syslog(LOG_INFO,"%s",sl.c_str());
 	}
 	if(backend->mutex_t !=NULL)
 	{
@@ -96,7 +96,7 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
 	if(U_FAILURE(status))
 	{
 		std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory()/1024.0))+"MB");
-		syslog(LOG_ERR,s.c_str());
+		syslog(LOG_ERR,"%s",s.c_str());
 		accentsConverter = NULL;
 		return false;
 	}
@@ -835,7 +835,7 @@ class XDocsWriter
 			{
 				std::string s(title);
 				s.append("Opening DB");
-				syslog(LOG_INFO,s.c_str());
+				syslog(LOG_INFO,"%s",s.c_str());
 			}
 			backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 			return true;
@@ -849,7 +849,7 @@ class XDocsWriter
 			s.append(e.get_msg());
 			s.append(" / ");
 			s.append(e.get_error_string());
-                        syslog(LOG_WARNING,s.c_str());
+                        syslog(LOG_WARNING,"%s",s.c_str());
 		}
                 catch(Xapian::Error e)
                 {
@@ -860,7 +860,7 @@ class XDocsWriter
                         s.append(e.get_msg());
                         s.append(" / ");
                         s.append(e.get_error_string());
-                        syslog(LOG_WARNING,s.c_str());
+                        syslog(LOG_WARNING,"%s",s.c_str());
                 }
 		return false;
 	}
@@ -885,7 +885,7 @@ class XDocsWriter
 			std::string s(title);
 			s.append("Launching thread from ");
 			s.append(from);
-			syslog(LOG_INFO,s.c_str());
+			syslog(LOG_INFO,"%s",s.c_str());
 		}
 
 		try
@@ -897,7 +897,7 @@ class XDocsWriter
 			std::string s(title);
 			s.append("Thread error ");
 			s.append(e.what());
-			syslog(LOG_ERR,s.c_str());
+			syslog(LOG_ERR,"%s",s.c_str());
 			return false;
 		}
 		started=true;
@@ -928,7 +928,7 @@ class XDocsWriter
 		{
 			if(doc==NULL)
 			{
-				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,s.c_str()); }
+				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,"%s",s.c_str()); }
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
 				n=backend->docs.size();
@@ -948,19 +948,19 @@ class XDocsWriter
 
 			if(doc==NULL)
 			{
-				if(verbose>0) { s=title; s.append("No-op"); syslog(LOG_INFO,s.c_str());	}
+				if(verbose>0) { s=title; s.append("No-op"); syslog(LOG_INFO,"%s",s.c_str());	}
 				std::this_thread::sleep_for(XSLEEP);
 			}
 			else if(doc->status==1)	
 			{
-				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->populate_stems(verbose,title);
 				mem_t = doc->mem;
 				doc->status=2;
 			}
 			else if(doc->status==2)
 			{
-				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->create_document(verbose,title);
 				mem_t = 0; 
 				mem += doc->mem;
@@ -968,7 +968,7 @@ class XDocsWriter
 			}
                         else
 			{
-				if(verbose>0) { s=title; s.append("Pushing : "+doc->getSummary()); syslog(LOG_INFO,s.c_str()); }
+				if(verbose>0) { s=title; s.append("Pushing : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
                         	if(doc->stems > 0)
                         	{
 					fts_backend_xapian_get_lock(backend, verbose, title);
@@ -983,13 +983,13 @@ class XDocsWriter
 							j+=backend->threads.at(k)->getMemoryUsed();
 						}
 						m=fts_backend_xapian_get_free_memory();
-						if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,s.c_str()); }
+						if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,"%s",s.c_str()); }
 
 						if(j>m*1024.0/3.0) // too little memory
 						{
 							try
 							{
-								if(verbose>0) { s=title; s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,s.c_str()); }
+								if(verbose>0) { s=title; s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,"%s",s.c_str()); }
                                                 		backend->dbw->close();
 								delete(backend->dbw);
 								backend->dbw=NULL;
@@ -1004,14 +1004,14 @@ class XDocsWriter
 								s.append(e.get_msg());
 								s.append(" / ");
 								s.append(e.get_error_string());
-                                	       			syslog(LOG_ERR,s.c_str());
+                                	       			syslog(LOG_ERR,"%s",s.c_str());
 							}
                                 			catch(std::exception e)
                                 			{
 								std::string s(title);
                                 	                        s.append("Can't commit DB2 : ");
 								s.append(e.what());
-								syslog(LOG_ERR,s.c_str());
+								syslog(LOG_ERR,"%s",s.c_str());
 							}
                                 		}
 
@@ -1021,7 +1021,7 @@ class XDocsWriter
                                                        	{
                                                                	s=title;
                                                                	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
-                                                               	syslog(LOG_INFO,s.c_str());
+                                                               	syslog(LOG_INFO,"%s",s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
 							delete(doc);
@@ -1030,7 +1030,7 @@ class XDocsWriter
                                                         {
                                                                 s=title;
                                                                 s.append("Doc done");
-                                                                syslog(LOG_INFO,s.c_str());
+                                                                syslog(LOG_INFO,"%s",s.c_str());
                                                         }
                         	        	}
 						catch(Xapian::Error e)
@@ -1042,14 +1042,14 @@ class XDocsWriter
                                	                        s.append(e.get_msg());
                                	                        s.append(" / ");
                                	                        s.append(e.get_error_string());
-                               	                        syslog(LOG_ERR,s.c_str());
+                               	                        syslog(LOG_ERR,"%s",s.c_str());
                                	                }
                                	                catch(std::exception e)
                                	                {
                                	                        s=title;
                                	                        s.append("Can't write doc2 : ");
                                	                        s.append(e.what());
-                               	                        syslog(LOG_ERR,s.c_str());
+                               	                        syslog(LOG_ERR,"%s",s.c_str());
                                	                }
 					}
 					fts_backend_xapian_release_lock(backend, verbose, title);	
@@ -1066,7 +1066,7 @@ class XDocsWriter
 		{
 			std::string s(title);
 			s.append("Wrote "+std::to_string(totaldocs)+" within "+std::to_string(fts_backend_xapian_current_time() - start_time)+" ms");
-			syslog(LOG_INFO,s.c_str());
+			syslog(LOG_INFO,"%s",s.c_str());
 		}
 	}
 };
