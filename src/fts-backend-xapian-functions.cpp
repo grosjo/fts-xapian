@@ -442,17 +442,22 @@ class XNGram
 	public:
 		long maxlength;
 
-	XNGram(icu::UnicodeString *pre, icu::UnicodeString * * * d, long * asize, const char * t, long v)
+	XNGram(icu::UnicodeString * * * d, long * asize, const char * t, long v)
 	{
 		verbose=v;
 		size = 0;
 		debug = 0;
 		maxlength = 0;
-		onlyone = (pre->compare("XMID")==0);
-		prefix = pre;
 		storage = d;
 		size = asize;
 		title=t;
+		mem=0;
+	}
+
+	void setPrefix(icu::UnicodeString *pre)
+	{
+		onlyone = (pre->compare("XMID")==0);
+		prefix = pre;
 		mem=0;
 	}
 
@@ -472,7 +477,7 @@ class XNGram
 		bool ok=false;
 		std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
 		if( (s.length()>=56) && (s.length() % 4 == 0))
-	{
+		{
 			ok=std::regex_match(s, base64Regex);
 		}
 		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
@@ -481,34 +486,31 @@ class XNGram
 
 	void add(icu::UnicodeString *d)
 	{
-		long i,j,k;
-		icu::UnicodeString *r1,*r2;
-
 		if((*size)>XAPIAN_MAXTERMS_PERDOC) return;
 
+		long i,j,k;
+		icu::UnicodeString *r;
+
 		d->trim();
-                i = d->lastIndexOf(CHAR_SPACE);
-                if(i>0)
+                while((i = d->lastIndexOf(CHAR_SPACE))>0)
                 {
-                        r1 = new icu::UnicodeString(*d,0,i);
-                        r2 = new icu::UnicodeString(*d,i+1,d->length()-i-1);
-                        add(r1);
-                        add(r2);
-                        delete(r1);
-                        delete(r2);
-                        return;
+			r = new icu::UnicodeString(*d,i+1);
+			add(r);
+			delete(r);
+			d->truncate(i);
+			d->trim();
                 }
 
                 k = d->length();
                 if(k<fts_xapian_settings.partial) return;
-
-		if(isBase64(d)) return;
 
 		if(onlyone)
                 {
                         add_stem(d);
                         return;
                 }
+
+		if(isBase64(d)) return;
 
 		icu::UnicodeString sub;
 
@@ -542,19 +544,24 @@ class XNGram
         	return res;
 	} 
 
-	int search(icu::UnicodeString *d,long a, long b)
+	int search(icu::UnicodeString *d,long pos, long l)
 	{
-		long i,c;
+		long n,c;
 
-		if(a==b) return a;
+		if(l==0) return pos;
 
-		if(a==b-1) { c=a; }
-		else { c = std::floor((a+b)*0.5f); }
-		i = (*storage)[c]->compare(*d);
-		if(i>0) return search(d,a,c);
-		if(i<0) return search(d,c+1,b);
+		n = std::floor(l*0.5f);
+		
+		c = (*storage)[pos+n]->compare(*d);
 
-		return -1;
+		// If already exist, return neg
+		if(c==0) return -1;
+
+		// If middle pos is lower than d, search after pos+n
+		if(c<0) return search(d,pos+n+1,l-n-1);
+
+		// All other case, search before
+		return search(d,pos,n);
 	}
 
 	void add_stem(icu::UnicodeString *d)
@@ -590,8 +597,8 @@ class XNGram
 				p=search(st,0,*size);
 				if(p>=0)
 				{
-					(*storage)=(icu::UnicodeString **)realloc((*storage),((*size) + 1)*sizeof(icu::UnicodeString *));
 					i=(*size);
+					(*storage)=(icu::UnicodeString **)realloc((*storage),(i+1)*sizeof(icu::UnicodeString *));
 					while(i>p)
 					{
 						(*storage)[i]=(*storage)[i-1];
@@ -714,28 +721,30 @@ class XDoc
 	void populate_stems(long verbose, const char * title)
 	{
 		long i,j,k;
-		XNGram * ngram; 
-
 		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
 		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
 		mem=0;
 
-		while((j=headers->size())>0)
+		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
+		j=headers->size();
+		while(j>0)
 		{
+			j--;
 			if(verbose>0) 
 			{
 				std::string s; headers->at(j-1)->toUTF8String(s);
-				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j,k,s.c_str(),(long)strings->at(j-1)->length());
+				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j+1,k,s.c_str(),(long)strings->at(j)->length());
 			}
 			
-			ngram = new XNGram(headers->at(j-1),&data,&stems,title,verbose);
-			ngram->add(strings->at(j-1));
+			ngram->setPrefix(headers->at(j));
+			ngram->add(strings->at(j));
 			mem+= ngram->getMemoryUsed();
-			delete(ngram);
-			delete(headers->at(j-1)); headers->at(j-1)=NULL; headers->pop_back();
-			delete(strings->at(j-1)); strings->at(j-1)=NULL; strings->pop_back();
+			delete(headers->at(j)); headers->at(j)=NULL; headers->pop_back();
+			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
                 }
+		delete(ngram);
+	
 		t = fts_backend_xapian_current_time() -t;
 		if(verbose>0) 
 		{
@@ -989,7 +998,9 @@ class XDocsWriter
 						{
 							try
 							{
-								if(verbose>0) { s=title; s.append("Comitting "+std::to_string(d)+" docs, Memory load = "+std::to_string((long)(j / 1024.0))+" Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,"%s",s.c_str()); }
+								s=title; 
+								s.append("Committing "+std::to_string(d)+" docs due to low mem, Memory load = "+std::to_string((long)(j / 1024.0))+" KB / Free = "+ std::to_string(m)+" KB"); 
+								syslog(LOG_WARNING,"%s",s.c_str());
                                                 		backend->dbw->close();
 								delete(backend->dbw);
 								backend->dbw=NULL;
@@ -1192,7 +1203,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 
 	while(backend->docs.size()>0)
 	{
-                i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
+                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
                 std::this_thread::sleep_for(XSLEEP);
         }
 	while((i=backend->threads.size())>0)
