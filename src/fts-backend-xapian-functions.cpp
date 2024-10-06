@@ -8,7 +8,7 @@ static long fts_backend_xapian_current_time()
 }
 
 static long fts_backend_xapian_get_free_memory() // KB  
-{        
+{
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
         uint32_t m,n;          
         size_t len = sizeof(m);
@@ -436,8 +436,7 @@ class XNGram
 		long * size;
 		const char * title;
 		long verbose;
-		long debug;
-		long mem;
+//		long mem;
 	
 	public:
 		long maxlength;
@@ -445,27 +444,24 @@ class XNGram
 	XNGram(icu::UnicodeString * * * d, long * asize, const char * t, long v)
 	{
 		verbose=v;
-		size = 0;
-		debug = 0;
 		maxlength = 0;
 		storage = d;
 		size = asize;
 		title=t;
-		mem=0;
+//		mem=0;
 	}
 
 	void setPrefix(icu::UnicodeString *pre)
 	{
 		onlyone = (pre->compare("XMID")==0);
 		prefix = pre;
-		mem=0;
 	}
-
+/*
 	long getMemoryUsed()
 	{
-		return mem;
+		return mem + ( (*size) * sizeof(icu::UnicodeString *) );
 	}
-
+*/
 	~XNGram()
 	{
 	}
@@ -544,26 +540,30 @@ class XNGram
         	return res;
 	} 
 
-	int search(icu::UnicodeString *d,long pos, long l)
+	int psearch(icu::UnicodeString *d,long pos, long l)
 	{
-		long n,c;
-
 		if(l==0) return pos;
 
-		n = std::floor(l*0.5f);
-		
-		c = (*storage)[pos+n]->compare(*d);
+		long n = std::floor(l*0.5f);
+		int c = (*storage)[pos+n]->compare(*d);
 
 		// If already exist, return neg
 		if(c==0) return -1;
 
 		// If middle pos is lower than d, search after pos+n
-		if(c<0) return search(d,pos+n+1,l-n-1);
+		if(c<0) return psearch(d,pos+n+1,l-n-1);
 
 		// All other case, search before
-		return search(d,pos,n);
+		return psearch(d,pos,n);
 	}
-
+/*
+	long unicode_memory(icu::UnicodeString *d)
+	{
+		long l = strlen((char *)(d->getTerminatedBuffer()));
+		l += sizeof(*d);
+		return l+1;
+	}
+*/
 	void add_stem(icu::UnicodeString *d)
 	{
 		long l,l2,i,p;
@@ -590,11 +590,11 @@ class XNGram
 				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
 				(*size)=1;
 				(*storage)[0]=st;
-				mem+=l2+1;
+				//mem+=unicode_memory(st);
 			}
 			else
 			{
-				p=search(st,0,*size);
+				p=psearch(st,0,*size);
 				if(p>=0)
 				{
 					i=(*size);
@@ -606,7 +606,7 @@ class XNGram
 					}
 					(*storage)[p]=st;
 					(*size)++;
-					mem+=l2+1;
+					//mem+=unicode_memory(st);
 				}
 				else delete(st);
 			}
@@ -624,7 +624,8 @@ class XDoc
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<icu::UnicodeString *> * headers;
 	public:
-		long uid,size,stems,mem;
+		long uid,size,stems;
+		//long mem;
 		char * uterm;
 		Xapian::Document * xdoc;
 		long status;
@@ -644,7 +645,7 @@ class XDoc
 		uterm = (char*)malloc((s.length()+1)*sizeof(char));
 		strcpy(uterm,s.c_str());
 		xdoc=NULL;
-		mem=0;
+		//mem=0;
 		status=0;
 	}
 
@@ -680,7 +681,7 @@ class XDoc
 		s.append(std::to_string(uid));
 		s.append(" #lines=" + std::to_string(size));
 		s.append(" #stems=" + std::to_string(stems));
-		s.append(" #mem=" + std::to_string(mem/1024.0)+ " KB");
+		//s.append(" #mem=" + std::to_string(mem/1024.0)+ " KB");
 		s.append(" status=" + std::to_string(status));
 		return s;
 	}
@@ -689,7 +690,7 @@ class XDoc
 	{
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
 		prefix->trim();
-		mem+=prefix->length()+1;
+		//mem+=prefix->length()+1;
 		headers->push_back(prefix);
 
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
@@ -714,7 +715,7 @@ class XDoc
 		strings->push_back(t2);
 		std::string s;
 		t2->toUTF8String(s);
-		mem+=s.length()+1;
+		//mem+=s.length()+1;
 		size++;
 	}
 
@@ -724,7 +725,7 @@ class XDoc
 		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
 		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
-		mem=0;
+		//mem=0;
 
 		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
 		j=headers->size();
@@ -739,7 +740,7 @@ class XDoc
 			
 			ngram->setPrefix(headers->at(j));
 			ngram->add(strings->at(j));
-			mem+= ngram->getMemoryUsed();
+			//mem+= ngram->getMemoryUsed();
 			delete(headers->at(j)); headers->at(j)=NULL; headers->pop_back();
 			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
                 }
@@ -799,11 +800,10 @@ class XDocsWriter
 {
 	private:
 		XDoc * doc;
-		long verbose;
+		long verbose, lowmemory;
 		std::thread *t;
 		char * title;
 		struct xapian_fts_backend *backend;
-		long mem, mem_t;
 
 	public:
 		bool started,toclose,terminated;
@@ -825,19 +825,22 @@ class XDocsWriter
 		toclose=false;
 		terminated=false;
 		started=false;
-		mem=0; mem_t=0;
+		//mem=0; mem_t=0;
 		verbose=fts_xapian_settings.verbose;
+		lowmemory = fts_xapian_settings.lowmemory;
 	}
-
+/*
 	long getMemoryUsed()
 	{
 		return mem+mem_t;
 	}
-
+*/
 	bool checkDB()
 	{
 		if(backend->dbw != NULL) return true;
-                        
+             
+		backend->pending=0;
+           
                 try
                 {
 			if(verbose>0)
@@ -928,7 +931,7 @@ class XDocsWriter
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
-		long n,i,j,k,m,d;
+		long n,i,j,k,m;
 		XDoc *doc = NULL;
 		long totaldocs=0;
 		std::string s;
@@ -941,7 +944,7 @@ class XDocsWriter
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
 				n=backend->docs.size();
-				mem_t=0;
+				//mem_t=0;
 				i=0;
 				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
 				if(i<n)
@@ -949,7 +952,7 @@ class XDocsWriter
 					doc = backend->docs.at(i);
 					backend->docs.at(i) = NULL;
 					backend->docs.erase(backend->docs.begin() + i);
-					mem_t = doc->mem;
+					//mem_t = doc->mem;
 					totaldocs++;
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
@@ -964,15 +967,15 @@ class XDocsWriter
 			{
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->populate_stems(verbose,title);
-				mem_t = doc->mem;
+				//mem_t = doc->mem;
 				doc->status=2;
 			}
 			else if(doc->status==2)
 			{
 				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->create_document(verbose,title);
-				mem_t = 0; 
-				mem += doc->mem;
+				//mem_t = 0; 
+				//mem += doc->mem;
 				doc->status=3;
 			}
                         else
@@ -984,22 +987,22 @@ class XDocsWriter
 					if(checkDB())
 					{
 						// Memory check
-						k=backend->threads.size();
-						j=0;
-						while(k>0)
-						{
-							k--;
-							j+=backend->threads.at(k)->getMemoryUsed();
-						}
+						//k=backend->threads.size();
+						//j=0;
+						//while(k>0)
+						//{
+						//	k--;
+						//	j+=backend->threads.at(k)->getMemoryUsed();
+						//}
 						m=fts_backend_xapian_get_free_memory();
-						if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0))+" KB // Free = "+ std::to_string(m)+" KB"); syslog(LOG_INFO,"%s",s.c_str()); }
+						//if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0f / 1024.0f))+" MB // Free = "+ std::to_string((long)(m/1024.0f))+" MB"); syslog(LOG_INFO,"%s",s.c_str()); }
 
-						if(j>m*1024.0/3.0) // too little memory
+						if(m<lowmemory * 1024) // too little memory
 						{
 							try
 							{
 								s=title; 
-								s.append("Committing "+std::to_string(d)+" docs due to low mem, Memory load = "+std::to_string((long)(j / 1024.0))+" KB / Free = "+ std::to_string(m)+" KB"); 
+								s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)"); 
 								syslog(LOG_WARNING,"%s",s.c_str());
                                                 		backend->dbw->close();
 								delete(backend->dbw);
@@ -1035,6 +1038,7 @@ class XDocsWriter
                                                                	syslog(LOG_INFO,"%s",s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
+							backend->pending++;
 							delete(doc);
 							doc=NULL;
 							if(verbose>0)
