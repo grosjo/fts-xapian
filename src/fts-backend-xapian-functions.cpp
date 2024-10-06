@@ -436,7 +436,6 @@ class XNGram
 		long * size;
 		const char * title;
 		long verbose;
-//		long mem;
 	
 	public:
 		long maxlength;
@@ -448,7 +447,6 @@ class XNGram
 		storage = d;
 		size = asize;
 		title=t;
-//		mem=0;
 	}
 
 	void setPrefix(icu::UnicodeString *pre)
@@ -456,12 +454,7 @@ class XNGram
 		onlyone = (pre->compare("XMID")==0);
 		prefix = pre;
 	}
-/*
-	long getMemoryUsed()
-	{
-		return mem + ( (*size) * sizeof(icu::UnicodeString *) );
-	}
-*/
+
 	~XNGram()
 	{
 	}
@@ -645,7 +638,6 @@ class XDoc
 		uterm = (char*)malloc((s.length()+1)*sizeof(char));
 		strcpy(uterm,s.c_str());
 		xdoc=NULL;
-		//mem=0;
 		status=0;
 	}
 
@@ -681,7 +673,6 @@ class XDoc
 		s.append(std::to_string(uid));
 		s.append(" #lines=" + std::to_string(size));
 		s.append(" #stems=" + std::to_string(stems));
-		//s.append(" #mem=" + std::to_string(mem/1024.0)+ " KB");
 		s.append(" status=" + std::to_string(status));
 		return s;
 	}
@@ -725,7 +716,6 @@ class XDoc
 		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
 		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
-		//mem=0;
 
 		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
 		j=headers->size();
@@ -825,16 +815,10 @@ class XDocsWriter
 		toclose=false;
 		terminated=false;
 		started=false;
-		//mem=0; mem_t=0;
 		verbose=fts_xapian_settings.verbose;
 		lowmemory = fts_xapian_settings.lowmemory;
 	}
-/*
-	long getMemoryUsed()
-	{
-		return mem+mem_t;
-	}
-*/
+
 	bool checkDB()
 	{
 		if(backend->dbw != NULL) return true;
@@ -944,7 +928,6 @@ class XDocsWriter
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
 				n=backend->docs.size();
-				//mem_t=0;
 				i=0;
 				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
 				if(i<n)
@@ -952,7 +935,6 @@ class XDocsWriter
 					doc = backend->docs.at(i);
 					backend->docs.at(i) = NULL;
 					backend->docs.erase(backend->docs.begin() + i);
-					//mem_t = doc->mem;
 					totaldocs++;
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
@@ -967,15 +949,12 @@ class XDocsWriter
 			{
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->populate_stems(verbose,title);
-				//mem_t = doc->mem;
 				doc->status=2;
 			}
 			else if(doc->status==2)
 			{
 				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				doc->create_document(verbose,title);
-				//mem_t = 0; 
-				//mem += doc->mem;
 				doc->status=3;
 			}
                         else
@@ -987,15 +966,7 @@ class XDocsWriter
 					if(checkDB())
 					{
 						// Memory check
-						//k=backend->threads.size();
-						//j=0;
-						//while(k>0)
-						//{
-						//	k--;
-						//	j+=backend->threads.at(k)->getMemoryUsed();
-						//}
 						m=fts_backend_xapian_get_free_memory();
-						//if(verbose>0) { s=title; s.append("Mem used = "+std::to_string((long)(j / 1024.0f / 1024.0f))+" MB // Free = "+ std::to_string((long)(m/1024.0f))+" MB"); syslog(LOG_INFO,"%s",s.c_str()); }
 
 						if(m<lowmemory * 1024) // too little memory
 						{
