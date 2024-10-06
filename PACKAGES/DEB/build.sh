@@ -1,7 +1,7 @@
 #!/bin/bash
 #HELP : https://saveriomiroddi.github.io/Building-a-debian-deb-source-package-and-publishing-it-on-an-ubuntu-ppa/#the-procedure
-export VERSION=1.4.11-6
-export BASE=1.4.11
+export VERSION=1.7.15-1
+export BASE=1.7.15
 rm -rf dovecot*
 git clone https://github.com/grosjo/fts-xapian.git dovecot-fts-xapian-${VERSION}
 tar -czf dovecot-fts-xapian-${VERSION}_${BASE}.orig.tar.gz dovecot-fts-xapian-${VERSION}
