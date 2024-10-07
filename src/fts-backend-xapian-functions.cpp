@@ -715,7 +715,7 @@ class XDoc
 			j--;
 			if(verbose>0) 
 			{
-				std::string s; headers->at(j-1)->toUTF8String(s);
+				std::string s; headers->at(j)->toUTF8String(s);
 				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j+1,k,s.c_str(),(long)strings->at(j)->length());
 			}
 			
