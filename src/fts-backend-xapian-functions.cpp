@@ -549,14 +549,7 @@ class XNGram
 		// All other case, search before
 		return psearch(d,pos,n);
 	}
-/*
-	long unicode_memory(icu::UnicodeString *d)
-	{
-		long l = strlen((char *)(d->getTerminatedBuffer()));
-		l += sizeof(*d);
-		return l+1;
-	}
-*/
+
 	void add_stem(icu::UnicodeString *d)
 	{
 		long l,l2,i,p;
@@ -583,7 +576,6 @@ class XNGram
 				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
 				(*size)=1;
 				(*storage)[0]=st;
-				//mem+=unicode_memory(st);
 			}
 			else
 			{
@@ -599,7 +591,6 @@ class XNGram
 					}
 					(*storage)[p]=st;
 					(*size)++;
-					//mem+=unicode_memory(st);
 				}
 				else delete(st);
 			}
@@ -968,7 +959,8 @@ class XDocsWriter
 						// Memory check
 						m=fts_backend_xapian_get_free_memory();
 
-						if(m<lowmemory * 1024) // too little memory
+						if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<lowmemory * 1024)) // too little memory or too many pendings
 						{
 							try
 							{

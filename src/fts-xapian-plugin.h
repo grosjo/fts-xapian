@@ -23,16 +23,18 @@
 
 #include <sqlite3.h>
 
-#define XAPIAN_MIN_RAM 250L // MB
+// NGram parameters (default)
 #define XAPIAN_DEFAULT_PARTIAL 3L
 #define XAPIAN_DEFAULT_FULL 20L
 
-#define XAPIAN_FILE_PREFIX "xapian-indexes"
-#define XAPIAN_TERM_SIZELIMIT 245L
-#define XAPIAN_MAXTERMS_PERDOC 50000L
-#define XAPIAN_THREAD_SIZE 3L
-#define XAPIAN_WRITING_CACHE 2000L
+// Ressources limits
+#define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
+#define XAPIAN_TERM_SIZELIMIT 245L // Hard limit of Xapian library
+#define XAPIAN_MAXTERMS_PERDOC 50000L // Nb of keywords max per email
+#define XAPIAN_WRITING_CACHE 2000L // Nb of emails processed in cache 
+#define XAPIAN_MIN_RAM 500L // MB
 
+// Word processing
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
 
