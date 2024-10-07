@@ -1,4 +1,4 @@
-VERSION=1.7.15
+VERSION=1.7.16
 FEDORA=fc35
 REP=`pwd`
 kinit grosjo@FEDORAPROJECT.ORG
@@ -32,22 +32,17 @@ git commit -m "Version $VERSION}"
 git push
 fedpkg build
 fedpkg update
-fedpkg switch-branch f35
+fedpkg switch-branch f41
 git merge rawhide
 fedpkg push
 fedpkg build
 fedpkg update
-fedpkg switch-branch f34
+fedpkg switch-branch f40
 git merge rawhide
 fedpkg push
 fedpkg build
 fedpkg update
-fedpkg switch-branch f33
-git merge rawhide
-fedpkg push
-fedpkg build
-fedpkg update
-fedpkg switch-branch epel8
+fedpkg switch-branch f39
 git merge rawhide
 fedpkg push
 fedpkg build

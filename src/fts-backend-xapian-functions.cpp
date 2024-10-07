@@ -959,7 +959,7 @@ class XDocsWriter
 						// Memory check
 						m=fts_backend_xapian_get_free_memory();
 
-						if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
 						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<lowmemory * 1024)) // too little memory or too many pendings
 						{
 							try
