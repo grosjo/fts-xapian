@@ -1302,6 +1302,12 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		return 0;
 	}
 
+	{
+		long pm = master_service_get_process_limit(master_service);
+        	if((pm > std::thread::hardware_concurrency()) || (pm < 1)) { pm = std::thread::hardware_concurrency(); }
+        	backend->max_threads = pm;
+	}
+
 	const char * mb;
 	fts_mailbox_get_guid(box, &mb );
 

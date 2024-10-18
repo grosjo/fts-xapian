@@ -96,10 +96,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	long t = master_service_get_process_limit(master_service);
-	i_info("FTS Xapian: PROCESSLIMIT %ld",t);
-	if((t>std::thread::hardware_concurrency()) || (t<1)) t = std::thread::hardware_concurrency();
-	backend->max_threads = t;
+	backend->max_threads = std::thread::hardware_concurrency();
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	fts_xapian_settings = fuser->set;
