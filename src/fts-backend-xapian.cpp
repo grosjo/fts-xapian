@@ -38,7 +38,7 @@ struct xapian_fts_backend
 	char * db;
 	char * expdb;
 	Xapian::WritableDatabase * dbw;
-	long pending;
+	long pending,initial_free_memory;
 
 	char * old_guid;
 	char * old_boxname;
@@ -47,6 +47,7 @@ struct xapian_fts_backend
 	std::vector<XDocsWriter *> threads;
 	std::timed_mutex mutex;
 	std::unique_lock<std::timed_mutex> * mutex_t;
+	long max_threads;
 
 	long lastuid;
 	long total_docs;
@@ -95,6 +96,9 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
+	long t = master_service_get_process_limit(master_service);
+	if((t>std::thread::hardware_concurrency()) || (t<1)) t = std::thread::hardware_concurrency();
+	backend->max_threads = t;
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	fts_xapian_settings = fuser->set;
@@ -103,7 +107,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%ld lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld full=%ld verbose=%ld max_threads=%ld lowmemory=%ld MB vs freemem=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.full,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory, long(fts_backend_xapian_get_free_memory()/1024.0));
 
 	return 0;
 }
@@ -346,7 +350,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
 
-		if(backend->threads.size() < std::thread::hardware_concurrency())
+		if(backend->threads.size() < backend->max_threads )
                 {
                         XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
                         x->launch(s.c_str());

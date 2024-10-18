@@ -15,6 +15,7 @@
 #include "mail-storage-hooks.h"
 #include "module-context.h"
 #include "fts-api-private.h"
+#include "master-service.h"
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #include <sys/types.h>
@@ -31,7 +32,7 @@
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
 #define XAPIAN_TERM_SIZELIMIT 245L // Hard limit of Xapian library
 #define XAPIAN_MAXTERMS_PERDOC 50000L // Nb of keywords max per email
-#define XAPIAN_WRITING_CACHE 2000L // Nb of emails processed in cache 
+#define XAPIAN_WRITING_CACHE 4000L // Nb of emails processed in cache 
 #define XAPIAN_MIN_RAM 500L // MB
 
 // Word processing

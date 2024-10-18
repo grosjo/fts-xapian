@@ -9,39 +9,11 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB  
 {
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
-        uint32_t m,n;          
-        size_t len = sizeof(m);
-        sysctlbyname("vm.stats.vm.v_free_count", &m, &len, NULL, 0);
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Free pages %ld",long(m));
-        sysctlbyname("vm.stats.vm.v_cache_count", &n, &len, NULL, 0);
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Cached pages %ld",long(n));
-        m = (m+n) * fts_xapian_settings.pagesize / 1024.0;
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: (BSD) Available memory %ld MB",long(m/1024.0));
-        return long(m);      
-#else                          
-        long m=0;                           
-        char buffer[500];
-        const char *p;
-        FILE *f=fopen("/proc/meminfo","r");
-        while(!feof(f))                                                 
-        {                              
-                if ( fgets (buffer , 100 , f) == NULL ) break;
-                p = strstr(buffer,"MemFree");
-                if(p!=NULL)
-                {
-                        m+=atol(p+8);
-                }                                                  
-                p = strstr(buffer,"Cached");
-                if(p==buffer)
-                {
-                        m+=atol(p+7);
-                }
-        }
-        if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Free memory %ld MB",long(m/1024.0));
-        fclose (f);
-        return m;
-#endif
+	struct rlimit rl;
+	getrlimit(RLIMIT_DATA,&rl);
+	long m = rl.rlim_cur / 1024.0;
+	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Available memory %ld MB",long(m/1024.0));
+	return m;
 }
 
 static void fts_backend_xapian_get_lock(struct xapian_fts_backend *backend, long verbose, const char *s)
@@ -815,6 +787,7 @@ class XDocsWriter
 		if(backend->dbw != NULL) return true;
              
 		backend->pending=0;
+		backend->initial_free_memory = fts_backend_xapian_get_free_memory();
            
                 try
                 {
@@ -906,7 +879,7 @@ class XDocsWriter
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
-		long n,i,j,k,m;
+		long n,i,j,k;
 		XDoc *doc = NULL;
 		long totaldocs=0;
 		std::string s;
@@ -957,10 +930,15 @@ class XDocsWriter
 					if(checkDB())
 					{
 						// Memory check
-						m=fts_backend_xapian_get_free_memory();
-
-						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
-						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<lowmemory * 1024)) // too little memory or too many pendings
+						long m=fts_backend_xapian_get_free_memory();
+						long m2 = lowmemory * 1024;
+						if(backend->pending>0) 
+						{
+							long m3 = (backend->initial_free_memory - m)/backend->pending;
+							if(m3>m2) m2=m3;
+						}	
+						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = %ld MB")+std::to_string(long(m2/1024.0)); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<m2)) // too little memory or too many pendings
 						{
 							try
 							{
@@ -1103,12 +1081,13 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
-static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname, /* uintmax_t uid, uintmax_t gid, */ long verbose, bool sysl)
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname, long verbose, bool sysl)
 {
-	long t = fts_backend_xapian_current_time();
+        long t;
 
-        if(verbose>0)
+	if(verbose>0)
 	{
+		t = fts_backend_xapian_current_time();
 		if(sysl) syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
 		else i_info("FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
 	}
@@ -1128,28 +1107,12 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 		else i_error("FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
         }
 
-	t = fts_backend_xapian_current_time()-t;
 	if(verbose>0) 
 	{
+		t = fts_backend_xapian_current_time()-t;
 		if(sysl) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 		else i_info("FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	}
-/*
-	{
-		std::string iamglass(dbpath);
-		iamglass.append("/iamglass");
-		if(verbose>0) 
-		{
-			if(sysl) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) Chown %s to (%ld,%ld)",boxname,dbpath,iamglass.c_str(),(long)uid,(long)gid);
-			else i_info("FTS Xapian : DB (%s,%s) Chown %s to (%ld,%ld)",boxname,dbpath,iamglass.c_str(),(long)uid,(long)gid);
-		}
-		if(chown(iamglass.c_str(),uid,gid)<0) 
-		{
-			if(sysl) syslog(LOG_ERR, "FTS Xapian : Can not chown %s",iamglass.c_str());
-			else i_error("FTS Xapian : Can not chown %s",iamglass.c_str());	
-		}
-	}
-*/
 	free(dbpath);
 	free(boxname);
 }
@@ -1214,11 +1177,11 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
         	{
 			if(fts_xapian_settings.detach)
 			{
-				(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,/* fileinfo.st_uid,fileinfo.st_gid,*/ fts_xapian_settings.verbose,true))->detach();
+				(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,fts_xapian_settings.verbose,true))->detach();
 			}
 			else
 			{
-				fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,/* fileinfo.st_uid,fileinfo.st_gid,*/ fts_xapian_settings.verbose,false);
+				fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,fts_xapian_settings.verbose,false);
 			}
         	}
         	catch(std::exception e)
