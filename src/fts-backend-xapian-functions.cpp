@@ -879,7 +879,6 @@ class XDocsWriter
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
-		long n,i,j,k;
 		XDoc *doc = NULL;
 		long totaldocs=0;
 		std::string s;
@@ -891,8 +890,8 @@ class XDocsWriter
 				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,"%s",s.c_str()); }
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
-				n=backend->docs.size();
-				i=0;
+				long n=backend->docs.size();
+				long i=0;
 				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
 				if(i<n)
                         	{
@@ -930,20 +929,20 @@ class XDocsWriter
 					if(checkDB())
 					{
 						// Memory check
-						long m=fts_backend_xapian_get_free_memory();
+						long m1 = fts_backend_xapian_get_free_memory();
 						long m2 = lowmemory * 1024;
 						if(backend->pending>0) 
 						{
-							long m3 = (backend->initial_free_memory - m)/backend->pending;
+							long m3 = (backend->initial_free_memory - m1)/backend->pending;
 							if(m3>m2) m2=m3;
 						}	
-						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = %ld MB")+std::to_string(long(m2/1024.0)); syslog(LOG_WARNING,"%s",s.c_str()); }
-						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<m2)) // too little memory or too many pendings
+						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m1 / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = %ld MB")+std::to_string(long(m2/1024.0)); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if((backend->pending > XAPIAN_WRITING_CACHE) || (m1<m2)) // too little memory or too many pendings
 						{
 							try
 							{
 								s=title; 
-								s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)"); 
+								s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m1/1024.0f))+" MB)"); 
 								syslog(LOG_WARNING,"%s",s.c_str());
                                                 		backend->dbw->close();
 								delete(backend->dbw);
@@ -975,7 +974,7 @@ class XDocsWriter
 							if(verbose>0)
                                                        	{
                                                                	s=title;
-                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
+                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m1/1024.0))+"MB");
                                                                	syslog(LOG_INFO,"%s",s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
