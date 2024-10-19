@@ -58,12 +58,11 @@ static long fts_backend_xapian_get_free_memory() // KB
                 {
                         m+=atol(p+6);
                 }
-		if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: MEM l=%ld m=%ld buffer=%s",l,m,buffer);
         }
 	fclose(f);
 	m = (l/1024.0f) - m;
 #endif
-	if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Available memory %ld MB",long(m/1024.0));
+	if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0));
 	return m;
 }
 
