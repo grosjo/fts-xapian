@@ -837,7 +837,6 @@ class XDocsWriter
 		if(backend->dbw != NULL) return true;
              
 		backend->pending=0;
-		backend->initial_free_memory = fts_backend_xapian_get_free_memory();
            
                 try
                 {

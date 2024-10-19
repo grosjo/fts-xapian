@@ -41,7 +41,7 @@ struct xapian_fts_backend
 	char * db;
 	char * expdb;
 	Xapian::WritableDatabase * dbw;
-	unsigned long pending,initial_free_memory;
+	long pending;
 
 	char * old_guid;
 	char * old_boxname;
