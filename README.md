@@ -111,7 +111,7 @@ doveadm index -A -q \*
 - With argument `-q`, doveadm queues the indexing to be run by indexer process.
   Remove `-q` if you want to index immediately.
 
-You shall put in a cron the following command (for daily run for instance) :
+You shall put in a cron the following command (daily for instance) to cleanup indexes :
 
 ```sh
 doveadm fts optimize -A
