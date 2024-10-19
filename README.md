@@ -54,7 +54,7 @@ service indexer-worker {
     # Increase vsz_limit to 2GB or above.
     # Or 0 if you have rather large memory usable on your server, which is preferred for performance)
     vsz_limit = 2G
-    # Keep 0 to use the full power of your server. Otherwise, specifies the number of threads you want to allocate.
+    # This one must be 0
     process_limit = 0
 }
 

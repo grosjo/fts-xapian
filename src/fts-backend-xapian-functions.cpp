@@ -9,10 +9,46 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory() // KB  
 {
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+        u_int page_size;
+        uint_size uint_size = sizeof(page_size);
+        sysctlbyname("vm.stats.vm.v_page_size", &page_size, &uint_size, NULL, 0);
+	struct vmtotal vmt;
+	size_t vmt_size = sizeof(vmt);
+	sysctlbyname("vm.vmtotal", &vmt, &vmt_size, NULL, 0);
+	long m = vmt.t_free * page_size / 1024.0f;
+#else
 	struct rlimit rl;
-	getrlimit(RLIMIT_DATA,&rl);
-	long m = rl.rlim_cur / 1024.0;
-	if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: Available memory %ld MB",long(m/1024.0));
+        if(getrlimit(RLIMIT_AS,&rl)!=0) i_warning("GETRLIMIT %s",strerror(errno));
+        long l = rl.rlim_cur;
+
+	long m = sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
+	if((l<1)||(l>m)) l = m;
+	m = 0;
+	char buffer[500];
+	long pid=getpid();
+	sprintf(buffer,"/proc/%ld/status",pid);
+        const char *p;
+        FILE *f=fopen(buffer,"r");
+        while(!feof(f))                                                 
+        {                              
+                if ( fgets (buffer , 100 , f) == NULL ) break;
+                p = strstr(buffer,"VmData:");
+                if(p!=NULL)
+                {
+                        m+=atol(p+7);
+                }                                                  
+                p = strstr(buffer,"VmStk:");
+                if(p!=NULL)
+                {
+                        m+=atol(p+6);
+                }
+		if(fts_xapian_settings.verbose>1) i_warning("FTS Xapian: MEM l=%ld m=%ld buffer=%s",l,m,buffer);
+        }
+	fclose(f);
+	m = (l/1024.0f) - m;
+#endif
+	if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Available memory %ld MB",long(m/1024.0));
 	return m;
 }
 
@@ -1300,12 +1336,6 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		if(backend->guid != NULL) fts_backend_xapian_unset_box(backend);
 		if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Box is empty");
 		return 0;
-	}
-
-	{
-		long pm = master_service_get_process_limit(master_service);
-        	if((pm > std::thread::hardware_concurrency()) || (pm < 1)) { pm = std::thread::hardware_concurrency(); }
-        	backend->max_threads = pm;
 	}
 
 	const char * mb;

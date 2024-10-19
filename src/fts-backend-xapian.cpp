@@ -16,6 +16,9 @@ extern "C" {
 #include <unicode/unistr.h>
 #include <unicode/translit.h> 
 #include <sys/time.h>
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#include <sys/vmmeter.h>
+#endif
 
 #include <pwd.h>
 #include <grp.h>
@@ -38,7 +41,7 @@ struct xapian_fts_backend
 	char * db;
 	char * expdb;
 	Xapian::WritableDatabase * dbw;
-	long pending,initial_free_memory;
+	unsigned long pending,initial_free_memory;
 
 	char * old_guid;
 	char * old_boxname;
@@ -96,7 +99,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	backend->max_threads = std::thread::hardware_concurrency();
+	backend->max_threads = std::thread::hardware_concurrency()-1;
+	if(backend->max_threads<2) backend->max_threads = 2;
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	fts_xapian_settings = fuser->set;
