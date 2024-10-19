@@ -856,8 +856,6 @@ class XDocsWriter
 			s.append(e.get_type());
 			s.append(" - ");
 			s.append(e.get_msg());
-			s.append(" / ");
-			s.append(e.get_error_string());
                         syslog(LOG_WARNING,"%s",s.c_str());
 		}
                 catch(Xapian::Error e)
@@ -867,8 +865,6 @@ class XDocsWriter
                         s.append(e.get_type());
                         s.append(" - ");
                         s.append(e.get_msg());
-                        s.append(" / ");
-                        s.append(e.get_error_string());
                         syslog(LOG_WARNING,"%s",s.c_str());
                 }
 		return false;
