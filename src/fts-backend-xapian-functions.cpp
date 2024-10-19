@@ -20,16 +20,31 @@ static long fts_backend_xapian_get_free_memory() // KB
 #else
 	struct rlimit rl;
         if(getrlimit(RLIMIT_AS,&rl)!=0) i_warning("GETRLIMIT %s",strerror(errno));
-        long l = rl.rlim_cur;
+        long m,l = rl.rlim_cur;
 
-	long m = sysconf(_SC_AVPHYS_PAGES) * sysconf(_SC_PAGE_SIZE);
-	if((l<1)||(l>m)) l = m;
-	m = 0;
 	char buffer[500];
+	const char *p;
+	FILE *f;
+	if(l<1)
+	{
+		m=0;
+		f=fopen("/proc/meminfo","r");
+		while(!feof(f))
+	        {
+        	        if ( fgets (buffer , 100 , f) == NULL ) break;
+			p = strstr(buffer,"MemAvailable:");
+			if(p!=NULL)
+                	{
+                        	m=atol(p+13);
+				break;
+			}
+		}
+		if(m>0) l = m * 1024;
+	}	
 	long pid=getpid();
 	sprintf(buffer,"/proc/%ld/status",pid);
-        const char *p;
-        FILE *f=fopen(buffer,"r");
+        f=fopen(buffer,"r");
+	m=0;
         while(!feof(f))                                                 
         {                              
                 if ( fgets (buffer , 100 , f) == NULL ) break;
