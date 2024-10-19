@@ -979,20 +979,14 @@ class XDocsWriter
 					if(checkDB())
 					{
 						// Memory check
-						long m1 = fts_backend_xapian_get_free_memory();
-						long m2 = lowmemory * 1024;
-						if(backend->pending>0) 
-						{
-							long m3 = (backend->initial_free_memory - m1)/backend->pending;
-							if(m3>m2) m2=m3;
-						}	
-						if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m1 / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = "+std::to_string((long)(m2/1024.0f))+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
-						if((backend->pending > XAPIAN_WRITING_CACHE) || (m1<m2)) // too little memory or too many pendings
+						long m = fts_backend_xapian_get_free_memory();
+						if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if((backend->pending > XAPIAN_WRITING_CACHE) || (m<(lowmemory*1024))) // too little memory or too many pendings
 						{
 							try
 							{
 								s=title; 
-								s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m1/1024.0f))+" MB)"); 
+								s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)"); 
 								syslog(LOG_WARNING,"%s",s.c_str());
                                                 		backend->dbw->close();
 								delete(backend->dbw);
@@ -1024,7 +1018,7 @@ class XDocsWriter
 							if(verbose>0)
                                                        	{
                                                                	s=title;
-                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m1/1024.0))+"MB");
+                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
                                                                	syslog(LOG_INFO,"%s",s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
