@@ -986,7 +986,7 @@ class XDocsWriter
 							long m3 = (backend->initial_free_memory - m1)/backend->pending;
 							if(m3>m2) m2=m3;
 						}	
-						if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m1 / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = %ld MB")+std::to_string(long(m2/1024.0)); syslog(LOG_WARNING,"%s",s.c_str()); }
+						if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m1 / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB vs average mem /email = %ld MB")+std::to_string(long(m2/1024.0)); syslog(LOG_WARNING,"%s",s.c_str()); }
 						if((backend->pending > XAPIAN_WRITING_CACHE) || (m1<m2)) // too little memory or too many pendings
 						{
 							try
