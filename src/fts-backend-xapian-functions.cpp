@@ -748,27 +748,7 @@ class XDoc
 		delete(ngram);
 	
 		t = fts_backend_xapian_current_time() -t;
-		if(verbose>0) 
-		{
-			syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
-			std::string s,s2;
-			long i;
-			for(i=0; i<10 && i<stems;i++)
-			{
-				s2.clear();
-				data[i]->toUTF8String(s2);
-				s+=" ";
-				s+=s2;
-			}
-			for(i=stems-1; i>=0 && i>stems-10; i--)
-			{
-                                s2.clear();
-                                data[i]->toUTF8String(s2);
-                                s+=" ";
-                                s+=s2;
-                        }
-			syslog(LOG_INFO, "STEMS populated : %ld [%s]",stems,s.c_str());
-		}
+		if(verbose>0) syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
 	}
 
 	void create_document(long verbose, const char * title)

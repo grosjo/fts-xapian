@@ -8,6 +8,7 @@ This project intends to provide a straightforward, simple and maintenance free, 
 
 This effort came after Dovecot team decided to deprecate "fts_squat" included in the dovecot core, and due to the complexity of the Solr plugin capabilitles, unneeded for most users.
 
+If you feel donating, kindly use Paypal : moreaujoan@gmail.com
 
 
 Debugging/Support
