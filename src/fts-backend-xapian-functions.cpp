@@ -695,7 +695,6 @@ class XDoc
 	{
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
 		prefix->trim();
-		//mem+=prefix->length()+1;
 		headers->push_back(prefix);
 
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
@@ -720,7 +719,6 @@ class XDoc
 		strings->push_back(t2);
 		std::string s;
 		t2->toUTF8String(s);
-		//mem+=s.length()+1;
 		size++;
 	}
 
@@ -744,7 +742,6 @@ class XDoc
 			
 			ngram->setPrefix(headers->at(j));
 			ngram->add(strings->at(j));
-			//mem+= ngram->getMemoryUsed();
 			delete(headers->at(j)); headers->at(j)=NULL; headers->pop_back();
 			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
                 }
@@ -853,7 +850,7 @@ class XDocsWriter
                 catch(Xapian::DatabaseLockError e)
                 {
 			std::string s(title);
-			s.append("Can't lock the DB1 : ");
+			s.append("Can't lock the DB : ");
 			s.append(e.get_type());
 			s.append(" - ");
 			s.append(e.get_msg());
@@ -862,7 +859,7 @@ class XDocsWriter
                 catch(Xapian::Error e)
                 {
 			std::string s(title);
-			s.append("Can't lock the DB2 : ");
+			s.append("Can't open the DB RW : ");
                         s.append(e.get_type());
                         s.append(" - ");
                         s.append(e.get_msg());
@@ -944,7 +941,6 @@ class XDocsWriter
 					doc = backend->docs.at(i);
 					backend->docs.at(i) = NULL;
 					backend->docs.erase(backend->docs.begin() + i);
-					totaldocs++;
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
 			}
@@ -1004,7 +1000,7 @@ class XDocsWriter
                                                         s.append(e.what());
                                                         syslog(LOG_ERR,"%s",s.c_str());
                                                 }
-					}	
+					}
 					
 					if(checkDB())
 					{
@@ -1026,6 +1022,7 @@ class XDocsWriter
                                                                 s.append("Doc done");
                                                                 syslog(LOG_INFO,"%s",s.c_str());
                                                         }
+							totaldocs++;
                         	        	}
 						catch(Xapian::Error e)
                                	                {
