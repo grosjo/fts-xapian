@@ -178,7 +178,7 @@ make
 sudo make install
 ```
 
-_Note: if your system is quite old, you may change gnu++20 by gnu++11 in src/Makefile.in_
+_Note: if your system is quite old, you may change gnu++20 by gnu++11 in src/Makefile.am_
 
 Replace /path/to/dovecot by the actual path to 'dovecot-config'.
 Type 'locate dovecot-config' in a shell to figure this out. On ArchLinux , it is /usr/lib/dovecot.
