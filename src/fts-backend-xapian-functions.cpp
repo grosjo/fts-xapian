@@ -1016,8 +1016,7 @@ class XDocsWriter
                                	                catch(std::exception e)
                                	                {
                                	                        s=title;
-                               	                        s.append("Can't write doc2 : ");
-                               	                        s.append(e.what());
+                               	                        s.append("Can't write doc2");
                                	                        syslog(LOG_ERR,"%s",s.c_str());
                                	                }
 					}
