@@ -755,7 +755,7 @@ class XDoc
 	{
 		long i=stems;
 
-		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms to doc (%s)",title,stems,getSummary().c_str());
+		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms",title,stems);
 		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
 		xdoc->add_term(uterm);
@@ -940,8 +940,9 @@ class XDocsWriter
 			}
 			else if(doc->status==2)
 			{
-				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-				doc->create_document(verbose,title);
+				s=title; s.append("Creating Xapian doc : "+doc->getSummary());
+				if(verbose>0) syslog(LOG_INFO,"%s",s.c_str());
+				doc->create_document(verbose,s.c_str());
 				doc->status=3;
 			}
                         else
