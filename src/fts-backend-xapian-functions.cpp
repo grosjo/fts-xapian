@@ -759,13 +759,15 @@ class XDoc
 		xdoc = new Xapian::Document();
 		xdoc->add_value(1,Xapian::sortable_serialise(uid));
 		xdoc->add_term(uterm);
-		std::string s;
+		std::string *s;
 		while(i>0)
 		{
 			i--;
-			s.clear(); data[i]->toUTF8String(s);
- 			xdoc->add_term(s.c_str());
-			if(verbose>0) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s.c_str());
+			s = new std::string();
+			data[i]->toUTF8String(*s);
+ 			xdoc->add_term(s->c_str());
+			if(verbose>0) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
+			delete(s);
 			delete(data[i]);
 			data[i]=NULL;
 		}
