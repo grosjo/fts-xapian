@@ -22,13 +22,12 @@ static long fts_backend_xapian_get_free_memory() // KB
         if(getrlimit(RLIMIT_AS,&rl)!=0) i_warning("GETRLIMIT %s",strerror(errno));
         long m,l = rl.rlim_cur;
 
-	char buffer[500];
+	char buffer[300];
 	const char *p;
 	FILE *f;
-	if(l<1)
+	if((l<1) && ((f=fopen("/proc/meminfo","r"))!=NULL))
 	{
 		m=0;
-		f=fopen("/proc/meminfo","r");
 		while(!feof(f))
 	        {
         	        if ( fgets (buffer , 100 , f) == NULL ) break;
@@ -45,21 +44,24 @@ static long fts_backend_xapian_get_free_memory() // KB
 	sprintf(buffer,"/proc/%ld/status",pid);
         f=fopen(buffer,"r");
 	m=0;
-        while(!feof(f))                                                 
-        {                              
-                if ( fgets (buffer , 100 , f) == NULL ) break;
-                p = strstr(buffer,"VmData:");
-                if(p!=NULL)
-                {
-                        m+=atol(p+7);
-                }                                                  
-                p = strstr(buffer,"VmStk:");
-                if(p!=NULL)
-                {
-                        m+=atol(p+6);
-                }
-        }
-	fclose(f);
+	if(f != NULL)
+	{
+        	while(!feof(f))                                                 
+        	{                              
+        	        if ( fgets (buffer , 100 , f) == NULL ) break;
+        	        p = strstr(buffer,"VmData:");
+        	        if(p!=NULL)
+        	        {
+        	                m+=atol(p+7);
+        	        }                                                  
+        	        p = strstr(buffer,"VmStk:");
+        	        if(p!=NULL)
+        	        {
+        	                m+=atol(p+6);
+        	        }
+        	}
+		fclose(f);
+	}
 	m = (l/1024.0f) - m;
 #endif
 	if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0));
@@ -523,15 +525,16 @@ class XNGram
 
 		if(isBase64(d)) return;
 
-		icu::UnicodeString sub;
+		icu::UnicodeString * sub;
 
 		for(i=0;i<=k-fts_xapian_settings.partial;i++)
 		{
 			for(j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
 			{
-				sub.remove();
-				d->extract(i,j,sub);
-				add_stem(&sub);
+				sub = new icu::UnicodeString();
+				d->extract(i,j,*sub);
+				add_stem(sub);
+				delete(sub);
 			}
 		}
 		if(k>fts_xapian_settings.full) add_stem(d);
