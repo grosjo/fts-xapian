@@ -68,6 +68,8 @@ service decode2text {
 }
 ```
 
+Make sure also that dovecot is started with enough files opening capacity (ideally set 'LimitNOFILE=65535' in the systemd start file).
+
 
 Configuration - Indexing options
 --------------------------------
