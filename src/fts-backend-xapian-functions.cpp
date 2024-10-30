@@ -497,9 +497,9 @@ class XNGram
 		return ok;
 	}
 
-	void add(icu::UnicodeString *d)
+	bool add(icu::UnicodeString *d)
 	{
-		if((*size)>XAPIAN_MAXTERMS_PERDOC) return;
+		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
 
 		long i,j,k;
 		icu::UnicodeString *r;
@@ -508,22 +508,21 @@ class XNGram
                 while((i = d->lastIndexOf(CHAR_SPACE))>0)
                 {
 			r = new icu::UnicodeString(*d,i+1);
-			add(r);
+			if(!add(r)) { delete(r); return false; }
 			delete(r);
 			d->truncate(i);
 			d->trim();
                 }
 
                 k = d->length();
-                if(k<fts_xapian_settings.partial) return;
+                if(k<fts_xapian_settings.partial) return true;
 
 		if(onlyone)
                 {
-                        add_stem(d);
-                        return;
+                        return add_stem(d);
                 }
 
-		if(isBase64(d)) return;
+		if(isBase64(d)) return true;
 
 		icu::UnicodeString * sub;
 
@@ -533,11 +532,12 @@ class XNGram
 			{
 				sub = new icu::UnicodeString();
 				d->extract(i,j,*sub);
-				add_stem(sub);
+				if(!add_stem(sub)) { delete(sub); return false; }
 				delete(sub);
 			}
 		}
-		if(k>fts_xapian_settings.full) add_stem(d);
+		if(k>fts_xapian_settings.full) return add_stem(d);
+		return true;
 	}
 
 	bool stem_trim(icu::UnicodeString *d)
@@ -575,14 +575,14 @@ class XNGram
 		return psearch(d,pos,n);
 	}
 
-	void add_stem(icu::UnicodeString *d)
+	bool add_stem(icu::UnicodeString *d)
 	{
 		long l,l2,i,p;
 
-		if((*size)>XAPIAN_MAXTERMS_PERDOC) return;
+		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
 
 		d->trim();
-		if(d->length()<fts_xapian_settings.partial) return;
+		if(d->length()<fts_xapian_settings.partial) return true;
 		
 		icu::UnicodeString * st = new icu::UnicodeString(*d);
 		st->insert(0,*prefix);
@@ -599,6 +599,7 @@ class XNGram
 			if((*size)<1)
 			{
 				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
+				if(*storage == NULL) return false;
 				(*size)=1;
 				(*storage)[0]=st;
 			}
@@ -608,7 +609,9 @@ class XNGram
 				if(p>=0)
 				{
 					i=(*size);
-					(*storage)=(icu::UnicodeString **)realloc((*storage),(i+1)*sizeof(icu::UnicodeString *));
+					icu::UnicodeString ** pp = (icu::UnicodeString **)realloc((*storage),(i+1)*sizeof(icu::UnicodeString *));
+					if(pp == NULL) return false;
+					(*storage)=pp;
 					while(i>p)
 					{
 						(*storage)[i]=(*storage)[i-1];
@@ -622,7 +625,8 @@ class XNGram
 			if(l>maxlength) { maxlength=l; }
 		}
 		else delete(st);
-		if(stem_trim(d)) add_stem(d);
+		if(stem_trim(d)) return add_stem(d);
+		return true;
 	}
 };
 
@@ -725,7 +729,7 @@ class XDoc
 		size++;
 	}
 
-	void populate_stems(long verbose, const char * title)
+	bool populate_stems(long verbose, const char * title)
 	{
 		long i,j,k;
 		long t = fts_backend_xapian_current_time();
@@ -733,8 +737,9 @@ class XDoc
 		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
 
 		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
+		bool ok=true;
 		j=headers->size();
-		while(j>0)
+		while((j>0) && ok)
 		{
 			j--;
 			if(verbose>0) 
@@ -744,14 +749,22 @@ class XDoc
 			}
 			
 			ngram->setPrefix(headers->at(j));
-			ngram->add(strings->at(j));
+			ok=ngram->add(strings->at(j));
 			delete(headers->at(j)); headers->at(j)=NULL; headers->pop_back();
 			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
                 }
 		delete(ngram);
-	
-		t = fts_backend_xapian_current_time() -t;
-		if(verbose>0) syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
+
+		if(verbose>0)
+		{
+			if(ok)
+			{
+				t = fts_backend_xapian_current_time() -t;
+				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
+			}
+			else syslog(LOG_INFO,"%s %s : Memory error");
+		}
+		return ok;
 	}
 
 	void create_document(long verbose, const char * title)
@@ -904,6 +917,47 @@ class XDocsWriter
 		terminated=true;
 	}
 
+	long checkMemory()
+	{
+		std::string s;
+		// Memory check
+                long m = fts_backend_xapian_get_free_memory();
+                if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
+                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (m<(lowmemory*1024)))) // too little memory or too many pendings
+                {
+			fts_backend_xapian_get_lock(backend, verbose, title);
+			try
+                        {
+                        	s=title;
+                                s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)");
+                                syslog(LOG_WARNING,"%s",s.c_str());
+                                backend->dbw->close();
+                                delete(backend->dbw);
+                                backend->dbw=NULL;
+                                backend->pending = 0;
+                        }
+                        catch(Xapian::Error e)
+                        {
+                        	std::string s(title);
+                                s.append("Can't commit DB1 : ");
+                                s.append(e.get_type());
+                                s.append(" - ");
+                                s.append(e.get_msg());
+                                syslog(LOG_ERR,"%s",s.c_str());
+                        }
+                        catch(std::exception e)
+                        {
+                        	std::string s(title);
+                                s.append("Can't commit DB2 : ");
+                                s.append(e.what());
+                                syslog(LOG_ERR,"%s",s.c_str());
+                        }
+			fts_backend_xapian_release_lock(backend, verbose, title);
+		}
+		return m;
+	}
+		
+
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
@@ -937,12 +991,13 @@ class XDocsWriter
 			}
 			else if(doc->status==1)	
 			{
+				checkMemory();
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-				doc->populate_stems(verbose,title);
-				doc->status=2;
+				if(doc->populate_stems(verbose,title)) doc->status=2;
 			}
 			else if(doc->status==2)
 			{
+				checkMemory();
 				s=title; s.append("Creating Xapian doc : "+doc->getSummary());
 				if(verbose>0) syslog(LOG_INFO,"%s",s.c_str());
 				doc->create_document(verbose,s.c_str());
@@ -953,41 +1008,9 @@ class XDocsWriter
 				if(verbose>0) { s=title; s.append("Pushing : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
                         	if(doc->stems > 0)
                         	{
+					long m = checkMemory();
 					fts_backend_xapian_get_lock(backend, verbose, title);
 
-					// Memory check
-                                        long m = fts_backend_xapian_get_free_memory();
-                                        if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
-                                        if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (m<(lowmemory*1024)))) // too little memory or too many pendings
-                                        {
-					        try
-                                                {
-                                        		s=title;
-                                                        s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)");
-                                                        syslog(LOG_WARNING,"%s",s.c_str());
-                                                        backend->dbw->close();
-                                                        delete(backend->dbw);
-                                                        backend->dbw=NULL;
-							backend->pending = 0;
-						}
-                                                catch(Xapian::Error e)
-                                                {
-                                                        std::string s(title);
-                                                        s.append("Can't commit DB1 : ");
-                                                        s.append(e.get_type());
-                                                        s.append(" - ");
-                                                        s.append(e.get_msg());
-                                                        syslog(LOG_ERR,"%s",s.c_str());
-                                                }
-                                                catch(std::exception e)
-                                                {
-                                                        std::string s(title);
-                                                        s.append("Can't commit DB2 : ");
-                                                        s.append(e.what());
-                                                        syslog(LOG_ERR,"%s",s.c_str());
-                                                }
-					}
-					
 					if(checkDB())
 					{
 						try
