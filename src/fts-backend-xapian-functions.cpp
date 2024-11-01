@@ -762,7 +762,7 @@ class XDoc
 				t = fts_backend_xapian_current_time() -t;
 				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
 			}
-			else syslog(LOG_INFO,"%s %s : Memory error");
+			else syslog(LOG_INFO,"%s %s : Memory error",title,getSummary().c_str());
 		}
 		return ok;
 	}
