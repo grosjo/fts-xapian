@@ -715,15 +715,14 @@ class XDoc
 
 	long push(const char *h, icu::UnicodeString * d)
 	{
-		long i,n;
-		icu::UnicodeString * r;
-
-		n=0;
+		long n=0;
+		
 		d->trim();
-                i = d->lastIndexOf(CHAR_SPACE);
+                long i = d->lastIndexOf(CHAR_SPACE);
+
 		if(i>0)
                 {               
-                        r = new icu::UnicodeString(*d,i+1);
+                        icu::UnicodeString * r = new icu::UnicodeString(*d,i+1);
 			n+=push(h,r);
 			delete(r);	
                         d->truncate(i);
