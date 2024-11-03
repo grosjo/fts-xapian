@@ -501,20 +501,8 @@ class XNGram
 	{
 		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
 
-		long i,j,k;
-		icu::UnicodeString *r;
+		long k = d->length();
 
-		d->trim();
-                while((i = d->lastIndexOf(CHAR_SPACE))>0)
-                {
-			r = new icu::UnicodeString(*d,i+1);
-			if(!add(r)) { delete(r); return false; }
-			delete(r);
-			d->truncate(i);
-			d->trim();
-                }
-
-                k = d->length();
                 if(k<fts_xapian_settings.partial) return true;
 
 		if(onlyone)
@@ -524,19 +512,22 @@ class XNGram
 
 		if(isBase64(d)) return true;
 
-		icu::UnicodeString * sub;
+		long i,j;
+		icu::UnicodeString * sub = new icu::UnicodeString();
 
 		for(i=0;i<=k-fts_xapian_settings.partial;i++)
 		{
 			for(j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
 			{
-				sub = new icu::UnicodeString();
+				sub->remove();
 				d->extract(i,j,*sub);
 				if(!add_stem(sub)) { delete(sub); return false; }
-				delete(sub);
 			}
 		}
+		delete(sub);
+
 		if(k>fts_xapian_settings.full) return add_stem(d);
+
 		return true;
 	}
 
@@ -700,10 +691,6 @@ class XDoc
 
 	void add(const char *h, icu::UnicodeString* t, long verbose, const char * title)
 	{
-		icu::UnicodeString * prefix = new icu::UnicodeString(h);
-		prefix->trim();
-		headers->push_back(prefix);
-
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
 		t2->toLower();
 		fts_backend_xapian_clean_accents(t2);
@@ -723,10 +710,34 @@ class XDoc
                         k--;
                 }
 		
-		strings->push_back(t2);
-		std::string s;
-		t2->toUTF8String(s);
-		size++;
+		size+=push(h,t2);
+	}
+
+	long push(const char *h, icu::UnicodeString * d)
+	{
+		long i,n;
+		icu::UnicodeString * r;
+
+		n=0;
+		d->trim();
+                i = d->lastIndexOf(CHAR_SPACE);
+		if(i>0)
+                {               
+                        r = new icu::UnicodeString(*d,i+1);
+			n+=push(h,r);
+			delete(r);	
+                        d->truncate(i);
+                        d->trim();
+                }
+                
+		if(d->length()<fts_xapian_settings.partial) return n;
+
+		icu::UnicodeString * prefix = new icu::UnicodeString(h);
+                prefix->trim();
+                headers->push_back(prefix);	
+		strings->push_back(d);
+		
+		return n+1;
 	}
 
 	bool populate_stems(long verbose, const char * title)
@@ -762,7 +773,7 @@ class XDoc
 				t = fts_backend_xapian_current_time() -t;
 				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
 			}
-			else syslog(LOG_INFO,"%s %s : Memory error",title,getSummary().c_str());
+			else syslog(LOG_INFO,"%s : Memory error",title);
 		}
 		return ok;
 	}
