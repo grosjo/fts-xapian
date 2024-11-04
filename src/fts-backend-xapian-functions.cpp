@@ -728,7 +728,7 @@ class XDoc
                         d->trim();
                 }
                 
-		if(d->length()<fts_xapian_settings.partial) return n;
+		if(d->length()<fts_xapian_settings.partial) { delete(d); return n; }
 
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
                 prefix->trim();
