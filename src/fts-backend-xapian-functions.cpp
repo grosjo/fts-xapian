@@ -628,7 +628,7 @@ class XDoc
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<icu::UnicodeString *> * headers;
 	public:
-		long uid,size,stems;
+		long uid,stems;
 		char * uterm;
 		Xapian::Document * xdoc;
 		long status;
@@ -641,7 +641,6 @@ class XDoc
 		strings->clear();
 		headers = new std::vector<icu::UnicodeString *>;
 		headers->clear();
-		size=0;
 		stems=0;
 		std::string s;
                 s.append("Q"+std::to_string(uid));
@@ -683,7 +682,7 @@ class XDoc
 		s.append(std::to_string(uid));
 		s.append(" uterm=");
 		s.append(uterm);
-		s.append(" #lines=" + std::to_string(size));
+		s.append(" #lines=" + std::to_string(strings->size()));
 		s.append(" #stems=" + std::to_string(stems));
 		s.append(" status=" + std::to_string(status));
 		return s;
@@ -710,32 +709,28 @@ class XDoc
                         k--;
                 }
 		
-		size+=push(h,t2);
+		push(h,t2);
 	}
 
-	long push(const char *h, icu::UnicodeString * d)
+	void push(const char *h, icu::UnicodeString * d)
 	{
-		long n=0;
-		
 		d->trim();
-                long i = d->lastIndexOf(CHAR_SPACE);
+                long i = d->indexOf(CHAR_SPACE);
 
 		if(i>0)
                 {               
                         icu::UnicodeString * r = new icu::UnicodeString(*d,i+1);
-			n+=push(h,r);
+			push(h,r);
                         d->truncate(i);
                         d->trim();
                 }
                 
-		if(d->length()<fts_xapian_settings.partial) { delete(d); return n; }
+		if(d->length()<fts_xapian_settings.partial) { delete(d); return; }
 
 		icu::UnicodeString * prefix = new icu::UnicodeString(h);
                 prefix->trim();
                 headers->push_back(prefix);	
 		strings->push_back(d);
-		
-		return n+1;
 	}
 
 	bool populate_stems(long verbose, const char * title)
