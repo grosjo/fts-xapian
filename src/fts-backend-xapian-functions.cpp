@@ -720,9 +720,9 @@ class XDoc
 		if(i>0)
                 {               
                         icu::UnicodeString * r = new icu::UnicodeString(*d,i+1);
+			d->truncate(i);
+			d->trim();	
 			push(h,r);
-                        d->truncate(i);
-                        d->trim();
                 }
                 
 		if(d->length()<fts_xapian_settings.partial) { delete(d); return; }
