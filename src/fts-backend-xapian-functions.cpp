@@ -724,7 +724,6 @@ class XDoc
                 {               
                         icu::UnicodeString * r = new icu::UnicodeString(*d,i+1);
 			n+=push(h,r);
-			delete(r);	
                         d->truncate(i);
                         d->trim();
                 }
