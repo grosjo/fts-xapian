@@ -34,6 +34,7 @@
 #define XAPIAN_MAXTERMS_PERDOC 50000L // Nb of keywords max per email
 #define XAPIAN_WRITING_CACHE 4000L // Max nb of emails processed in cache 
 #define XAPIAN_MIN_RAM 500L // MB
+#define XAPIAN_MAX_ERRORS 1024L 
 
 // Word processing
 #define XAPIAN_WILDCARD "wldcrd"

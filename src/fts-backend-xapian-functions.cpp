@@ -25,8 +25,10 @@ static long fts_backend_xapian_get_free_memory() // KB
 	char buffer[300];
 	const char *p;
 	FILE *f;
-	if((l<1) && ((f=fopen("/proc/meminfo","r"))!=NULL))
+	if(l<1)
 	{
+		f=fopen("/proc/meminfo","r");
+		if(f==NULL) return -1024;
 		m=0;
 		while(!feof(f))
 	        {
@@ -61,8 +63,9 @@ static long fts_backend_xapian_get_free_memory() // KB
         	        }
         	}
 		fclose(f);
+		m = (l/1024.0f) - m;
 	}
-	m = (l/1024.0f) - m;
+	else m=-1024;
 #endif
 	if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0));
 	return m;
@@ -632,6 +635,7 @@ class XDoc
 		char * uterm;
 		Xapian::Document * xdoc;
 		long status;
+		long status_n;
  
         XDoc(long luid)
 	{
@@ -647,7 +651,7 @@ class XDoc
 		uterm = (char*)malloc((s.length()+1)*sizeof(char));
 		strcpy(uterm,s.c_str());
 		xdoc=NULL;
-		status=0;
+		status=0; status_n=0;
 	}
 
 	~XDoc() 
@@ -676,7 +680,7 @@ class XDoc
 		free(uterm);
 	}
 
-	std::string getSummary()
+	std::string getDocSummary()
 	{
 		std::string s("Doc "); 
 		s.append(std::to_string(uid));
@@ -688,7 +692,7 @@ class XDoc
 		return s;
 	}
 
-	void add(const char *h, icu::UnicodeString* t, long verbose, const char * title)
+	void xadd(const char *h, icu::UnicodeString* t, long verbose, const char * title)
 	{
 		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
 		t2->toLower();
@@ -738,7 +742,7 @@ class XDoc
 		long i,j,k;
 		long t = fts_backend_xapian_current_time();
 		k=headers->size();	
-		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getSummary().c_str(),k);
+		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getDocSummary().c_str(),k);
 
 		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
 		bool ok=true;
@@ -749,7 +753,7 @@ class XDoc
 			if(verbose>0) 
 			{
 				std::string s; headers->at(j)->toUTF8String(s);
-				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getSummary().c_str(),j+1,k,s.c_str(),(long)strings->at(j)->length());
+				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getDocSummary().c_str(),j+1,k,s.c_str(),(long)strings->at(j)->length());
 			}
 			
 			ngram->setPrefix(headers->at(j));
@@ -764,36 +768,42 @@ class XDoc
 			if(ok)
 			{
 				t = fts_backend_xapian_current_time() -t;
-				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getSummary().c_str(), t, (long)(stems*1000.0/t));
+				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getDocSummary().c_str(), t, (long)(stems*1000.0/t));
 			}
 			else syslog(LOG_INFO,"%s : Memory error",title);
 		}
 		return ok;
 	}
 
-	void create_document(long verbose, const char * title)
+	bool create_document(long verbose, const char * title)
 	{
-		long i=stems;
-
 		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms",title,stems);
-		xdoc = new Xapian::Document();
-		xdoc->add_value(1,Xapian::sortable_serialise(uid));
-		xdoc->add_term(uterm);
-		std::string *s;
-		while(i>0)
+		try
 		{
-			i--;
-			s = new std::string();
-			data[i]->toUTF8String(*s);
- 			xdoc->add_term(s->c_str());
-			if(verbose>0) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
-			delete(s);
-			delete(data[i]);
-			data[i]=NULL;
+			xdoc = new Xapian::Document();
+			xdoc->add_value(1,Xapian::sortable_serialise(uid));
+			xdoc->add_term(uterm);
+			std::string *s;
+			while(stems>0)
+			{
+				stems--;
+				s = new std::string();
+				data[stems]->toUTF8String(*s);
+ 				xdoc->add_term(s->c_str());
+				if(verbose>0) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
+				delete(s);
+				delete(data[stems]);
+				data[stems]=NULL;
+			}
+		}
+		catch(Xapian::Error e)
+                {
+			return false;
 		}
 		free(data);
-		data=NULL;
-		if(verbose>0) syslog(LOG_INFO,"%s create_doc done (%s)",title,getSummary().c_str());
+                data=NULL;
+		if(verbose>0) syslog(LOG_INFO,"%s create_doc done (%s)",title,getDocSummary().c_str());
+		return true;
 	} 
 };
 
@@ -927,7 +937,7 @@ class XDocsWriter
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory();
                 if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
-                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (m<(lowmemory*1024)))) // too little memory or too many pendings
+                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
 			try
@@ -996,20 +1006,43 @@ class XDocsWriter
 			else if(doc->status==1)	
 			{
 				checkMemory();
-				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-				if(doc->populate_stems(verbose,title)) doc->status=2;
+				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(doc->populate_stems(verbose,title)) { doc->status=2; doc->status_n=0; }
+				else 
+				{
+					doc->status_n++;
+					if(verbose>0) { s=title; s.append("Populating stems : Error"); syslog(LOG_INFO,"%s",s.c_str()); }
+					if(doc->status_n > XAPIAN_MAX_ERRORS) 
+					{
+						delete(doc);
+						doc=NULL;
+					}
+				}
 			}
 			else if(doc->status==2)
 			{
 				checkMemory();
-				s=title; s.append("Creating Xapian doc : "+doc->getSummary());
+				s=title; s.append("Creating Xapian doc : "+doc->getDocSummary());
 				if(verbose>0) syslog(LOG_INFO,"%s",s.c_str());
-				doc->create_document(verbose,s.c_str());
-				doc->status=3;
+				if(doc->create_document(verbose,s.c_str()))
+				{
+					doc->status=3;
+					doc->status_n=0;
+				}
+				else
+				{
+					doc->status_n++;
+					if(verbose>0) { s=title; s.append("Create document : Error"); syslog(LOG_INFO,"%s",s.c_str()); }  
+                                        if(doc->status_n > XAPIAN_MAX_ERRORS)
+                                        {
+                                                delete(doc);
+                                                doc=NULL;
+                                        }
+				}
 			}
                         else
 			{
-				if(verbose>0) { s=title; s.append("Pushing : "+doc->getSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(verbose>0) { s=title; s.append("Pushing : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
                         	if(doc->stems > 0)
                         	{
 					long m = checkMemory();
@@ -1022,7 +1055,7 @@ class XDocsWriter
 							if(verbose>0)
                                                        	{
                                                                	s=title;
-                                                               	s.append("Replace doc : "+doc->getSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
+                                                               	s.append("Replace doc : "+doc->getDocSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
                                                                	syslog(LOG_INFO,"%s",s.c_str());
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
@@ -1497,7 +1530,7 @@ bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* fi
 	const char * h = hdrs_xapian[i];
 
 	fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,"fts_backend_xapian_index");
-	backend->docs.back()->add(h,data,fts_xapian_settings.verbose,"fts_backend_xapian_index");
+	backend->docs.back()->xadd(h,data,fts_xapian_settings.verbose,"fts_backend_xapian_index");
 	fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,"fts_backend_xapian_index");
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
