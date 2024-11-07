@@ -790,7 +790,7 @@ class XDoc
 				s = new std::string();
 				data[stems]->toUTF8String(*s);
  				xdoc->add_term(s->c_str());
-				if(verbose>0) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
+				if(verbose>1) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
 				delete(s);
 				delete(data[stems]);
 				data[stems]=NULL;
