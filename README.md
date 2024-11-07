@@ -98,6 +98,8 @@ Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and f
 Configuration - Index updating
 ------------------------------
 
+Please make sure that "ulimit" is high enough. Typically, set "DefaultLimitNOFILE=16384:524288"  in /etc/systemd/system.conf
+
 Just restart Dovecot:
 
 ```sh
