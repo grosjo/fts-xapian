@@ -418,15 +418,23 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) ctx->ctx.backend;
 
 	if(ctx->tbi_uid<1) return 0;
-
+	if(strlen(ctx->tbi_field)<1) return 0;
 	if(data == NULL) return 0;
 
-	icu::StringPiece sp_d((const char *)data,(int32_t )size);
-	icu::UnicodeString d2 = icu::UnicodeString::fromUTF8(sp_d);
-	
-	if(fts_backend_xapian_index(backend,ctx->tbi_field, &d2)) return 0;
+	const char * d = (const char *) data;
+	if(strlen(d)<fts_xapian_settings.partial) return 0;
+
+	int i=0;
+        while((i<HDRS_NB-1) && (strcmp(ctx->tbi_field,hdrs_emails[i])!=0))
+        {
+                i++;
+        }
+        if(i>=HDRS_NB) i=HDRS_NB-1;
+        const char * h = hdrs_xapian[i];
+
+	if(backend->docs.back()->load_text(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index")) return 0;
         	
-	i_error("FTS Xapian: Buildmore: Error Index");
+	i_error("FTS Xapian: Buildmore: Error loadind text");
 	return -1;
 }
 

@@ -458,7 +458,7 @@ class XNGram
 {
 	private:
 		bool onlyone;
-		icu::UnicodeString * prefix;
+		const char * prefix;
 		icu::UnicodeString * * * storage;
 		long * size;
 		const char * title;
@@ -476,9 +476,9 @@ class XNGram
 		title=t;
 	}
 
-	void setPrefix(icu::UnicodeString *pre)
+	void setPrefix(const char *pre)
 	{
-		onlyone = (pre->compare("XMID")==0);
+		onlyone = (strcmp(pre,"XMID")==0);
 		prefix = pre;
 	}
 
@@ -579,7 +579,7 @@ class XNGram
 		if(d->length()<fts_xapian_settings.partial) return true;
 		
 		icu::UnicodeString * st = new icu::UnicodeString(*d);
-		st->insert(0,*prefix);
+		st->insert(0,prefix);
 		l = st->length();
 
 		{	
@@ -629,7 +629,7 @@ class XDoc
 	private:
                 icu::UnicodeString * * data;
 		std::vector<icu::UnicodeString *> * strings;
-		std::vector<icu::UnicodeString *> * headers;
+		std::vector<const char *> * headers;
 	public:
 		long uid,stems;
 		char * uterm;
@@ -643,7 +643,7 @@ class XDoc
 		data = NULL;
 		strings = new std::vector<icu::UnicodeString *>;
 		strings->clear();
-		headers = new std::vector<icu::UnicodeString *>;
+		headers = new std::vector<const char *>;
 		headers->clear();
 		stems=0;
 		std::string s;
@@ -666,16 +666,14 @@ class XDoc
 			data=NULL;
 		}
 		
-		for (icu::UnicodeString * h : *headers)
-		{
-			delete(h);
-		}
 		headers->clear(); delete(headers);
+
 		for (icu::UnicodeString * t : *strings)
 		{
 			delete(t);
 		}
 		strings->clear(); delete(strings);
+
 		if(xdoc!=NULL) delete(xdoc);
 		free(uterm);
 	}
@@ -692,49 +690,53 @@ class XDoc
 		return s;
 	}
 
-	void xadd(const char *h, icu::UnicodeString* t, long verbose, const char * title)
+	bool load_text(const char *h, const char *d, int32_t size, long verbose, const char * title)
 	{
-		icu::UnicodeString * t2 = new icu::UnicodeString(*t);
-		t2->toLower();
-		fts_backend_xapian_clean_accents(t2);
+		icu::UnicodeString * t;
+		{
+			icu::StringPiece sp_d(d,size);
+			t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp_d));
+		}
+		t->toLower();
+		fts_backend_xapian_clean_accents(t);
 
 		long k=CHARS_SEP;
                 while(k>0)
                 {
-                        t2->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
                         k--;
                 }
-		t2->trim();
+		t->trim();
 
 		k=CHARS_PB;
                 while(k>0)
                 {
-                        t2->findAndReplace(chars_pb[k-1],CHAR_KEY);
+                        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
                         k--;
                 }
-		
-		push(h,t2);
-	}
+		k = t->length();	
+		long i = t->lastIndexOf(CHAR_SPACE);
+		while(i>0)
+		{
+			if((k-i)>fts_xapian_settings.partial)
+			{
+				headers->push_back(h);
+                		strings->push_back(new icu::UnicodeString(*t,i+1));
+			}
+			t->truncate(i);
+			t->trim();
+			i = t->lastIndexOf(CHAR_SPACE);
+			k = t->length();
+		}
 
-	void push(const char *h, icu::UnicodeString * d)
-	{
-		d->trim();
-                long i = d->indexOf(CHAR_SPACE);
+		if(k>=fts_xapian_settings.partial)
+		{
+                	headers->push_back(h);
+			strings->push_back(t);
+		}
+		else delete(t);
 
-		if(i>0)
-                {               
-                        icu::UnicodeString * r = new icu::UnicodeString(*d,i+1);
-			d->truncate(i);
-			d->trim();	
-			push(h,r);
-                }
-                
-		if(d->length()<fts_xapian_settings.partial) { delete(d); return; }
-
-		icu::UnicodeString * prefix = new icu::UnicodeString(h);
-                prefix->trim();
-                headers->push_back(prefix);	
-		strings->push_back(d);
+		return true;
 	}
 
 	bool populate_stems(long verbose, const char * title)
@@ -752,13 +754,12 @@ class XDoc
 			j--;
 			if(verbose>0) 
 			{
-				std::string s; headers->at(j)->toUTF8String(s);
-				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getDocSummary().c_str(),j+1,k,s.c_str(),(long)strings->at(j)->length());
+				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getDocSummary().c_str(),j+1,k,headers->at(j),(long)strings->at(j)->length());
 			}
 			
 			ngram->setPrefix(headers->at(j));
 			ok=ngram->add(strings->at(j));
-			delete(headers->at(j)); headers->at(j)=NULL; headers->pop_back();
+			headers->pop_back();
 			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
                 }
 		delete(ngram);
@@ -1511,30 +1512,5 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		a->match_always=true;
 		a = a->next;
 	}
-}
-
-bool fts_backend_xapian_index(struct xapian_fts_backend *backend, const char* field, icu::UnicodeString* data)
-{
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s : %ld",field,(long)(data->length()));
-
-	if(data->length()<fts_xapian_settings.partial) return true;
-
-	if(strlen(field)<1) return true;
-
-	long i=0;
-	while((i<HDRS_NB-1) && (strcmp(field,hdrs_emails[i])!=0))
-	{
-		i++;
-	}
-	if(i>=HDRS_NB) i=HDRS_NB-1;
-	const char * h = hdrs_xapian[i];
-
-	fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,"fts_backend_xapian_index");
-	backend->docs.back()->xadd(h,data,fts_xapian_settings.verbose,"fts_backend_xapian_index");
-	fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,"fts_backend_xapian_index");
-
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_index %s done",field);
-
-	return TRUE;
 }
 
