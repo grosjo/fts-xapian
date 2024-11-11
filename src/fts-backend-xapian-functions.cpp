@@ -754,7 +754,7 @@ class XDoc
 			if(ok)
 			{
 				t = fts_backend_xapian_current_time() -t;
-				syslog(LOG_INFO,"%s %s : Done populating in %ld ms (%ld stems/sec)",title,getDocSummary().c_str(), t, (long)(stems*1000.0/t));
+				syslog(LOG_INFO,"%s %s : Done populating %ld stems in %ld ms (%ld stems/sec)",title,getDocSummary().c_str(), stems, t, (long)(stems*1000.0/t));
 			}
 			else syslog(LOG_INFO,"%s : Memory error",title);
 		}
@@ -769,17 +769,17 @@ class XDoc
 			xdoc = new Xapian::Document();
 			xdoc->add_value(1,Xapian::sortable_serialise(uid));
 			xdoc->add_term(uterm);
-			std::string *s;
-			while(stems>0)
+			std::string s;
+			long n = stems;
+			while(n>0)
 			{
-				stems--;
-				s = new std::string();
-				data[stems]->toUTF8String(*s);
- 				xdoc->add_term(s->c_str());
-				if(verbose>1) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s->c_str());
-				delete(s);
-				delete(data[stems]);
-				data[stems]=NULL;
+				n--;
+				s.clear();
+				data[n]->toUTF8String(s);
+ 				xdoc->add_term(s.c_str());
+				if(verbose>1) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s.c_str());
+				delete(data[n]);
+				data[n]=NULL;
 			}
 		}
 		catch(Xapian::Error e)
@@ -926,32 +926,36 @@ class XDocsWriter
                 if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
-			try
-                        {
-                        	s=title;
-                                s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB)");
-                                syslog(LOG_WARNING,"%s",s.c_str());
-                                backend->dbw->close();
-                                delete(backend->dbw);
-                                backend->dbw=NULL;
-                                backend->pending = 0;
-                        }
-                        catch(Xapian::Error e)
-                        {
-                        	std::string s(title);
-                                s.append("Can't commit DB1 : ");
-                                s.append(e.get_type());
-                                s.append(" - ");
-                                s.append(e.get_msg());
-                                syslog(LOG_ERR,"%s",s.c_str());
-                        }
-                        catch(std::exception e)
-                        {
-                        	std::string s(title);
-                                s.append("Can't commit DB2 : ");
-                                s.append(e.what());
-                                syslog(LOG_ERR,"%s",s.c_str());
-                        }
+			// Repeat test because the close may have happen in another thread
+			if((backend->dbw!=NULL) && (backend->pending > 0))
+			{
+				try
+                        	{
+                        		s=title;
+                        	        s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB vs "+std::to_string(lowmemory)+" MB) or Cached docs > "+std::to_string(XAPIAN_WRITING_CACHE));
+                        	        syslog(LOG_WARNING,"%s",s.c_str());
+                        	        backend->dbw->close();
+                        	        delete(backend->dbw);
+                        	        backend->dbw=NULL;
+                        	        backend->pending = 0;
+                        	}
+                        	catch(Xapian::Error e)
+                        	{
+                        		std::string s(title);
+                        	        s.append("Can't commit DB1 : ");
+                        	        s.append(e.get_type());
+                        	        s.append(" - ");
+                        	        s.append(e.get_msg());
+                        	        syslog(LOG_ERR,"%s",s.c_str());
+                        	}
+                        	catch(std::exception e)
+                        	{
+                        		std::string s(title);
+                        	        s.append("Can't commit DB2 : ");
+                        	        s.append(e.what());
+                        	        syslog(LOG_ERR,"%s",s.c_str());
+                        	}
+			}
 			fts_backend_xapian_release_lock(backend, verbose, title);
 		}
 		return m;
@@ -997,7 +1001,7 @@ class XDocsWriter
 				else 
 				{
 					doc->status_n++;
-					if(verbose>0) { s=title; s.append("Populating stems : Error"); syslog(LOG_INFO,"%s",s.c_str()); }
+					if(verbose>0) { s=title; s.append("Populating stems : Error - "+doc->getDocSummary()); syslog(LOG_ERR,"%s",s.c_str()); }
 					if(doc->status_n > XAPIAN_MAX_ERRORS) 
 					{
 						delete(doc);
