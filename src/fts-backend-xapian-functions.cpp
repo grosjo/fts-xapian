@@ -218,7 +218,7 @@ class XQuerySet
 
 		long i,j,k;
 		XQuerySet * q2;
-		icu::UnicodeString *r1,*r2;
+		icu::UnicodeString *r;
 
 		if(checkspaces)
 		{
@@ -256,9 +256,9 @@ class XQuerySet
                         while(i>0)
                         {
                                 j = t->length();
-                                r1 = new icu::UnicodeString(*t,i+1,j-i-1);
-                                q2->add(h2,r1,false,false,true);
-                                delete(r1);
+                                r = new icu::UnicodeString(*t,i+1,j-i-1);
+                                q2->add(h2,r,false,false,true);
+                                delete(r);
                                 t->truncate(i);
                                 t->trim();
                                 i = t->lastIndexOf(CHAR_SPACE);
@@ -694,49 +694,49 @@ class XDoc
 	{
 		icu::UnicodeString * t;
 		{
-			icu::StringPiece sp_d(d,size);
-			t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp_d));
+			icu::StringPiece sp(d,size);
+			t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp));
 		}
-		t->toLower();
 		fts_backend_xapian_clean_accents(t);
-
-		long k=CHARS_SEP;
-                while(k>0)
-                {
-                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
-                        k--;
-                }
-		t->trim();
-
-		k=CHARS_PB;
+		t->toLower();
+		
+		long k=CHARS_PB;
                 while(k>0)
                 {
                         t->findAndReplace(chars_pb[k-1],CHAR_KEY);
                         k--;
                 }
-		k = t->length();	
-		long i = t->lastIndexOf(CHAR_SPACE);
-		while(i>0)
+
+		k=CHARS_SEP;
+                while(k>0)
+                {
+                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                        k--;
+                }
+
+		t->trim();
+
+		k = t->lastIndexOf(CHAR_SPACE);
+		while(k>0)
 		{
-			if((k-i)>fts_xapian_settings.partial)
-			{
-				headers->push_back(h);
-                		strings->push_back(new icu::UnicodeString(*t,i+1));
-			}
-			t->truncate(i);
+			push(h,new icu::UnicodeString(*t,k+1));
+			t->truncate(k);
 			t->trim();
-			i = t->lastIndexOf(CHAR_SPACE);
-			k = t->length();
+			k = t->lastIndexOf(CHAR_SPACE);
 		}
 
-		if(k>=fts_xapian_settings.partial)
-		{
-                	headers->push_back(h);
-			strings->push_back(t);
-		}
-		else delete(t);
-
+		push(h,t);
 		return true;
+	}
+
+	void push(const char *h, icu::UnicodeString *t)
+	{
+		if(t->length()>=fts_xapian_settings.partial)
+		{
+                        headers->push_back(h);
+                        strings->push_back(t);
+                }
+                else delete(t);
 	}
 
 	bool populate_stems(long verbose, const char * title)
@@ -1282,7 +1282,7 @@ static bool fts_backend_xapian_isnormalprocess()
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
 
 	XResultSet * set= new XResultSet();
 	Xapian::Query * q = query->get_query(dbx);
