@@ -71,6 +71,61 @@ static long fts_backend_xapian_get_free_memory() // KB
 	return m;
 }
 
+static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
+{
+        UErrorCode status = U_ZERO_ERROR;
+        icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+        if(U_FAILURE(status))
+        {
+                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory()/1024.0))+"MB");
+                syslog(LOG_ERR,"%s",s.c_str());
+                accentsConverter = NULL;
+                return false;
+        }
+        accentsConverter->transliterate(*t);
+        delete(accentsConverter);
+        return true;
+}
+
+static bool fts_backend_xapian_trim(icu::UnicodeString *d)
+{
+	bool res=false;
+
+        while(d->startsWith(CHAR_SPACE) || d->startsWith(CHAR_KEY))
+        {
+                d->remove(0,1);
+                res=true;
+        }
+        while(d->endsWith(CHAR_SPACE) || d->endsWith(CHAR_KEY))
+        {
+                d->truncate(d->length()-1);
+                res=true;
+        }
+        return res;
+}
+
+static void fts_backend_xapian_clean(icu::UnicodeString *t)
+{
+	fts_backend_xapian_clean_accents(t);
+	t->toLower();
+
+        long k=CHARS_PB;
+        while(k>0)
+        {
+        	t->findAndReplace(chars_pb[k-1],CHAR_KEY);
+                k--;
+        }
+
+        k=CHARS_SEP;
+        while(k>0)
+        {
+                t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
+                k--;
+        }
+
+	fts_backend_xapian_trim(t);
+}
+
 static void fts_backend_xapian_get_lock(struct xapian_fts_backend *backend, long verbose, const char *s)
 {
 	std::unique_lock<std::timed_mutex> *lck;
@@ -113,23 +168,6 @@ static void fts_backend_xapian_release_lock(struct xapian_fts_backend *backend, 
 		backend->mutex_t= NULL;
 		delete(lck);
 	}
-}
-
-
-static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
-{
-	UErrorCode status = U_ZERO_ERROR;
-	icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
-	if(U_FAILURE(status))
-	{
-		std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory()/1024.0))+"MB");
-		syslog(LOG_ERR,"%s",s.c_str());
-		accentsConverter = NULL;
-		return false;
-	}
-	accentsConverter->transliterate(*t);	
-	delete(accentsConverter);
-	return true;
 }
 
 class XResultSet
@@ -204,42 +242,24 @@ class XQuerySet
 	{
 		std::string s = std::to_string(uid);
 		icu::UnicodeString t(s.c_str());
-		add(hdrs_emails[0],&t,false,false,false);
+		add(hdrs_emails[0],&t,false,false);
 	}
 		
-	void add(const char * h2, icu::UnicodeString *t, bool is_neg,bool checkspaces, bool checklength)
+	void add(const char * h2, icu::UnicodeString *t, bool is_neg, bool checklength)
 	{
 		if(h2==NULL) return;
 		if(t==NULL) return;
 
 		icu::UnicodeString h(h2);
 		h.trim();
+		h.toLower();
                 if(h.length()<1) return;
 
 		long i,j,k;
 		XQuerySet * q2;
 		icu::UnicodeString *r;
 
-		if(checkspaces)
-		{
-			h.toLower();
-			t->toLower();
-		
-			k=CHARS_PB;
-                	while(k>0)
-                	{
-                	        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
-                	        k--;
-                	}
-
-			k=CHARS_SEP;
-			while(k>0)
-                	{
-                	        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
-                	        k--;
-                	}
-		}
-		t->trim();
+		fts_backend_xapian_clean(t);
 		if(t->length()<limit) return;
 	
 		i = t->lastIndexOf(CHAR_SPACE);
@@ -257,13 +277,13 @@ class XQuerySet
                         {
                                 j = t->length();
                                 r = new icu::UnicodeString(*t,i+1,j-i-1);
-                                q2->add(h2,r,false,false,true);
+                                q2->add(h2,r,false,true);
                                 delete(r);
                                 t->truncate(i);
-                                t->trim();
+                                fts_backend_xapian_trim(t);
                                 i = t->lastIndexOf(CHAR_SPACE);
                         }
-                        q2->add(h2,t,false,false,true);
+                        q2->add(h2,t,false,true);
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
@@ -280,7 +300,7 @@ class XQuerySet
 			}
 			for(i=1;i<HDRS_NB;i++)
 			{
-				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false,false,true);
+				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false,true);
 			}
 			add(q2);
 			return;
@@ -310,14 +330,14 @@ class XQuerySet
                         {
                                 q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
                         }
-			q2->add(h2,t,false,false,false);
+			q2->add(h2,t,false,false);
 	
 			icu::UnicodeString sub;
 			for(j=0;j<k;j++)
 			{
 				sub.remove();
                                 t->extract(j,j+fts_xapian_settings.full,sub);
-                                q2->add(h2,&sub,false,false,false);
+                                q2->add(h2,&sub,false,false);
 			}
 			add(q2);
 			return;
@@ -331,7 +351,7 @@ class XQuerySet
 		}
 
                 q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
-		q2->add(h2,t,is_neg,false,false);
+		q2->add(h2,t,is_neg,false);
 		add(q2);
 	}
 
@@ -534,24 +554,6 @@ class XNGram
 		return true;
 	}
 
-	bool stem_trim(icu::UnicodeString *d)
-	{
-		bool res=false;
-
-		while(d->startsWith(CHAR_SPACE) || d->startsWith(CHAR_KEY))
-		{
-			d->remove(0,1);
-			res=true;
-		}
-		while(d->endsWith(CHAR_SPACE) || d->endsWith(CHAR_KEY))
-		{
-			d->truncate(d->length()-1);
-			res=true;
-		}
-		
-        	return res;
-	} 
-
 	int psearch(icu::UnicodeString *d,long pos, long l)
 	{
 		if(l==0) return pos;
@@ -575,7 +577,7 @@ class XNGram
 
 		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
 
-		d->trim();
+		fts_backend_xapian_trim(d);
 		if(d->length()<fts_xapian_settings.partial) return true;
 		
 		icu::UnicodeString * st = new icu::UnicodeString(*d);
@@ -619,7 +621,6 @@ class XNGram
 			if(l>maxlength) { maxlength=l; }
 		}
 		else delete(st);
-		if(stem_trim(d)) return add_stem(d);
 		return true;
 	}
 };
@@ -697,31 +698,15 @@ class XDoc
 			icu::StringPiece sp(d,size);
 			t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp));
 		}
-		fts_backend_xapian_clean_accents(t);
-		t->toLower();
-		
-		long k=CHARS_PB;
-                while(k>0)
-                {
-                        t->findAndReplace(chars_pb[k-1],CHAR_KEY);
-                        k--;
-                }
 
-		k=CHARS_SEP;
-                while(k>0)
-                {
-                        t->findAndReplace(chars_sep[k-1],CHAR_SPACE);
-                        k--;
-                }
+		fts_backend_xapian_clean(t);
 
-		t->trim();
-
-		k = t->lastIndexOf(CHAR_SPACE);
+		long k = t->lastIndexOf(CHAR_SPACE);
 		while(k>0)
 		{
 			push(h,new icu::UnicodeString(*t,k+1));
 			t->truncate(k);
-			t->trim();
+			fts_backend_xapian_trim(t);
 			k = t->lastIndexOf(CHAR_SPACE);
 		}
 
@@ -1506,7 +1491,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 			fts_backend_xapian_clean_accents(&t);
 	
 			char * h = i_strdup(f2.c_str());
-			qs->add(h,&t,a->match_not,true,true);
+			qs->add(h,&t,a->match_not,true);
 			i_free(h);
 		}
 		a->match_always=true;
