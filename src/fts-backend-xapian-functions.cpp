@@ -839,7 +839,7 @@ class XDocsWriter
 			if(verbose>0)
 			{
 				std::string s(title);
-				s.append("Opening DB");
+				s.append("Opening DB (RW)");
 				syslog(LOG_INFO,"%s",s.c_str());
 			}
 			backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
@@ -866,8 +866,21 @@ class XDocsWriter
 		return false;
 	}
 
+        void close()
+        {
+                toclose=true;
+                if(t!=NULL)
+                {
+                        t->join();
+                        delete(t);
+                }
+                t=NULL;
+                terminated=true;
+        }
+
 	~XDocsWriter()
 	{
+		close();
 		free(title);
 	}
 
@@ -899,22 +912,11 @@ class XDocsWriter
 			s.append("Thread error ");
 			s.append(e.what());
 			syslog(LOG_ERR,"%s",s.c_str());
+			t = NULL;
 			return false;
 		}
 		started=true;
 		return true;
-	}
-
-	void close()
-	{
-		toclose=false;
-		if(t!=NULL)
-		{
-			t->join();
-			delete(t);
-		}
-		t=NULL;
-		terminated=true;
 	}
 
 	long checkMemory()
@@ -969,21 +971,17 @@ class XDocsWriter
 		long totaldocs=0;
 		std::string s;
 
-		while(!toclose)
+		while((!toclose) || (doc!=NULL))
 		{
 			if(doc==NULL)
 			{
 				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,"%s",s.c_str()); }
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
-				long n=backend->docs.size();
-				long i=0;
-				while((i<n) && (backend->docs.at(i)->status!=1)) i++;
-				if(i<n)
+				if((backend->docs.size()>0) && (backend->docs.back()->status==1)) 
                         	{
-					doc = backend->docs.at(i);
-					backend->docs.at(i) = NULL;
-					backend->docs.erase(backend->docs.begin() + i);
+					doc = backend->docs.back();
+					backend->docs.pop_back();
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
 			}
@@ -1050,6 +1048,7 @@ class XDocsWriter
                                                        	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
 							backend->pending++;
+							backend->total_docs++;
 							delete(doc);
 							doc=NULL;
 							if(verbose>0)
@@ -1171,7 +1170,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
         }
 	catch(std::exception e)
         {
-                if(sysl) syslog(LOG_ERR, "FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
+                if(sysl) syslog(LOG_ERR, "FTS Xapian : Closing db (%s) error %s",dbpath,e.what());
 		else i_error("FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
         }
 
@@ -1189,14 +1188,8 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing all DWs (%s)",reason);
 	
-	long i=0;
 	fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,reason);
-	long n=backend->docs.size();
-	while(i<n)
-	{
-		if(backend->docs.at(i)->status<1) backend->docs.at(i)->status=1;
-		i++;
-	}		
+	if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
         fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
 
 	while(backend->docs.size()>0)
@@ -1204,31 +1197,29 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
                 if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
                 std::this_thread::sleep_for(XSLEEP);
         }
-	while((i=backend->threads.size())>0)
+
+	XDocsWriter * xw;
+	while(backend->threads.size()>0)
 	{
-		i--;
-		backend->threads.at(i)->toclose=true;
-	
-		if(!(backend->threads.at(i)->started))
+		xw = backend->threads.back();
+
+		if(!(xw->started))
 		{
-			delete(backend->threads.at(i));
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because not started",i);
-			backend->threads.at(i)=NULL;
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			delete(xw);
 			backend->threads.pop_back();
 		}
-		else if(backend->threads.at(i)->terminated)
+		else if(xw->terminated)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",i,(backend->threads)[i]->getSummary().c_str());
-			backend->threads.at(i)->close();
-			delete(backend->threads.at(i));
-			backend->threads.at(i)=NULL;
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			delete(xw);
 			backend->threads.pop_back();
 		}
 		else
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",i,(backend->threads)[i]->getSummary().c_str());
+			xw->toclose=true;
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",backend->threads.size()-1,xw->getSummary().c_str());
 			std::this_thread::sleep_for(XSLEEP);
-			i++;
 		}
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);

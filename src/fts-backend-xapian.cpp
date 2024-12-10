@@ -376,14 +376,14 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 			if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
 			
-			backend->docs.at(backend->docs.size()-1)->status=1;	
+			backend->docs.front()->status=1;	
 		}
                 backend->lastuid = ctx->tbi_uid;
-		backend->docs.push_back(new XDoc(backend->lastuid));
+		backend->docs.insert(backend->docs.begin(),new XDoc(backend->lastuid));
 		
-		fts_backend_xapian_release_lock(backend, fts_xapian_settings.verbose, s.c_str());
-
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
+
+		fts_backend_xapian_release_lock(backend, fts_xapian_settings.verbose, s.c_str());
         }
 
 	return TRUE;
@@ -432,7 +432,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
         if(i>=HDRS_NB) i=HDRS_NB-1;
         const char * h = hdrs_xapian[i];
 
-	if(backend->docs.back()->load_text(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index")) return 0;
+	if(backend->docs.front()->load_text(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index")) return 0;
         	
 	i_error("FTS Xapian: Buildmore: Error loadind text");
 	return -1;
