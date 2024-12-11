@@ -63,6 +63,7 @@ static long fts_backend_xapian_get_free_memory() // KB
         	        }
         	}
 		fclose(f);
+		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Used memory %ld MB",long(m/1024.0));
 		m = (l/1024.0f) - m;
 	}
 	else m=-1024;
@@ -631,6 +632,7 @@ class XDoc
                 icu::UnicodeString * * data;
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<const char *> * headers;
+
 	public:
 		long uid,stems;
 		char * uterm;
@@ -764,6 +766,8 @@ class XDoc
 	bool create_document(long verbose, const char * title)
 	{
 		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms",title,stems);
+//		std::string j = "/tmp/xap_"+std::to_string(uid)+".txt";
+//		FILE * jojo=fopen(j.c_str(),"w");
 		try
 		{
 			xdoc = new Xapian::Document();
@@ -777,6 +781,7 @@ class XDoc
 				s.clear();
 				data[n]->toUTF8String(s);
  				xdoc->add_term(s.c_str());
+//				j=s+"\n"; fputs(j.c_str(),jojo);
 				if(verbose>1) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s.c_str());
 				delete(data[n]);
 				data[n]=NULL;
@@ -789,6 +794,7 @@ class XDoc
 		free(data);
                 data=NULL;
 		if(verbose>0) syslog(LOG_INFO,"%s create_doc done (%s)",title,getDocSummary().c_str());
+//		fclose(jojo);
 		return true;
 	} 
 };
