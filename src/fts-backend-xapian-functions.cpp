@@ -957,6 +957,7 @@ class XDocsWriter
                         	        s.append(e.what());
                         	        syslog(LOG_ERR,"%s",s.c_str());
                         	}
+				checkDB();
 			}
 			fts_backend_xapian_release_lock(backend, verbose, title);
 		}

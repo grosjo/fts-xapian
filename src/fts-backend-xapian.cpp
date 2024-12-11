@@ -519,7 +519,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 							db = new Xapian::WritableDatabase(s,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
                                         		ok=true;
                                 		}
-                                		catch(Xapian::DatabaseLockError e)
+                                		catch(Xapian::Error e)
                                 		{
                                 		        i_warning("FTS Xapian: Retrying opening DB %s - %s %s",e.get_type(),e.get_msg().c_str(),e.get_error_string());
                                         		std::this_thread::sleep_for(XSLEEP);
