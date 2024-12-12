@@ -55,7 +55,7 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 	struct rlimit rl;
 	rl.rlim_cur=0;
         if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: Memory limit by GETRLIMIT error: %s",strerror(errno));
-        long m,l = rl.rlim_cur / 1024.0f;
+        long m,l = rl.rlim_cur;
 	if(l<1)
 	{
 		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit (probably vsz_limit not set");
@@ -68,7 +68,7 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 			p = strstr(buffer,"MemAvailable:");
 			if(p!=NULL)
                 	{
-                        	l=atol(p+13);
+                        	m=atol(p+13);
 				break;
 			}
 		}
@@ -76,8 +76,9 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 	}
 	else
 	{
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0));
-		m = l - memused;
+		l = l / 1024.0f;
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0f));
+		m = l/1024.0f - memused;
 	}
 #endif
 	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
