@@ -9,62 +9,31 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory(bool verbose) // KB  
 {
-	char buffer[300];
-        const char *p;
-        FILE *f;
-
-        long pid=getpid();
-        sprintf(buffer,"/proc/%ld/status",pid);
-        f=fopen(buffer,"r");
-        long memused=0;
-        if(f != NULL)
-        {
-                while(!feof(f))
-                {
-                        if ( fgets (buffer , 100 , f) == NULL ) break;
-//			if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory : %s",buffer);
-                        p = strstr(buffer,"VmData:");
-                        if(p!=NULL)
-                        {
-                                memused+=atol(p+7);
-                        }
-                        p = strstr(buffer,"VmStk:");
-                        if(p!=NULL)
-                        {
-                                memused+=atol(p+6);
-                        }
-                }
-                fclose(f);
-                if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used %ld MB",(long)(memused/1024.0f));
-        }
-        else
-        {
-                if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
-                memused=-1;
-        }
-
-#if defined(__FreeBSD__) || defined(__NetBSD__)
-        u_int page_size;
-        uint_size uint_size = sizeof(page_size);
-        sysctlbyname("vm.stats.vm.v_page_size", &page_size, &uint_size, NULL, 0);
-	struct vmtotal vmt;
-	size_t vmt_size = sizeof(vmt);
-	sysctlbyname("vm.vmtotal", &vmt, &vmt_size, NULL, 0);
-	long m = vmt.t_free * page_size / 1024.0f;
-#else
+	char buffer[250];
+	char *p;
 	struct rlimit rl;
 	rl.rlim_cur=0;
         if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: Memory limit by GETRLIMIT error: %s",strerror(errno));
         long m,l = rl.rlim_cur;
+	FILE *f;
 	if(l<1)
 	{
 		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit (probably vsz_limit not set");
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+        	u_int page_size;
+        	uint_size uint_size = sizeof(page_size);
+        	sysctlbyname("vm.stats.vm.v_page_size", &page_size, &uint_size, NULL, 0);
+        	struct vmtotal vmt;
+        	size_t vmt_size = sizeof(vmt);
+        	sysctlbyname("vm.vmtotal", &vmt, &vmt_size, NULL, 0);
+        	m = vmt.t_free * page_size / 1024.0f;
+#else
 		f=fopen("/proc/meminfo","r");
 		if(f==NULL) return -1024;
 		m=0;
 		while(!feof(f))
 	        {
-        	        if ( fgets (buffer , 100 , f) == NULL ) break;
+        	        if ( fgets (buffer , 200 , f) == NULL ) break;
 			p = strstr(buffer,"MemAvailable:");
 			if(p!=NULL)
                 	{
@@ -72,15 +41,40 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 				break;
 			}
 		}
+#endif
 		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
 	}
 	else
 	{
 		l = l / 1024.0f;
 		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0f));
+
+	        long pid=getpid();
+		sprintf(buffer,"/proc/%ld/status",pid);
+        	f=fopen(buffer,"r");
+        	long memused=0;
+        	if(f != NULL)
+        	{
+                	while(!feof(f))
+                	{
+                        	if ( fgets (buffer , 100 , f) == NULL ) break;
+                        	p = strstr(buffer,"VmSize:");
+                        	if(p!=NULL)
+                        	{
+                        	        memused=atol(p+7);
+					break;
+                        	}
+                	}
+                	fclose(f);
+                	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used %ld MB",(long)(memused/1024.0f));
+        	}
+        	else
+        	{
+        	        if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
+        	        memused=-1;
+		}
 		m = l/1024.0f - memused;
 	}
-#endif
 	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
 	return m;
 }
