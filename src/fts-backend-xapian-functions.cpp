@@ -7,7 +7,7 @@ static long fts_backend_xapian_current_time()
         return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
-static long fts_backend_xapian_get_free_memory() // KB  
+static long fts_backend_xapian_get_free_memory(bool verbose) // KB  
 {
 #if defined(__FreeBSD__) || defined(__NetBSD__)
         u_int page_size;
@@ -28,7 +28,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 	FILE *f;
 	if(l<1)
 	{
-		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit");
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit");
 		f=fopen("/proc/meminfo","r");
 		if(f==NULL) return -1024;
 		m=0;
@@ -42,7 +42,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 				break;
 			}
 		}
-		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
 		if(m>0) l = m * 1024;
 	}	
 	long pid=getpid();
@@ -66,16 +66,16 @@ static long fts_backend_xapian_get_free_memory() // KB
         	        }
         	}
 		fclose(f);
-		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Used memory %ld MB",long(m/1024.0));
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Used memory %ld MB",long(m/1024.0f));
 		m = (l/1024.0f) - m;
 	}
 	else 
 	{
-		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from /proc/status");
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
 		m=-1024;
 	}
 #endif
-	if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0));
+	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
 	return m;
 }
 
@@ -85,7 +85,7 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
         icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
         if(U_FAILURE(status))
         {
-                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory()/1024.0))+"MB");
+                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(true)/1024.0))+"MB");
                 syslog(LOG_ERR,"%s",s.c_str());
                 accentsConverter = NULL;
                 return false;
@@ -936,7 +936,7 @@ class XDocsWriter
 	{
 		std::string s;
 		// Memory check
-                long m = fts_backend_xapian_get_free_memory();
+                long m = fts_backend_xapian_get_free_memory(verbose>0);
                 if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
                 if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
