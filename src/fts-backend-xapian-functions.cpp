@@ -19,6 +19,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 	long m = vmt.t_free * page_size / 1024.0f;
 #else
 	struct rlimit rl;
+	rl.rlim_cur=0;
         if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: Memory limit by GETRLIMIT error: %s",strerror(errno));
         long m,l = rl.rlim_cur;
 
@@ -41,7 +42,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 				break;
 			}
 		}
-		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(l/1024.0));
+		if(fts_xapian_settings.verbose>0) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
 		if(m>0) l = m * 1024;
 	}	
 	long pid=getpid();
