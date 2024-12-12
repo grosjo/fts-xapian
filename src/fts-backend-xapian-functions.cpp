@@ -42,7 +42,7 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 			}
 		}
 #endif
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld MB",(long)(m/1024.0));
 	}
 	else
 	{
@@ -73,7 +73,7 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
         	        if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
         	        memused=-1;
 		}
-		m = l/1024.0f - memused;
+		m = l - memused;
 	}
 	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
 	return m;
