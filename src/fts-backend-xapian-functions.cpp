@@ -9,6 +9,40 @@ static long fts_backend_xapian_current_time()
 
 static long fts_backend_xapian_get_free_memory(bool verbose) // KB  
 {
+	char buffer[300];
+        const char *p;
+        FILE *f;
+
+        long pid=getpid();
+        sprintf(buffer,"/proc/%ld/status",pid);
+        f=fopen(buffer,"r");
+        long memused=0;
+        if(f != NULL)
+        {
+                while(!feof(f))
+                {
+                        if ( fgets (buffer , 100 , f) == NULL ) break;
+//			if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory : %s",buffer);
+                        p = strstr(buffer,"VmData:");
+                        if(p!=NULL)
+                        {
+                                memused+=atol(p+7);
+                        }
+                        p = strstr(buffer,"VmStk:");
+                        if(p!=NULL)
+                        {
+                                memused+=atol(p+6);
+                        }
+                }
+                fclose(f);
+                if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used %ld MB",(long)(memused/1024.0f));
+        }
+        else
+        {
+                if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
+                memused=-1;
+        }
+
 #if defined(__FreeBSD__) || defined(__NetBSD__)
         u_int page_size;
         uint_size uint_size = sizeof(page_size);
@@ -21,14 +55,10 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 	struct rlimit rl;
 	rl.rlim_cur=0;
         if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: Memory limit by GETRLIMIT error: %s",strerror(errno));
-        long m,l = rl.rlim_cur;
-
-	char buffer[300];
-	const char *p;
-	FILE *f;
+        long m,l = rl.rlim_cur / 1024.0f;
 	if(l<1)
 	{
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit");
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit (probably vsz_limit not set");
 		f=fopen("/proc/meminfo","r");
 		if(f==NULL) return -1024;
 		m=0;
@@ -38,41 +68,16 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 			p = strstr(buffer,"MemAvailable:");
 			if(p!=NULL)
                 	{
-                        	m=atol(p+13);
+                        	l=atol(p+13);
 				break;
 			}
 		}
 		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld",(long)(m/1024.0));
-		if(m>0) l = m * 1024;
-	}	
-	long pid=getpid();
-	sprintf(buffer,"/proc/%ld/status",pid);
-        f=fopen(buffer,"r");
-	m=0;
-	if(f != NULL)
-	{
-        	while(!feof(f))                                                 
-        	{                              
-        	        if ( fgets (buffer , 100 , f) == NULL ) break;
-        	        p = strstr(buffer,"VmData:");
-        	        if(p!=NULL)
-        	        {
-        	                m+=atol(p+7);
-        	        }                                                  
-        	        p = strstr(buffer,"VmStk:");
-        	        if(p!=NULL)
-        	        {
-        	                m+=atol(p+6);
-        	        }
-        	}
-		fclose(f);
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Used memory %ld MB",long(m/1024.0f));
-		m = (l/1024.0f) - m;
 	}
-	else 
+	else
 	{
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
-		m=-1024;
+		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0));
+		m = l - memused;
 	}
 #endif
 	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
@@ -85,7 +90,7 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
         icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
         if(U_FAILURE(status))
         {
-                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(true)/1024.0))+"MB");
+                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(true)/1024.0f))+"MB");
                 syslog(LOG_ERR,"%s",s.c_str());
                 accentsConverter = NULL;
                 return false;
