@@ -19,7 +19,7 @@ static long fts_backend_xapian_get_free_memory() // KB
 	long m = vmt.t_free * page_size / 1024.0f;
 #else
 	struct rlimit rl;
-        if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: GETRLIMIT %s",strerror(errno));
+        if(getrlimit(RLIMIT_AS,&rl)!=0) syslog(LOG_WARNING,"FTS Xapian: Memory limit by GETRLIMIT error: %s",strerror(errno));
         long m,l = rl.rlim_cur;
 
 	char buffer[300];
