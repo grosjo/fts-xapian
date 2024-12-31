@@ -24,9 +24,9 @@
 
 #include <sqlite3.h>
 
-// NGram parameters (default)
+#define XAPIAN_SLEEP std::chrono::milliseconds(200)
+
 #define XAPIAN_DEFAULT_PARTIAL 3L
-#define XAPIAN_DEFAULT_FULL 20L
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
@@ -45,24 +45,34 @@
 #define HDRS_NB 11
 static const char * hdrs_emails[HDRS_NB] = { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "contenttype", ""  };
 static const char * hdrs_xapian[HDRS_NB] = { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XCT", "XBDY" };
-static const char * createTable = "CREATE TABLE IF NOT EXISTS docs(ID INT PRIMARY KEY NOT NULL);";
-static const char * selectUIDs = "select ID from docs;";
+
+static const char * createExpTable = "CREATE TABLE IF NOT EXISTS expunges(ID INTEGER PRIMARY KEY NOT NULL);";
+static const char * selectExpUIDs = "select ID from expunges;";
+static const char * replaceExpUID = "replace into expunges values (%d);";
+static const char * deleteExpUID = "delete from expunges where ID=%d;";
+static const char * suffixExp = "_exp.db";
+
+static const char * createDictTable = "CREATE TABLE IF NOT EXISTS dict (keyword TEXT, len INTEGER ); CREATE UNIQUE INDEX IF NOT EXISTS dict_idx ON dict (keyword COLLATE NOCASE); CREATE INDEX IF NOT EXISTS dict_len ON dict (len);";
+static const char * replaceDictWord ="REPLACE INTO dict VALUES('";
+static const char * searchDict1 = "SELECT keyword FROM dict WHERE (0=1)";
+static const char * searchDict2 = " ORDER BY len LIMIT 1000";
+static const char * suffixDict = "_dict.db";
+
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
 
 #define CHARS_PB 16
 static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "^", "\\", "'", "/", "~" };
 
-#define CHARS_SEP 13
-static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!", "¿", "¡" };
+#define CHARS_SEP 16
+static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!", "¿", "¡", "\u00A0", "‘", "“" };
 
 
 struct fts_xapian_settings
 {
 	long verbose;
 	long lowmemory;
-	long partial,full;
-	bool detach;
+	long partial;
 };
 
 struct fts_xapian_user {

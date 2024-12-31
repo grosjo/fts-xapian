@@ -40,7 +40,7 @@ mail_plugins = (...) fts fts_xapian
 
 plugin {
     fts = xapian
-    fts_xapian = partial=3 full=20
+    fts_xapian = partial=3 
 
     fts_autoindex = yes
     fts_enforced = yes
@@ -76,23 +76,9 @@ Configuration - Indexing options
 
 | Option         | Optional | Description                     | Possible values                                     | Default value |
 |----------------|----------|---------------------------------|-----------------------------------------------------|---------------|
-| partial & full |   no     | NGram values for header fields  | between 3 and 20 characters                         | 3 & 20        |
+| partial        |   no     | Minimum size of search keyword  | 2 or above                                          | 3             |
 | verbose        |   yes    | Logs verbosity                  | 0 (silent), 1 (verbose) or 2 (debug)                | 0             |
 | lowmemory      |   yes    | Memory limit before disk commit | 0 (default, meaning 250MB), or set value (in MB)    | 0             |
-| detach         |   yes    | Allow Xapian closing to be detached from main process | 0 (no), 1 (yes)               | 0             |
-
-Set detach=1 only if your mail storage in on a partition on which you can force the uid/gid. For some reasons, Devoct write as root instead so the filesystem must correct until dovecot team fixes the bug. detach=1 speeds up very much the process. 
-
-
-Configuration - NGrams details
-------------------------------
-
-The partial & full parameters are the NGram values for header fields, which means the keywords created for fields (To,
-Cc, ...) are between 3 and 20 chars long. Full words are also added by default (if not longer than 245 chars, which is
-the limit of Xapian capability).
-
-Example: "<john@doe>" will create joh, ohn, hn@, ..., john@d, ohn@do, ..., and finally john@doe as searchable keywords.
-
 
 
 Configuration - Index updating

@@ -7,7 +7,7 @@ static long fts_backend_xapian_current_time()
         return tp.tv_sec * 1000 + tp.tv_usec / 1000;
 }
 
-static long fts_backend_xapian_get_free_memory(bool verbose) // KB  
+static long fts_backend_xapian_get_free_memory(int verbose) // KB  
 {
 	char buffer[250];
 	char *p;
@@ -18,7 +18,7 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 	FILE *f;
 	if(l<1)
 	{
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit (probably vsz_limit not set");
+		if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory limit not available from getrlimit (probably vsz_limit not set");
 #if defined(__FreeBSD__) || defined(__NetBSD__)
         	u_int page_size;
         	uint_size uint_size = sizeof(page_size);
@@ -42,12 +42,12 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
 			}
 		}
 #endif
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld MB",(long)(m/1024.0));
+		if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld MB",(long)(m/1024.0));
 	}
 	else
 	{
 		l = l / 1024.0f;
-		if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0f));
+		if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory limit detected at %ld MB",(long)(l/1024.0f));
 
 	        long pid=getpid();
 		sprintf(buffer,"/proc/%ld/status",pid);
@@ -66,17 +66,31 @@ static long fts_backend_xapian_get_free_memory(bool verbose) // KB
                         	}
                 	}
                 	fclose(f);
-                	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used %ld MB",(long)(memused/1024.0f));
+                	if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory used %ld MB",(long)(memused/1024.0f));
         	}
         	else
         	{
-        	        if(verbose) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
+        	        if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory used not available from %s", buffer);
         	        memused=-1;
 		}
 		m = l - memused;
 	}
-	if(verbose) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
+	if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Available memory %ld MB",long(m/1024.0f));
 	return m;
+}
+
+static void fts_backend_xapian_icutostring(icu::UnicodeString *t, std::string &s)
+{
+	s.clear();
+	t->toUTF8String(s);
+}
+
+static long fts_backend_xapian_icutochar_length(icu::UnicodeString *t)
+{
+        std::string s;
+	s.clear();
+        t->toUTF8String(s);
+        return strlen(s.c_str());
 }
 
 static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
@@ -85,7 +99,7 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
         icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
         if(U_FAILURE(status))
         {
-                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(true)/1024.0f))+"MB");
+                std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(0)/1024.0f))+"MB");
                 syslog(LOG_ERR,"%s",s.c_str());
                 accentsConverter = NULL;
                 return false;
@@ -95,21 +109,16 @@ static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
         return true;
 }
 
-static bool fts_backend_xapian_trim(icu::UnicodeString *d)
+static void fts_backend_xapian_trim(icu::UnicodeString *d)
 {
-	bool res=false;
-
         while(d->startsWith(CHAR_SPACE) || d->startsWith(CHAR_KEY))
         {
                 d->remove(0,1);
-                res=true;
         }
         while(d->endsWith(CHAR_SPACE) || d->endsWith(CHAR_KEY))
         {
                 d->truncate(d->length()-1);
-                res=true;
         }
-        return res;
 }
 
 static void fts_backend_xapian_clean(icu::UnicodeString *t)
@@ -178,6 +187,30 @@ static void fts_backend_xapian_release_lock(struct xapian_fts_backend *backend, 
 	}
 }
 
+static int fts_backend_xapian_sqlite3_vector_int(void *data, int argc, char **argv, char **azColName)
+{
+        if (argc < 1) return -1;
+        
+	uint32_t uid = atol(argv[0]);
+        std::vector<uint32_t> * uids = (std::vector<uint32_t> *) data;
+        uids->push_back(uid);
+        
+	return 0;
+}
+
+static int fts_backend_xapian_sqlite3_vector_icu(void *data, int argc, char **argv, char **azColName)
+{
+        if (argc < 1) return -1;
+                 
+        icu::StringPiece sp(argv[0]);
+	icu::UnicodeString * t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp));
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: sqlite3_vector_string : Adding %s",argv[0]);
+        std::vector<icu::UnicodeString *> * v = (std::vector<icu::UnicodeString *> *) data;
+        v->push_back(t);
+        return 0;
+}
+
+
 class XResultSet
 {
 	public:
@@ -218,7 +251,7 @@ class XQuerySet
 	XQuerySet()
 	{
 		qsize=0; qs=NULL;
-		limit=1;
+		limit=2;
 		header=NULL;
 		text=NULL;
 		global_op = Xapian::Query::op::OP_OR;
@@ -227,8 +260,8 @@ class XQuerySet
 	XQuerySet(Xapian::Query::op op, long l)
 	{
 		qsize=0; qs=NULL;
-		limit=1;
-		if(l>1) { limit=l; }
+		limit=2;
+		if(l>2) { limit=l; }
 		header=NULL;
 		text=NULL;
 		global_op=op;
@@ -250,10 +283,10 @@ class XQuerySet
 	{
 		std::string s = std::to_string(uid);
 		icu::UnicodeString t(s.c_str());
-		add(hdrs_emails[0],&t,false,false);
+		add(hdrs_emails[0],&t,false);
 	}
 		
-	void add(const char * h2, icu::UnicodeString *t, bool is_neg, bool checklength)
+	void add(const char * h2, icu::UnicodeString *t, bool is_neg)
 	{
 		if(h2==NULL) return;
 		if(t==NULL) return;
@@ -285,13 +318,13 @@ class XQuerySet
                         {
                                 j = t->length();
                                 r = new icu::UnicodeString(*t,i+1,j-i-1);
-                                q2->add(h2,r,false,true);
+                                q2->add(h2,r,false);
                                 delete(r);
                                 t->truncate(i);
                                 fts_backend_xapian_trim(t);
                                 i = t->lastIndexOf(CHAR_SPACE);
                         }
-                        q2->add(h2,t,false,true);
+                        q2->add(h2,t,false);
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
@@ -308,7 +341,7 @@ class XQuerySet
 			}
 			for(i=1;i<HDRS_NB;i++)
 			{
-				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false,true);
+				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false);
 			}
 			add(q2);
 			return;
@@ -327,29 +360,6 @@ class XQuerySet
 			h2=hdrs_emails[i];
                 }
 
-		k=t->length()-fts_xapian_settings.full;
-		if(checklength && (k>0))
-		{
-			if(is_neg)
-                        {
-                                q2 = new XQuerySet(Xapian::Query::OP_AND_NOT,limit);
-                        }
-                        else 
-                        {
-                                q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
-                        }
-			q2->add(h2,t,false,false);
-	
-			icu::UnicodeString sub;
-			for(j=0;j<k;j++)
-			{
-				sub.remove();
-                                t->extract(j,j+fts_xapian_settings.full,sub);
-                                q2->add(h2,&sub,false,false);
-			}
-			add(q2);
-			return;
-		}
 		if(text==NULL)
 		{
 			text=new icu::UnicodeString(*t);
@@ -359,7 +369,7 @@ class XQuerySet
 		}
 
                 q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
-		q2->add(h2,t,is_neg,false);
+		q2->add(h2,t,is_neg);
 		add(q2);
 	}
 
@@ -482,203 +492,53 @@ class XQuerySet
 	}
 };
 
-class XNGram
-{
-	private:
-		bool onlyone;
-		const char * prefix;
-		icu::UnicodeString * * * storage;
-		long * size;
-		const char * title;
-		long verbose;
-	
-	public:
-		long maxlength;
-
-	XNGram(icu::UnicodeString * * * d, long * asize, const char * t, long v)
-	{
-		verbose=v;
-		maxlength = 0;
-		storage = d;
-		size = asize;
-		title=t;
-	}
-
-	void setPrefix(const char *pre)
-	{
-		onlyone = (strcmp(pre,"XMID")==0);
-		prefix = pre;
-	}
-
-	~XNGram()
-	{
-	}
-
-	bool isBase64(icu::UnicodeString *d)
-	{
-		std::string s;
-                d->toUTF8String(s);
-		bool ok=false;
-		std::regex base64Regex("^[A-Za-z0-9+/]*={0,2}$");
-		if( (s.length()>=56) && (s.length() % 4 == 0))
-		{
-			ok=std::regex_match(s, base64Regex);
-		}
-		if(ok && (verbose>0)) syslog(LOG_INFO,"Testing Base64 (%s) -> %ld",s.c_str(),(long)ok);
-		return ok;
-	}
-
-	bool add(icu::UnicodeString *d)
-	{
-		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
-
-		long k = d->length();
-
-                if(k<fts_xapian_settings.partial) return true;
-
-		if(onlyone)
-                {
-                        return add_stem(d);
-                }
-
-		if(isBase64(d)) return true;
-
-		long i,j;
-		icu::UnicodeString * sub = new icu::UnicodeString();
-
-		for(i=0;i<=k-fts_xapian_settings.partial;i++)
-		{
-			for(j=fts_xapian_settings.partial;(j+i<=k)&&(j<=fts_xapian_settings.full);j++)
-			{
-				sub->remove();
-				d->extract(i,j,*sub);
-				if(!add_stem(sub)) { delete(sub); return false; }
-			}
-		}
-		delete(sub);
-
-		if(k>fts_xapian_settings.full) return add_stem(d);
-
-		return true;
-	}
-
-	int psearch(icu::UnicodeString *d,long pos, long l)
-	{
-		if(l==0) return pos;
-
-		long n = std::floor(l*0.5f);
-		int c = (*storage)[pos+n]->compare(*d);
-
-		// If already exist, return neg
-		if(c==0) return -1;
-
-		// If middle pos is lower than d, search after pos+n
-		if(c<0) return psearch(d,pos+n+1,l-n-1);
-
-		// All other case, search before
-		return psearch(d,pos,n);
-	}
-
-	bool add_stem(icu::UnicodeString *d)
-	{
-		long l,l2,i,p;
-
-		if((*size)>XAPIAN_MAXTERMS_PERDOC) return true;
-
-		fts_backend_xapian_trim(d);
-		if(d->length()<fts_xapian_settings.partial) return true;
-		
-		icu::UnicodeString * st = new icu::UnicodeString(*d);
-		st->insert(0,prefix);
-		l = st->length();
-
-		{	
-			std::string s;
-			st->toUTF8String(s);
-			l2 = strlen(s.c_str());
-		}
-
-		if(l2<XAPIAN_TERM_SIZELIMIT)
-		{
-			if((*size)<1)
-			{
-				*storage=(icu::UnicodeString **)malloc(sizeof(icu::UnicodeString *));
-				if(*storage == NULL) return false;
-				(*size)=1;
-				(*storage)[0]=st;
-			}
-			else
-			{
-				p=psearch(st,0,*size);
-				if(p>=0)
-				{
-					i=(*size);
-					icu::UnicodeString ** pp = (icu::UnicodeString **)realloc((*storage),(i+1)*sizeof(icu::UnicodeString *));
-					if(pp == NULL) return false;
-					(*storage)=pp;
-					while(i>p)
-					{
-						(*storage)[i]=(*storage)[i-1];
-						i--;
-					}
-					(*storage)[p]=st;
-					(*size)++;
-				}
-				else delete(st);
-			}
-			if(l>maxlength) { maxlength=l; }
-		}
-		else delete(st);
-		return true;
-	}
-};
-
 class XDoc
 {
 	private:
-                icu::UnicodeString * * data;
+                std::vector<icu::UnicodeString *> * terms;
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<const char *> * headers;
+		std::vector<icu::UnicodeString *> * dict;
 
 	public:
-		long uid,stems;
+		long uid;
 		char * uterm;
 		Xapian::Document * xdoc;
 		long status;
 		long status_n;
+		long nterms,nlines,ndict;
  
         XDoc(long luid)
 	{
 		uid=luid;
-		data = NULL;
+                std::string s;
+                s.append("Q"+std::to_string(uid));
+                uterm = (char*)malloc((s.length()+1)*sizeof(char));
+                strcpy(uterm,s.c_str());
+
 		strings = new std::vector<icu::UnicodeString *>;
 		strings->clear();
 		headers = new std::vector<const char *>;
 		headers->clear();
-		stems=0;
-		std::string s;
-                s.append("Q"+std::to_string(uid));
-		uterm = (char*)malloc((s.length()+1)*sizeof(char));
-		strcpy(uterm,s.c_str());
-		xdoc=NULL;
+		terms = new std::vector<icu::UnicodeString *>;
+		terms->clear();
+		nterms=0; nlines=0; ndict=0;
+
+		xdoc=NULL; dict=NULL;
 		status=0; status_n=0;
 	}
 
 	~XDoc() 
 	{
-		if(data != NULL)
+		for(icu::UnicodeString * t : *terms)
 		{
-			for(long i=0;i<stems;i++)
-			{
-				delete(data[i]);
-			}
-			free(data);
-			data=NULL;
+			delete(t);
 		}
-		
+		terms->clear(); delete(terms);
+	
 		headers->clear(); delete(headers);
 
-		for (icu::UnicodeString * t : *strings)
+		for(icu::UnicodeString * t : *strings)
 		{
 			delete(t);
 		}
@@ -694,114 +554,145 @@ class XDoc
 		s.append(std::to_string(uid));
 		s.append(" uterm=");
 		s.append(uterm);
-		s.append(" #lines=" + std::to_string(strings->size()));
-		s.append(" #stems=" + std::to_string(stems));
+		s.append(" #lines=" + std::to_string(nlines));
+		s.append(" #terms=" + std::to_string(nterms));
+		s.append(" #dict=" + std::to_string(ndict));
 		s.append(" status=" + std::to_string(status));
 		return s;
 	}
 
-	bool load_text(const char *h, const char *d, int32_t size, long verbose, const char * title)
+	void raw_load(const char *h, const char *d, int32_t size, long verbose, const char * title)
 	{
 		icu::UnicodeString * t;
+                {
+                        icu::StringPiece sp(d,size);
+                        t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp));
+                }
+                headers->push_back(h);
+                strings->push_back(t);
+		nlines++;
+	}
+
+        long terms_add(icu::UnicodeString * w,long pos, long l)
+        {
+                if(l==0)
+                {
+                        terms->insert(terms->begin()+pos,new icu::UnicodeString(*w));
+			nterms++;
+                        return pos;
+                }
+
+                long n = std::floor(l*0.5f);
+                int c = terms->at(pos+n)->compare(*w);
+
+                // If already exist, return
+                if(c==0) return pos;
+
+                // If middle pos is lower than d, search after pos+n
+                if(c<0) return terms_add(w,pos+n+1,l-n-1);
+
+                // All other case, search before
+                return terms_add(w,pos,n);
+        }
+
+	void terms_push(const char *h, icu::UnicodeString *t)
+	{
+		fts_backend_xapian_trim(t);
+		long n = t->length();
+		
+		if(n>=fts_xapian_settings.partial)
 		{
-			icu::StringPiece sp(d,size);
-			t =  new icu::UnicodeString(icu::UnicodeString::fromUTF8(sp));
-		}
+			t->truncate(XAPIAN_TERM_SIZELIMIT-strlen(h)-1);	
+			while(fts_backend_xapian_icutochar_length(t)>=XAPIAN_TERM_SIZELIMIT-strlen(h)-1)
+			{
+				t->truncate(t->length()-1);
+			}
+			dict_add(t,0,dict->size());
+			t->insert(0,h);
+			terms_add(t,0,terms->size());
+                }
+                delete(t);
+	}
 
-		fts_backend_xapian_clean(t);
+	void dict_set(std::vector<icu::UnicodeString *> * d)
+	{
+		dict = d;
+	}
 
-		long k = t->lastIndexOf(CHAR_SPACE);
-		while(k>0)
+        long dict_add(icu::UnicodeString * w,long pos, long l)
+        {
+                if(l==0)
+                {
+                        dict->insert(dict->begin()+pos,new icu::UnicodeString(*w));
+			ndict++;
+                        return pos;
+                }
+
+                long n = std::floor(l*0.5f);
+                int c = dict->at(pos+n)->compare(*w);
+
+                // If already exist, return
+                if(c==0) return pos;
+
+                // If middle pos is lower than d, search after pos+n
+                if(c>0) return dict_add(w,pos+n+1,l-n-1);
+
+                // All other case, search before
+                return dict_add(w,pos,n);
+        }
+
+	bool terms_create(long verbose, const char * title)
+	{
+		icu::UnicodeString *t;
+		const char * h;
+		long k;
+		
+		while((terms->size()<XAPIAN_MAXTERMS_PERDOC) && (strings->size()>0))
 		{
-			push(h,new icu::UnicodeString(*t,k+1));
-			t->truncate(k);
-			fts_backend_xapian_trim(t);
-			k = t->lastIndexOf(CHAR_SPACE);
-		}
+			h = headers->back(); headers->pop_back();
+			t = strings->back(); strings->pop_back();
+			
+			fts_backend_xapian_clean(t);
 
-		push(h,t);
+                	k = t->lastIndexOf(CHAR_SPACE);
+                	while(k>0)
+                	{
+                        	terms_push(h,new icu::UnicodeString(*t,k+1));
+                        	t->truncate(k);
+                        	fts_backend_xapian_trim(t);
+                        	k = t->lastIndexOf(CHAR_SPACE);
+			}
+			terms_push(h,t);
+                }
 		return true;
 	}
 
-	void push(const char *h, icu::UnicodeString *t)
+	bool doc_create(long verbose, const char * title)
 	{
-		if(t->length()>=fts_xapian_settings.partial)
-		{
-                        headers->push_back(h);
-                        strings->push_back(t);
-                }
-                else delete(t);
-	}
-
-	bool populate_stems(long verbose, const char * title)
-	{
-		long i,j,k;
-		long t = fts_backend_xapian_current_time();
-		k=headers->size();	
-		if(verbose>0) syslog(LOG_INFO,"%s %s : Populate %ld headers with strings",title,getDocSummary().c_str(),k);
-
-		XNGram * ngram = new XNGram(&data,&stems,title,verbose);
-		bool ok=true;
-		j=headers->size();
-		while((j>0) && ok)
-		{
-			j--;
-			if(verbose>0) 
-			{
-				syslog(LOG_INFO,"%s %s : Populate %ld / %ld Header=%s TextLength=%ld",title,getDocSummary().c_str(),j+1,k,headers->at(j),(long)strings->at(j)->length());
-			}
-			
-			ngram->setPrefix(headers->at(j));
-			ok=ngram->add(strings->at(j));
-			headers->pop_back();
-			delete(strings->at(j)); strings->at(j)=NULL; strings->pop_back();
-                }
-		delete(ngram);
-
-		if(verbose>0)
-		{
-			if(ok)
-			{
-				t = fts_backend_xapian_current_time() -t;
-				syslog(LOG_INFO,"%s %s : Done populating %ld stems in %ld ms (%ld stems/sec)",title,getDocSummary().c_str(), stems, t, (long)(stems*1000.0/t));
-			}
-			else syslog(LOG_INFO,"%s : Memory error",title);
-		}
-		return ok;
-	}
-
-	bool create_document(long verbose, const char * title)
-	{
-		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms",title,stems);
-//		std::string j = "/tmp/xap_"+std::to_string(uid)+".txt";
-//		FILE * jojo=fopen(j.c_str(),"w");
+		if(verbose>0) syslog(LOG_INFO,"%s adding %ld terms",title,nterms);
 		try
 		{
+			icu::UnicodeString *t;
 			xdoc = new Xapian::Document();
 			xdoc->add_value(1,Xapian::sortable_serialise(uid));
 			xdoc->add_term(uterm);
 			std::string s;
-			long n = stems;
+			long n = terms->size();
 			while(n>0)
 			{
 				n--;
-				s.clear();
-				data[n]->toUTF8String(s);
- 				xdoc->add_term(s.c_str());
-//				j=s+"\n"; fputs(j.c_str(),jojo);
+				t=terms->back();
+				terms->pop_back();
+				fts_backend_xapian_icutostring(t,s);
 				if(verbose>1) syslog(LOG_INFO,"%s adding terms for (%s) : %s",title,uterm,s.c_str());
-				delete(data[n]);
-				data[n]=NULL;
+				xdoc->add_term(s.c_str());
+				delete(t);
 			}
 		}
 		catch(Xapian::Error e)
                 {
 			return false;
 		}
-		free(data);
-                data=NULL;
-		if(verbose>0) syslog(LOG_INFO,"%s create_doc done (%s)",title,getDocSummary().c_str());
-//		fclose(jojo);
 		return true;
 	} 
 };
@@ -816,6 +707,7 @@ class XDocsWriter
 		std::thread *t;
 		char * title;
 		struct xapian_fts_backend *backend;
+                std::vector<icu::UnicodeString *> * dict;
 
 	public:
 		bool started,toclose,terminated;
@@ -827,7 +719,7 @@ class XDocsWriter
                 s.clear(); s.append("DW #"+std::to_string(n)+" (");
                 s.append(backend->boxname);
                 s.append(",");
-                s.append(backend->db);
+                s.append(backend->xap_db);
                 s.append(") - ");
                 title=(char *)malloc((s.length()+1)*sizeof(char));
                 strcpy(title,s.c_str());
@@ -839,6 +731,9 @@ class XDocsWriter
 		started=false;
 		verbose=fts_xapian_settings.verbose;
 		lowmemory = fts_xapian_settings.lowmemory;
+
+		dict = new std::vector<icu::UnicodeString *>;
+                dict->clear();
 	}
 
 	bool checkDB()
@@ -855,7 +750,7 @@ class XDocsWriter
 				s.append("Opening DB (RW)");
 				syslog(LOG_INFO,"%s",s.c_str());
 			}
-			backend->dbw = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+			backend->dbw = new Xapian::WritableDatabase(backend->xap_db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 			return true;
 		}
                 catch(Xapian::DatabaseLockError e)
@@ -895,6 +790,12 @@ class XDocsWriter
 	{
 		close();
 		free(title);
+                for(icu::UnicodeString * t : *dict)
+                {
+                        delete(t);
+                }
+                dict->clear(); delete(dict);
+
 	}
 
 	std::string getSummary()
@@ -936,8 +837,8 @@ class XDocsWriter
 	{
 		std::string s;
 		// Memory check
-                long m = fts_backend_xapian_get_free_memory(verbose>0);
-                if(verbose>1) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB"); syslog(LOG_WARNING,"%s",s.c_str()); }
+                long m = fts_backend_xapian_get_free_memory(verbose);
+                if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB | Pendings in cache = "+std::to_string(backend->pending)+" / "+std::to_string(XAPIAN_WRITING_CACHE)); syslog(LOG_WARNING,"%s",s.c_str()); }
                 if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
@@ -947,10 +848,11 @@ class XDocsWriter
 				try
                         	{
                         		s=title;
-                        	        s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB vs "+std::to_string(lowmemory)+" MB) or Cached docs > "+std::to_string(XAPIAN_WRITING_CACHE));
+                        	        s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB vs "+std::to_string(lowmemory)+" MB) or Cached docs ("+std::to_string(backend->pending)+") > "+std::to_string(XAPIAN_WRITING_CACHE));
                         	        syslog(LOG_WARNING,"%s",s.c_str());
                         	        backend->dbw->close();
                         	        delete(backend->dbw);
+					dict_store();
                         	        backend->dbw=NULL;
                         	        backend->pending = 0;
                         	}
@@ -977,39 +879,90 @@ class XDocsWriter
 		return m;
 	}
 		
+        void dict_store()
+        {
+                long m = dict->size();
+                if(m<1) return;
+
+		long t=fts_backend_xapian_current_time();
+                if(verbose>0) { std::string s=title; s.append("Flushing Dictionnary"); syslog(LOG_INFO,"%s",s.c_str()); }
+                sqlite3 * db = NULL;
+                if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE,NULL) != SQLITE_OK )
+                {
+                        syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(db));
+                        return;
+                }
+		char *zErrMsg = 0;
+		std::string sql;
+		long n=0;
+                while(m>0)
+		{
+			sql.clear();
+			dict->back()->toUTF8String(sql);
+			sql=replaceDictWord + sql + "'," + std::to_string(sql.length()) + ")";
+			dict->pop_back();
+			m--;
+
+			if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
+                	{
+                        	syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
+                        	sqlite3_free(zErrMsg);
+                        	sqlite3_close(db);
+                        	return;
+                	}
+			n++;
+                }
+                sqlite3_close(db);
+		if(verbose>0) { std::string s=title; s.append("Flushing Dictionnary : "+ std::to_string(n)+" done in "+ std::to_string(fts_backend_xapian_current_time()-t)+ " msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+        }
 
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
 		XDoc *doc = NULL;
 		long totaldocs=0;
+		long sl=0, dt=0;
 		std::string s;
+		dict->clear();
 
 		while((!toclose) || (doc!=NULL))
 		{
 			if(doc==NULL)
 			{
-				if(verbose>0) { s=title; s.append("Searching doc"); if(verbose>0) syslog(LOG_INFO,"%s",s.c_str()); }
+				if(verbose>0) { s=title; s.append("Searching doc"); syslog(LOG_INFO,"%s",s.c_str()); }
 
 				fts_backend_xapian_get_lock(backend, verbose, title);
 				if((backend->docs.size()>0) && (backend->docs.back()->status==1)) 
                         	{
 					doc = backend->docs.back();
 					backend->docs.pop_back();
+					doc->dict_set(dict);
+					dt=fts_backend_xapian_current_time();
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
 			}
 
 			if(doc==NULL)
 			{
-				if(verbose>0) { s=title; s.append("No-op"); syslog(LOG_INFO,"%s",s.c_str());	}
-				std::this_thread::sleep_for(XSLEEP);
+				sl++;
+				if((sl>50) && (verbose>0)) 
+				{ 
+					s=title; s.append("No-op"); syslog(LOG_INFO,"%s",s.c_str());
+					sl=0;
+				}
+				std::this_thread::sleep_for(XAPIAN_SLEEP);
 			}
 			else if(doc->status==1)	
 			{
 				checkMemory();
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-				if(doc->populate_stems(verbose,title)) { doc->status=2; doc->status_n=0; }
+				if(doc->terms_create(verbose,title)) 
+				{ 
+					doc->status=2; doc->status_n=0;
+					dt=fts_backend_xapian_current_time()-dt;
+					if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()+" done in " +std::to_string(dt)+" msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+					dt=fts_backend_xapian_current_time();
+				}
 				else 
 				{
 					doc->status_n++;
@@ -1024,12 +977,14 @@ class XDocsWriter
 			else if(doc->status==2)
 			{
 				checkMemory();
-				s=title; s.append("Creating Xapian doc : "+doc->getDocSummary());
-				if(verbose>0) syslog(LOG_INFO,"%s",s.c_str());
-				if(doc->create_document(verbose,s.c_str()))
+				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(doc->doc_create(verbose,s.c_str()))
 				{
 					doc->status=3;
 					doc->status_n=0;
+					dt=fts_backend_xapian_current_time()-dt;
+					if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()+" done in " +std::to_string(dt)+" msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+					dt=fts_backend_xapian_current_time();
 				}
 				else
 				{
@@ -1045,7 +1000,7 @@ class XDocsWriter
                         else
 			{
 				if(verbose>0) { s=title; s.append("Pushing : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-                        	if(doc->stems > 0)
+                        	if(doc->nterms > 0)
                         	{
 					long m = checkMemory();
 					fts_backend_xapian_get_lock(backend, verbose, title);
@@ -1054,12 +1009,6 @@ class XDocsWriter
 					{
 						try
                                	        	{
-							if(verbose>0)
-                                                       	{
-                                                               	s=title;
-                                                               	s.append("Replace doc : "+doc->getDocSummary()+" Free memory : "+std::to_string(long(m/1024.0))+"MB");
-                                                               	syslog(LOG_INFO,"%s",s.c_str());
-                                                       	}
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
 							backend->pending++;
 							backend->total_docs++;
@@ -1068,7 +1017,7 @@ class XDocsWriter
 							if(verbose>0)
                                                         {
                                                                 s=title;
-                                                                s.append("Doc done");
+                                                                s.append("Pushing done in "+std::to_string(fts_backend_xapian_current_time()-dt)+" msec");
                                                                 syslog(LOG_INFO,"%s",s.c_str());
                                                         }
 							totaldocs++;
@@ -1076,6 +1025,7 @@ class XDocsWriter
 						catch(Xapian::Error e)
                                	                {
                                	                        s=title;
+							s.append(" "+doc->getDocSummary());
                                	                        s.append("Can't write doc1 : ");
                                	                        s.append(e.get_type());
                                	                        s.append(" - ");
@@ -1098,11 +1048,16 @@ class XDocsWriter
 				}
                         }
                 }
+
+		fts_backend_xapian_get_lock(backend, verbose, title);
+		dict_store();
+		fts_backend_xapian_release_lock(backend, verbose, title);
+
 		terminated=true;
                 if(verbose>0) 
 		{
 			std::string s(title);
-			s.append("Wrote "+std::to_string(totaldocs)+" within "+std::to_string(fts_backend_xapian_current_time() - start_time)+" ms");
+			s.append("Wrote "+std::to_string(totaldocs)+" within "+std::to_string(fts_backend_xapian_current_time() - start_time)+" msec");
 			syslog(LOG_INFO,"%s",s.c_str());
 		}
 	}
@@ -1118,7 +1073,7 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 {
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_open_readonly");
 
-	if((backend->db == NULL) || (strlen(backend->db)<1))
+	if((backend->xap_db == NULL) || (strlen(backend->xap_db)<1))
 	{
 		i_warning("FTS Xapian: Open DB Read Only : no DB name");
 		return false;
@@ -1126,12 +1081,12 @@ static bool fts_backend_xapian_open_readonly(struct xapian_fts_backend *backend,
 
 	try
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening DB (RO) %s",backend->db);
-		*dbr = new Xapian::Database(backend->db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Opening DB (RO) %s",backend->xap_db);
+		*dbr = new Xapian::Database(backend->xap_db,Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
 	}
 	catch(Xapian::Error e)
 	{
-		i_error("FTS Xapian: Can not open RO index (%s) %s : %s - %s %s ",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+		i_error("FTS Xapian: Can not open RO index (%s) %s : %s - %s %s ",backend->boxname,backend->xap_db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
 		return false;
 	}
 	return true;
@@ -1153,7 +1108,7 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 		}
 		/* End Performance calculator*/
 
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld ms, rate: %.1f)",backend->old_boxname, backend->db,backend->total_docs,dt,r);
+		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Done indexing '%s' (%s) (%ld msgs in %ld msec, rate: %.1f)",backend->old_boxname, backend->xap_db,backend->total_docs,dt,r);
 
 		i_free(backend->old_guid); backend->old_guid = NULL;
 		i_free(backend->old_boxname); backend->old_boxname = NULL;
@@ -1162,15 +1117,14 @@ static void fts_backend_xapian_oldbox(struct xapian_fts_backend *backend)
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_oldbox - done");
 }
 
-static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * dbpath,char * boxname, long verbose, bool sysl)
+static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,const char * dbpath,const char * boxname, long verbose)
 {
         long t;
 
 	if(verbose>0)
 	{
 		t = fts_backend_xapian_current_time();
-		if(sysl) syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
-		else i_info("FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
+		syslog(LOG_INFO,"FTS Xapian : Closing DB (%s,%s)",boxname,dbpath);
 	}
         try
         {
@@ -1179,23 +1133,18 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,char * db
 	}
         catch(Xapian::Error e)
         {
-                if(sysl) syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-		else i_error("FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
         }
 	catch(std::exception e)
         {
-                if(sysl) syslog(LOG_ERR, "FTS Xapian : Closing db (%s) error %s",dbpath,e.what());
-		else i_error("FTS Xapian : CLosing db (%s) error %s",dbpath,e.what());
+                syslog(LOG_ERR, "FTS Xapian : Closing db (%s) error %s",dbpath,e.what());
         }
 
 	if(verbose>0) 
 	{
 		t = fts_backend_xapian_current_time()-t;
-		if(sysl) syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
-		else i_info("FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
+		syslog(LOG_INFO,"FTS Xapian : DB (%s,%s) closed in %ld ms",boxname,dbpath,t);
 	}
-	free(dbpath);
-	free(boxname);
 }
 
 static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
@@ -1206,61 +1155,53 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
         fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
 
+	long n=0;
 	while(backend->docs.size()>0)
 	{
-                if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
-                std::this_thread::sleep_for(XSLEEP);
+		n++;
+                if((n>50) and (fts_xapian_settings.verbose>0))
+		{
+			i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
+			n=0;
+		}
+                std::this_thread::sleep_for(XAPIAN_SLEEP);
         }
 
 	XDocsWriter * xw;
+	n=0;
 	while(backend->threads.size()>0)
 	{
 		xw = backend->threads.back();
 
 		if(!(xw->started))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
 		else if(xw->terminated)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
 		else
 		{
 			xw->toclose=true;
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",backend->threads.size()-1,xw->getSummary().c_str());
-			std::this_thread::sleep_for(XSLEEP);
+			n++;
+			if((n>50) && (fts_xapian_settings.verbose>0)) 
+			{
+				i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",backend->threads.size()-1,xw->getSummary().c_str());
+				n=0;
+			}
+			std::this_thread::sleep_for(XAPIAN_SLEEP);
 		}
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);
 
 	if(backend->dbw!=NULL)
 	{
-		char * dbpath = (char*) malloc(sizeof(char)*(strlen(backend->db)+1));	
-		strcpy(dbpath,backend->db);
-		/* struct stat fileinfo;
-		stat(dbpath,&fileinfo); */
-		char * boxname = (char*) malloc(sizeof(char)*(strlen(backend->boxname)+1));
-		strcpy(boxname,backend->boxname);
-		try
-        	{
-			if(fts_xapian_settings.detach)
-			{
-				(new std::thread(fts_backend_xapian_close_db,backend->dbw,dbpath,boxname,fts_xapian_settings.verbose,true))->detach();
-			}
-			else
-			{
-				fts_backend_xapian_close_db(backend->dbw,dbpath,boxname,fts_xapian_settings.verbose,false);
-			}
-        	}
-        	catch(std::exception e)
-        	{
-        	        i_error("FTS Xapian : Closing process error %s",e.what());
-        	}
+		fts_backend_xapian_close_db(backend->dbw,backend->xap_db,backend->boxname,fts_xapian_settings.verbose);
 		backend->dbw=NULL;
 	}
 }
@@ -1320,10 +1261,10 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 	fts_backend_xapian_close(backend,"unset box");
 	fts_backend_xapian_oldbox(backend);
 
-	if(backend->db != NULL)
+	if(backend->xap_db != NULL)
 	{
-		i_free(backend->db);
-		backend->db = NULL;
+		i_free(backend->xap_db);
+		backend->xap_db = NULL;
 
 		i_free(backend->guid);
 		backend->guid = NULL;
@@ -1331,8 +1272,11 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 		i_free(backend->boxname);
 		backend->boxname = NULL;
 
-		i_free(backend->expdb);
-		backend->expdb = NULL;
+		i_free(backend->exp_db);
+		backend->exp_db = NULL;
+
+		i_free(backend->dict_db);
+                backend->exp_db = NULL;
 	}
 
 	return 0;
@@ -1343,7 +1287,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 	struct mail_namespace * ns = backend->backend.ns;
 	if(ns->alias_for != NULL)
 	{
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Switching namespace");
+		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Switching namespace");
 		ns = ns->alias_for;
 	}
 
@@ -1403,33 +1347,90 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->lastuid = -1;
 	backend->guid = i_strdup(mb);
 	backend->boxname = i_strdup(box->name);
-	backend->db = i_strdup_printf("%s/db_%s",backend->path,mb);
-	backend->expdb = i_strdup_printf("%s_exp.db",backend->db);
-        backend->threads.clear();
-	backend->total_docs =0;
+	backend->xap_db = i_strdup_printf("%s/db_%s",backend->path,mb);
+	backend->exp_db = i_strdup_printf("%s%s",backend->xap_db,suffixExp);
+	backend->dict_db = i_strdup_printf("%s%s",backend->xap_db,suffixDict);
 
-	char * t = i_strdup_printf("%s/termlist.glass",backend->db);
 	struct stat sb;
-	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
+	// Verify existence of Dict db
 	{
-		i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->db);
-		try
+		if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
 		{
-			Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_BACKEND_GLASS);
-			db->close();
-			delete(db);
-		}
-		catch(Xapian::Error e)
-		{
-			i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s %s",backend->boxname,backend->db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+			i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
+			sqlite3 * db = NULL;
+                	if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
+                	{
+                        	i_error("FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(db));
+                	}
+                	else
+			{	char *zErrMsg = 0;
+                		if(sqlite3_exec(db,createDictTable,NULL,0,&zErrMsg) != SQLITE_OK )
+                		{
+                        		i_error("FTS Xapian: Can not execute (%s) : %s",createDictTable,zErrMsg);
+                        		sqlite3_free(zErrMsg);
+				}
+                        	sqlite3_close(db);
+			}
+			// Deleting existing indexes
+			try
+			{
+				std::filesystem::remove_all(backend->xap_db);
+				std::filesystem::remove(backend->exp_db);
+			}
+			catch(std::exception e)
+			{
+				i_error("FTS Xapian: Can not delete old files %s",e.what());
+			}
 		}
 	}
-	i_free(t);
+        // Verify existence of Exp db
+        {
+                if(!( (stat(backend->exp_db, &sb)==0) && S_ISREG(sb.st_mode)))
+		{
+			i_warning("FTS Xapian: '%s' (%s) expunge does not exist. Creating it",backend->boxname,backend->exp_db);
+                        sqlite3 * db = NULL;
+                        if(sqlite3_open_v2(backend->exp_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
+                        {
+                                i_error("FTS Xapian: Can not open %s : %s",backend->exp_db,sqlite3_errmsg(db));
+                        }
+                        else
+                        {
+                                char *zErrMsg = 0;
+                                if(sqlite3_exec(db,createExpTable,NULL,0,&zErrMsg) != SQLITE_OK )
+                                {
+                                        i_error("FTS Xapian: Can not execute (%s) : %s",createExpTable,zErrMsg);
+                                        sqlite3_free(zErrMsg);
+                                }
+                                sqlite3_close(db);
+                        }
+                }
+        }
+	// Verify existence of Xapian db
+	{
+		char * t = i_strdup_printf("%s/termlist.glass",backend->xap_db);
+        	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
+        	{
+                	i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->xap_db);
+                	try
+                	{
+                	        Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->xap_db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_BACKEND_GLASS);
+                	        db->close();
+                	        delete(db);
+                	}
+                	catch(Xapian::Error e)
+                	{
+                	        i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s %s",backend->boxname,backend->xap_db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                	}
+        	}
+        	i_free(t);
+	}
+        backend->threads.clear();
+	backend->total_docs =0;
 
 	return 0;
 }
 
-static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *a)
+static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *a, const char * dict=NULL)
 {
 	const char * hdr;
 
@@ -1473,7 +1474,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 			{
 				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
 			}
-			fts_backend_xapian_build_qs(q2,a->value.subargs);
+			fts_backend_xapian_build_qs(q2,a->value.subargs,dict);
 			if(q2->count()>0)
 			{
 				qs->add(q2);
@@ -1481,6 +1482,82 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 			else
 			{
 				delete(q2);
+			}
+		}
+		else if(dict != NULL)
+		{
+			// Search dictionnary
+			sqlite3 * db = NULL;
+                	if(sqlite3_open_v2(dict,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READONLY,NULL) != SQLITE_OK )
+                	{
+                	        syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",dict,sqlite3_errmsg(db));
+                	        return;
+                	}
+			icu::StringPiece sp(a->value.str);
+                        icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
+                        fts_backend_xapian_clean(&t);
+			long i = t.lastIndexOf(CHAR_SPACE),j;
+			std::string sql=searchDict1;
+			icu::UnicodeString *k;
+			{
+				std::vector<icu::UnicodeString *> keys; keys.clear();
+				while(i>0)
+				{
+					j = t.length();
+                        	        k = new icu::UnicodeString(t,i+1,j-i-1);
+					if(k->length()>1) { keys.push_back(k); } else delete(k);
+					t.truncate(i);
+                                	fts_backend_xapian_trim(&t);
+                                	i = t.lastIndexOf(CHAR_SPACE);
+                        	}
+				if(t.length()>1) 
+				{
+					keys.push_back(new icu::UnicodeString (t));
+				}
+		                for(auto & ki : keys)
+				{
+					sql += " OR (keyword like '%";
+					ki->toUTF8String(sql);
+					sql +="%')";
+					delete(ki);
+				}
+				sql += searchDict2;
+			}
+			// Replace search string
+			icu::UnicodeString * line;
+			{
+				char * zErrMsg =0;
+				std::vector<icu::UnicodeString *> st; st.clear();
+				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
+                        	{
+                        	        syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
+                                	sqlite3_free(zErrMsg);
+                        	}
+				sqlite3_close(db);	
+				long i=0,j=strlen(hdr);
+                                std::string f2; f2.clear();
+                                while(i<j)
+                                {
+                                        if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
+                                        {
+                                                f2+=tolower(hdr[i]);
+                                        }
+                                        i++;
+                                }
+                                char * h = i_strdup(f2.c_str());
+
+				XQuerySet * q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
+				for(auto &s : st)
+				{
+					q2->add(h,s,false);
+					delete(s);
+				}
+				if(q2->count()>0)
+                        	{
+					qs->add(q2);
+                        	}
+				else delete(q2);
+                        	i_free(h);
 			}
 		}
 		else
@@ -1497,10 +1574,10 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 			}
 			icu::StringPiece sp(a->value.str);
 			icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
-			fts_backend_xapian_clean_accents(&t);
+			fts_backend_xapian_clean(&t);
 	
 			char * h = i_strdup(f2.c_str());
-			qs->add(h,&t,a->match_not,true);
+			qs->add(h,&t,a->match_not);
 			i_free(h);
 		}
 		a->match_always=true;
