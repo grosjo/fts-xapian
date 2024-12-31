@@ -41,6 +41,7 @@ static long fts_backend_xapian_get_free_memory(int verbose) // KB
 				break;
 			}
 		}
+		fclose(f);
 #endif
 		if(verbose>1) syslog(LOG_WARNING,"FTS Xapian: Memory available from meminfo : %ld MB",(long)(m/1024.0));
 	}
