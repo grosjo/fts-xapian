@@ -280,7 +280,7 @@ class XQuerySet
 		{
 			delete(qs[j]);
 		}
-		if(qsize>0) i_free(qs);
+		if(qsize>0) free(qs);
 		qsize=0; qs=NULL;
 	}
 
