@@ -54,8 +54,8 @@ static const char * suffixExp = "_exp.db";
 
 static const char * createDictTable = "CREATE TABLE IF NOT EXISTS dict (keyword TEXT, len INTEGER ); CREATE UNIQUE INDEX IF NOT EXISTS dict_idx ON dict (keyword COLLATE NOCASE); CREATE INDEX IF NOT EXISTS dict_len ON dict (len);";
 static const char * replaceDictWord ="REPLACE INTO dict VALUES('";
-static const char * searchDict1 = "SELECT keyword FROM dict WHERE (0=1)";
-static const char * searchDict2 = " ORDER BY len LIMIT 1000";
+static const char * searchDict1 = "SELECT keyword FROM dict WHERE (keyword like '%";
+static const char * searchDict2 = "%') ORDER BY len LIMIT 100";
 static const char * suffixDict = "_dict.db";
 
 #define CHAR_KEY "_"

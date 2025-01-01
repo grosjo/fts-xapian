@@ -270,7 +270,11 @@ class XQuerySet
 
 	~XQuerySet()
 	{
-		if(text!=NULL) { delete(text); text=NULL; }
+		if(text!=NULL) 
+		{ 
+			delete(text); 
+			text=NULL; 
+		}
 
 		for(long j=0;j<qsize;j++)
 		{
@@ -378,11 +382,11 @@ class XQuerySet
 	{
 		if(qsize<1)
 		{
-			qs=(XQuerySet **)i_malloc(sizeof(XQuerySet*));
+			qs=(XQuerySet **)malloc(sizeof(XQuerySet*));
 		}
 		else
 		{
-			qs=(XQuerySet **)i_realloc(qs,qsize*sizeof(XQuerySet*),(qsize+1)*sizeof(XQuerySet*));
+			qs=(XQuerySet **)realloc(qs,(qsize+1)*sizeof(XQuerySet*));
 		}
 		qs[qsize]=q2;
 		qsize++;
@@ -1487,79 +1491,79 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		}
 		else if(dict != NULL)
 		{
-			// Search dictionnary
-			sqlite3 * db = NULL;
-                	if(sqlite3_open_v2(dict,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READONLY,NULL) != SQLITE_OK )
-                	{
-                	        syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",dict,sqlite3_errmsg(db));
-                	        return;
-                	}
+			//Clean header
+			std::string header; header.clear();
+			long i=0,j=strlen(hdr);
+                        while(i<j)
+                        {
+                        	if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
+                                {
+                                        header+=tolower(hdr[i]);
+                                }
+                                i++;
+			}
+
+			// Find key words
 			icu::StringPiece sp(a->value.str);
                         icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
                         fts_backend_xapian_clean(&t);
-			long i = t.lastIndexOf(CHAR_SPACE),j;
-			std::string sql=searchDict1;
+			i = t.lastIndexOf(CHAR_SPACE),j;
 			icu::UnicodeString *k;
+			std::vector<icu::UnicodeString *> keys; keys.clear();
+			while(i>0)
 			{
-				std::vector<icu::UnicodeString *> keys; keys.clear();
-				while(i>0)
-				{
-					j = t.length();
-                        	        k = new icu::UnicodeString(t,i+1,j-i-1);
-					if(k->length()>1) { keys.push_back(k); } else delete(k);
-					t.truncate(i);
-                                	fts_backend_xapian_trim(&t);
-                                	i = t.lastIndexOf(CHAR_SPACE);
-                        	}
-				if(t.length()>1) 
-				{
-					keys.push_back(new icu::UnicodeString (t));
-				}
-		                for(auto & ki : keys)
-				{
-					sql += " OR (keyword like '%";
-					ki->toUTF8String(sql);
-					sql +="%')";
-					delete(ki);
-				}
-				sql += searchDict2;
+				j = t.length();
+                                k = new icu::UnicodeString(t,i+1,j-i-1);
+				if(k->length()>1) { keys.push_back(k); } else delete(k);
+				t.truncate(i);
+                               	fts_backend_xapian_trim(&t);
+                               	i = t.lastIndexOf(CHAR_SPACE);
+                        }
+			if(t.length()>1) 
+			{
+				keys.push_back(new icu::UnicodeString (t));
 			}
-			// Replace search string
-			icu::UnicodeString * line;
-			{
-				char * zErrMsg =0;
-				std::vector<icu::UnicodeString *> st; st.clear();
-				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
-                        	{
-                        	        syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
-                                	sqlite3_free(zErrMsg);
-                        	}
-				sqlite3_close(db);	
-				long i=0,j=strlen(hdr);
-                                std::string f2; f2.clear();
-                                while(i<j)
-                                {
-                                        if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
-                                        {
-                                                f2+=tolower(hdr[i]);
-                                        }
-                                        i++;
-                                }
-                                char * h = i_strdup(f2.c_str());
 
-				XQuerySet * q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
-				for(auto &s : st)
-				{
-					q2->add(h,s,false);
-					delete(s);
-				}
-				if(q2->count()>0)
-                        	{
-					qs->add(q2);
-                        	}
-				else delete(q2);
-                        	i_free(h);
+			// For each key, search dictionnary
+                        sqlite3 * db = NULL;
+			char * zErrMsg =0;
+                        if(sqlite3_open_v2(dict,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READONLY,NULL) != SQLITE_OK )
+                        {
+                                syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",dict,sqlite3_errmsg(db));
+                                return;
+                        }
+			// Generate query
+			XQuerySet * q1, *q2;
+                        if(a->match_not)
+                        {
+                                q1 = new XQuerySet(Xapian::Query::OP_AND_NOT,qs->limit);
+                        }
+                        else
+                        {
+                                q1 = new XQuerySet(Xapian::Query::OP_AND,qs->limit);
+                        }	
+			for(auto & ki : keys)
+			{
+				std::vector<icu::UnicodeString *> st; st.clear();
+				std::string sql=searchDict1;
+				ki->toUTF8String(sql);
+				sql +=searchDict2;
+				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
+                                {
+                                        syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
+                                        sqlite3_free(zErrMsg);
+                                }
+				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
+                                for(auto &term : st)
+                                {
+                                        q2->add(header.c_str(),term,false);
+                                        delete(term);
+                                }
+                                q1->add(q2);
+				delete(ki);
 			}
+			qs->add(q1);
+			sqlite3_close(db);
 		}
 		else
 		{
