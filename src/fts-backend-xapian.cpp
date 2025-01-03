@@ -542,7 +542,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						}
 						i_free(u);
 					}
-					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closing DB %s",s);
+					if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize - Closing DB %s",s.c_str());
 					fts_backend_xapian_close_db(db,s.c_str(),"fts_optimize",fts_xapian_settings.verbose);
 				}
 				catch(Xapian::Error e)
