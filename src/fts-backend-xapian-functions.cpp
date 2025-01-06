@@ -928,14 +928,13 @@ class XDocsWriter
 		XDoc *doc = NULL;
 		long totaldocs=0;
 		long sl=0, dt=0;
-		std::string s;
 		dict->clear();
 
 		while((!toclose) || (doc!=NULL))
 		{
 			if(doc==NULL)
 			{
-				if(verbose>0) { s=title; s.append("Searching doc"); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(verbose>0) syslog(LOG_INFO,"%sSearching doc",title);
 
 				position=1;
 				fts_backend_xapian_get_lock(backend, verbose, title);
@@ -957,7 +956,7 @@ class XDocsWriter
 				sl++;
 				if((sl>50) && (verbose>0)) 
 				{ 
-					s=title; s.append("No-op"); syslog(LOG_INFO,"%s",s.c_str());
+					syslog(LOG_INFO,"%sNoop",title);
 					sl=0;
 				}
 				std::this_thread::sleep_for(XAPIAN_SLEEP);
@@ -966,19 +965,18 @@ class XDocsWriter
 			{
 				position=5;
 				checkMemory();
-				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(verbose>0)  syslog(LOG_INFO,"%sPopulating stems : %s",title,doc->getDocSummary().c_str());
 				if(doc->terms_create(verbose,title)) 
 				{ 
 					position=6;
 					doc->status=2; doc->status_n=0;
-					dt=fts_backend_xapian_current_time()-dt;
-					if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()+" done in " +std::to_string(dt)+" msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+					if(verbose>0) syslog(LOG_INFO,"%sPopulating stems : %s done in %ld msec",title,doc->getDocSummary().c_str(),fts_backend_xapian_current_time()-dt);
 					dt=fts_backend_xapian_current_time();
 				}
 				else 
 				{
 					doc->status_n++;
-					if(verbose>0) { s=title; s.append("Populating stems : Error - "+doc->getDocSummary()); syslog(LOG_ERR,"%s",s.c_str()); }
+					if(verbose>0) syslog(LOG_INFO,"%sPopulating stems : Error - %s",title,doc->getDocSummary().c_str());
 					if(doc->status_n > XAPIAN_MAX_ERRORS) 
 					{
 						delete(doc);
@@ -991,20 +989,19 @@ class XDocsWriter
 			{
 				position=8;
 				checkMemory();
-				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
-				if(doc->doc_create(verbose,s.c_str()))
+				if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : ",title,doc->getDocSummary().c_str());
+				if(doc->doc_create(verbose,title))
 				{
 					position=9;
 					doc->status=3;
 					doc->status_n=0;
-					dt=fts_backend_xapian_current_time()-dt;
-					if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()+" done in " +std::to_string(dt)+" msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+					if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : %s done in %ld msec",title,doc->getDocSummary().c_str(),fts_backend_xapian_current_time()-dt);
 					dt=fts_backend_xapian_current_time();
 				}
 				else
 				{
 					doc->status_n++;
-					if(verbose>0) { s=title; s.append("Create document : Error"); syslog(LOG_INFO,"%s",s.c_str()); }  
+					if(verbose>0) syslog(LOG_INFO,"%sCreate document : Error",title);
                                         if(doc->status_n > XAPIAN_MAX_ERRORS)
                                         {
                                                 delete(doc);
@@ -1016,7 +1013,7 @@ class XDocsWriter
                         else
 			{
 				position=11;
-				if(verbose>0) { s=title; s.append("Pushing : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
+				if(verbose>0) syslog(LOG_INFO,"%sPushing : %s",title,doc->getDocSummary().c_str());
                         	if(doc->nterms > 0)
                         	{
 					long m = checkMemory();
@@ -1032,29 +1029,16 @@ class XDocsWriter
 							backend->total_docs++;
 							delete(doc);
 							doc=NULL;
-							if(verbose>0)
-                                                        {
-                                                                s=title;
-                                                                s.append("Pushing done in "+std::to_string(fts_backend_xapian_current_time()-dt)+" msec");
-                                                                syslog(LOG_INFO,"%s",s.c_str());
-                                                        }
+							if(verbose>0) syslog(LOG_INFO,"%sPushing done in %ld msec",title,fts_backend_xapian_current_time()-dt);
 							totaldocs++;
                         	        	}
 						catch(Xapian::Error e)
                                	                {
-                               	                        s=title;
-							s.append(" "+doc->getDocSummary());
-                               	                        s.append("Can't write doc1 : ");
-                               	                        s.append(e.get_type());
-                               	                        s.append(" - ");
-                               	                        s.append(e.get_msg());
-                               	                        syslog(LOG_ERR,"%s",s.c_str());
+                               	                 	syslog(LOG_ERR,"%s%s Can't write doc1 : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg());
                                	                }
                                	                catch(std::exception e)
                                	                {
-                               	                        s=title;
-                               	                        s.append("Can't write doc2");
-                               	                        syslog(LOG_ERR,"%s",s.c_str());
+                               	                        syslog(LOG_ERR,"%sCan't write doc2 - %s",title,e.what());
                                	                }
 					}
 					position=14;
@@ -1078,12 +1062,7 @@ class XDocsWriter
 
 		position=19;
 		terminated=true;
-                if(verbose>0) 
-		{
-			std::string s(title);
-			s.append("Wrote "+std::to_string(totaldocs)+" within "+std::to_string(fts_backend_xapian_current_time() - start_time)+" msec");
-			syslog(LOG_INFO,"%s",s.c_str());
-		}
+                if(verbose>0) syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",totaldocs,fts_backend_xapian_current_time() - start_time);
 	}
 };
 
