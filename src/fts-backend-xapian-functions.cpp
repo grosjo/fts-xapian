@@ -1205,7 +1205,10 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 			n++;
 			if((n>50) && (fts_xapian_settings.verbose>0)) 
 			{
-				i_info("FTS Xapian : Waiting for %ld threads (Sleep4) : %s",backend->threads.size()+1,xw->getSummary().c_str());
+				for(auto & xwr : backend->threads)
+				{
+					if((xwr!=NULL)&&(!(xwr->terminated))) i_info("FTS Xapian : Waiting (Sleep4) for thread %s",xwr->getSummary().c_str());
+				}
 				n=0;
 			}
 			std::this_thread::sleep_for(XAPIAN_SLEEP);
