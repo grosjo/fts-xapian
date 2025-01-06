@@ -860,9 +860,9 @@ class XDocsWriter
                         	        syslog(LOG_WARNING,"%s",s.c_str());
                         	        backend->dbw->close();
                         	        delete(backend->dbw);
-					dict_store();
                         	        backend->dbw=NULL;
                         	        backend->pending = 0;
+					dict_store();
                         	}
                         	catch(Xapian::Error e)
                         	{
