@@ -916,7 +916,7 @@ class XDocsWriter
                         	syslog(LOG_ERR,"FTS Xapian: Can not replace keyword (%s) : %s",sql.c_str(),zErrMsg);
                         	sqlite3_free(zErrMsg);
                 	}
-			n++;
+			else n++;
                 }
                 sqlite3_close(db);
 		if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary : %ld done in %ld msec",title,n, fts_backend_xapian_current_time()-t);
