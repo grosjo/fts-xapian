@@ -809,7 +809,8 @@ class XDocsWriter
 	{
 		std::string s(title);
 		s.append(" position="+std::to_string(position));
-		s.append(" remaining docs="+std::to_string(backend->docs.size()));
+		s.append(" queued_docs="+std::to_string(backend->docs.size()));
+		s.append(" dict_size="+std::to_string(dict->size()));
 		s.append(" terminated="+std::to_string(terminated));
 		return s;
 	}
