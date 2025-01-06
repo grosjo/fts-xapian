@@ -940,6 +940,7 @@ class XDocsWriter
 
 				position=1;
 				fts_backend_xapian_get_lock(backend, verbose, title);
+				position=2;
 				if((backend->docs.size()>0) && (backend->docs.back()->status==1)) 
                         	{
 					doc = backend->docs.back();
@@ -948,11 +949,12 @@ class XDocsWriter
 					dt=fts_backend_xapian_current_time();
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
+				position=3;
 			}
 
 			if(doc==NULL)
 			{
-				position=2;
+				position=4;
 				sl++;
 				if((sl>50) && (verbose>0)) 
 				{ 
@@ -963,11 +965,12 @@ class XDocsWriter
 			}
 			else if(doc->status==1)	
 			{
-				position=3;
+				position=5;
 				checkMemory();
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				if(doc->terms_create(verbose,title)) 
 				{ 
+					position=6;
 					doc->status=2; doc->status_n=0;
 					dt=fts_backend_xapian_current_time()-dt;
 					if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()+" done in " +std::to_string(dt)+" msec"); syslog(LOG_INFO,"%s",s.c_str()); }
@@ -983,14 +986,16 @@ class XDocsWriter
 						doc=NULL;
 					}
 				}
+				position=7;
 			}
 			else if(doc->status==2)
 			{
-				position=4;
+				position=8;
 				checkMemory();
 				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				if(doc->doc_create(verbose,s.c_str()))
 				{
+					position=9;
 					doc->status=3;
 					doc->status_n=0;
 					dt=fts_backend_xapian_current_time()-dt;
@@ -1007,18 +1012,20 @@ class XDocsWriter
                                                 doc=NULL;
                                         }
 				}
+				position=10;
 			}
                         else
 			{
-				position=5;
+				position=11;
 				if(verbose>0) { s=title; s.append("Pushing : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
                         	if(doc->nterms > 0)
                         	{
 					long m = checkMemory();
 					fts_backend_xapian_get_lock(backend, verbose, title);
-
+					position=12;
 					if(checkDB())
 					{
+						position=13;
 						try
                                	        	{
                                	                	backend->dbw->replace_document(doc->uterm,*(doc->xdoc));
@@ -1051,7 +1058,9 @@ class XDocsWriter
                                	                        syslog(LOG_ERR,"%s",s.c_str());
                                	                }
 					}
+					position=14;
 					fts_backend_xapian_release_lock(backend, verbose, title);	
+					position=15;
 				}
 				else 
 				{
@@ -1061,12 +1070,14 @@ class XDocsWriter
                         }
                 }
 
-		position=6;
+		position=16;
 		fts_backend_xapian_get_lock(backend, verbose, title);
+		position=17;
 		dict_store();
+		position=18;
 		fts_backend_xapian_release_lock(backend, verbose, title);
 
-		position=7;
+		position=19;
 		terminated=true;
                 if(verbose>0) 
 		{
@@ -1181,6 +1192,11 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
                 std::this_thread::sleep_for(XAPIAN_SLEEP);
         }
 
+	for(auto & xwr : backend->threads)
+        {
+		xwr->toclose=true;
+	}
+
 	XDocsWriter * xw;
 	n=0;
 	while(backend->threads.size()>0)
@@ -1201,7 +1217,6 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 		else
 		{
-			xw->toclose=true;
 			n++;
 			if((n>50) && (fts_xapian_settings.verbose>0)) 
 			{
