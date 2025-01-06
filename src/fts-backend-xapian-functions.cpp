@@ -1189,13 +1189,13 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 
 		if(!(xw->started))
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread because not started : %s",xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
 		else if(xw->terminated)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread because terminated : %s",xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
