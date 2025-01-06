@@ -970,7 +970,7 @@ class XDocsWriter
 				{ 
 					position=6;
 					doc->status=2; doc->status_n=0;
-					if(verbose>0) syslog(LOG_INFO,"%sPopulating stems : %s done in %ld msec",title,doc->getDocSummary().c_str(),fts_backend_xapian_current_time()-dt);
+					if(verbose>0) syslog(LOG_INFO,"%sPopulating stems : %ld done in %ld msec",title,doc->nterms,fts_backend_xapian_current_time()-dt);
 					dt=fts_backend_xapian_current_time();
 				}
 				else 
@@ -989,13 +989,13 @@ class XDocsWriter
 			{
 				position=8;
 				checkMemory();
-				if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : ",title,doc->getDocSummary().c_str());
+				if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : %s",title,doc->getDocSummary().c_str());
 				if(doc->doc_create(verbose,title))
 				{
 					position=9;
 					doc->status=3;
 					doc->status_n=0;
-					if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : %s done in %ld msec",title,doc->getDocSummary().c_str(),fts_backend_xapian_current_time()-dt);
+					if(verbose>0) syslog(LOG_INFO,"%sCreating Xapian doc : Done in %ld msec",title,fts_backend_xapian_current_time()-dt);
 					dt=fts_backend_xapian_current_time();
 				}
 				else
@@ -1034,11 +1034,11 @@ class XDocsWriter
                         	        	}
 						catch(Xapian::Error e)
                                	                {
-                               	                 	syslog(LOG_ERR,"%s%s Can't write doc1 : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg());
+                               	                 	syslog(LOG_ERR,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg());
                                	                }
                                	                catch(std::exception e)
                                	                {
-                               	                        syslog(LOG_ERR,"%sCan't write doc2 - %s",title,e.what());
+                               	                        syslog(LOG_ERR,"%sCan't write doc2 %s : %s",title,doc->getDocSummary().c_str(),e.what());
                                	                }
 					}
 					position=14;
@@ -1062,7 +1062,7 @@ class XDocsWriter
 
 		position=19;
 		terminated=true;
-                if(verbose>0) syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",totaldocs,fts_backend_xapian_current_time() - start_time);
+                if(verbose>0) syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",title,totaldocs,fts_backend_xapian_current_time() - start_time);
 	}
 };
 
