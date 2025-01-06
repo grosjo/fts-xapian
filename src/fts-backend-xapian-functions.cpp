@@ -713,7 +713,7 @@ class XDocsWriter
 		char * title;
 		struct xapian_fts_backend *backend;
                 std::vector<icu::UnicodeString *> * dict;
-
+		int position;
 	public:
 		bool started,toclose,terminated;
 		
@@ -739,6 +739,8 @@ class XDocsWriter
 
 		dict = new std::vector<icu::UnicodeString *>;
                 dict->clear();
+
+		position=0;
 	}
 
 	bool checkDB()
@@ -806,6 +808,7 @@ class XDocsWriter
 	std::string getSummary()
 	{
 		std::string s(title);
+		s.append(" position="+std::to_string(position));
 		s.append(" remaining docs="+std::to_string(backend->docs.size()));
 		s.append(" terminated="+std::to_string(terminated));
 		return s;
@@ -877,7 +880,6 @@ class XDocsWriter
                         	        s.append(e.what());
                         	        syslog(LOG_ERR,"%s",s.c_str());
                         	}
-				checkDB();
 			}
 			fts_backend_xapian_release_lock(backend, verbose, title);
 		}
@@ -936,6 +938,7 @@ class XDocsWriter
 			{
 				if(verbose>0) { s=title; s.append("Searching doc"); syslog(LOG_INFO,"%s",s.c_str()); }
 
+				position=1;
 				fts_backend_xapian_get_lock(backend, verbose, title);
 				if((backend->docs.size()>0) && (backend->docs.back()->status==1)) 
                         	{
@@ -949,6 +952,7 @@ class XDocsWriter
 
 			if(doc==NULL)
 			{
+				position=2;
 				sl++;
 				if((sl>50) && (verbose>0)) 
 				{ 
@@ -959,6 +963,7 @@ class XDocsWriter
 			}
 			else if(doc->status==1)	
 			{
+				position=3;
 				checkMemory();
 				if(verbose>0) { s=title; s.append("Populating stems : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				if(doc->terms_create(verbose,title)) 
@@ -981,6 +986,7 @@ class XDocsWriter
 			}
 			else if(doc->status==2)
 			{
+				position=4;
 				checkMemory();
 				if(verbose>0) { s=title; s.append("Creating Xapian doc : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
 				if(doc->doc_create(verbose,s.c_str()))
@@ -1004,6 +1010,7 @@ class XDocsWriter
 			}
                         else
 			{
+				position=5;
 				if(verbose>0) { s=title; s.append("Pushing : "+doc->getDocSummary()); syslog(LOG_INFO,"%s",s.c_str()); }
                         	if(doc->nterms > 0)
                         	{
@@ -1054,10 +1061,12 @@ class XDocsWriter
                         }
                 }
 
+		position=6;
 		fts_backend_xapian_get_lock(backend, verbose, title);
 		dict_store();
 		fts_backend_xapian_release_lock(backend, verbose, title);
 
+		position=7;
 		terminated=true;
                 if(verbose>0) 
 		{
@@ -1180,13 +1189,13 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 
 		if(!(xw->started))
 		{
-			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread #%ld because not started : %s",backend->threads.size()-1,xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
 		else if(xw->terminated)
 		{
-			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian : Closing #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing thread #%ld because terminated : %s",backend->threads.size()-1,xw->getSummary().c_str());
 			delete(xw);
 			backend->threads.pop_back();
 		}
@@ -1196,7 +1205,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 			n++;
 			if((n>50) && (fts_xapian_settings.verbose>0)) 
 			{
-				i_info("FTS Xapian : Waiting for #%ld (Sleep4) : %s",backend->threads.size()-1,xw->getSummary().c_str());
+				i_info("FTS Xapian : Waiting for %ld threads (Sleep4) : %s",backend->threads.size()+1,xw->getSummary().c_str());
 				n=0;
 			}
 			std::this_thread::sleep_for(XAPIAN_SLEEP);
