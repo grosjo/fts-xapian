@@ -847,8 +847,8 @@ class XDocsWriter
 		std::string s;
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory(verbose);
-                if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB | Pendings in cache = "+std::to_string(backend->pending)+" / "+std::to_string(XAPIAN_WRITING_CACHE)); syslog(LOG_WARNING,"%s",s.c_str()); }
-                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
+                if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB | Pendings in cache = "+std::to_string(backend->pending)+" / "+std::to_string(XAPIAN_WRITING_CACHE) + " | Dict size = "+std::to_string(dict->size())+" / "+std::to_string(XAPIAN_DICT_MAX)); syslog(LOG_WARNING,"%s",s.c_str()); }
+                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
 			// Repeat test because the close may have happen in another thread
@@ -893,7 +893,7 @@ class XDocsWriter
                 if(m<1) return;
 
 		long t=fts_backend_xapian_current_time();
-                if(verbose>0) { std::string s=title; s.append("Flushing Dictionnary"); syslog(LOG_INFO,"%s",s.c_str()); }
+                if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary (%ld items)",title,dict->size());
                 sqlite3 * db = NULL;
                 if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE,NULL) != SQLITE_OK )
                 {
@@ -913,15 +913,13 @@ class XDocsWriter
 
 			if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
                 	{
-                        	syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
+                        	syslog(LOG_ERR,"FTS Xapian: Can not replace keyword (%s) : %s",sql.c_str(),zErrMsg);
                         	sqlite3_free(zErrMsg);
-                        	sqlite3_close(db);
-                        	return;
                 	}
 			n++;
                 }
                 sqlite3_close(db);
-		if(verbose>0) { std::string s=title; s.append("Flushing Dictionnary : "+ std::to_string(n)+" done in "+ std::to_string(fts_backend_xapian_current_time()-t)+ " msec"); syslog(LOG_INFO,"%s",s.c_str()); }
+		if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary : %ld done in %ld msec",title,n, fts_backend_xapian_current_time()-t);
         }
 
 	void worker()
