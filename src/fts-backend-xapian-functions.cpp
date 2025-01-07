@@ -754,7 +754,6 @@ class XDocsWriter
 		std::thread *t;
 		char * title;
 		struct xapian_fts_backend *backend;
-                std::vector<icu::UnicodeString *> * dict;
 		int position;
 	public:
 		bool started,toclose,terminated;
@@ -778,9 +777,6 @@ class XDocsWriter
 		started=false;
 		verbose=fts_xapian_settings.verbose;
 		lowmemory = fts_xapian_settings.lowmemory;
-
-		dict = new std::vector<icu::UnicodeString *>;
-                dict->clear();
 
 		position=0;
 	}
@@ -838,11 +834,6 @@ class XDocsWriter
 	~XDocsWriter()
 	{
 		close();
-                for(icu::UnicodeString * t : *dict)
-                {
-                        delete(t);
-                }
-                dict->clear(); delete(dict);
 		free(title);
 	}
 
@@ -851,7 +842,7 @@ class XDocsWriter
 		std::string s(title);
 		s.append(" position="+std::to_string(position));
 		s.append(" queued_docs="+std::to_string(backend->docs.size()));
-		s.append(" dict_size="+std::to_string(dict->size()));
+		s.append(" dict_size="+std::to_string(backend->dict_nb));
 		s.append(" terminated="+std::to_string(terminated));
 		return s;
 	}
@@ -887,7 +878,7 @@ class XDocsWriter
 	{
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory(verbose);
-                if(verbose>0) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,dict->size(),XAPIAN_DICT_MAX);
+                if(verbose>0) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,backend->dict_nb,XAPIAN_DICT_MAX);
                 if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
@@ -925,7 +916,6 @@ class XDocsWriter
 		XDoc *doc = NULL;
 		long totaldocs=0;
 		long sl=0, dt=0;
-		dict->clear();
 
 		while((!toclose) || (doc!=NULL))
 		{
