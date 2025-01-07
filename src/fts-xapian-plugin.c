@@ -31,6 +31,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.verbose 	= 0;
         fuser->set.lowmemory 	= XAPIAN_MIN_RAM;
         fuser->set.partial 	= XAPIAN_DEFAULT_PARTIAL;
+	fuser->set.maxthreads   = 0;
 
 	const char * env = mail_user_plugin_getenv(user, "fts_xapian");
         if (env == NULL)
@@ -64,6 +65,11 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
                 	        len=atol(*tmp + 10);
                 	        if(len>0) { fuser->set.lowmemory = len; }
                 	}
+			else if (strncmp(*tmp,"maxthreads=",11)==0)
+			{
+				len=atol(*tmp + 11);
+                                if(len>0) { fuser->set.maxthreads = len; }
+			}
                 	else if (strncmp(*tmp,"attachments=",12)==0)
                 	{
                 	        // Legacy

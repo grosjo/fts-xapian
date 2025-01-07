@@ -74,6 +74,7 @@ struct fts_xapian_settings
 	long verbose;
 	long lowmemory;
 	long partial;
+	long maxthreads;
 };
 
 struct fts_xapian_user {

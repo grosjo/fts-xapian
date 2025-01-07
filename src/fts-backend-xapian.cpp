@@ -103,7 +103,14 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	backend->max_threads = std::thread::hardware_concurrency()-1;
+	if(fts_xapian_settings.maxthreads>0) 
+	{
+		backend->max_threads=fts_xapian_settings.maxthreads;
+	}
+	else
+	{
+		backend->max_threads = std::thread::hardware_concurrency()-1;
+	}
 	if(backend->max_threads<2) backend->max_threads = 2;
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
