@@ -211,6 +211,66 @@ static int fts_backend_xapian_sqlite3_vector_icu(void *data, int argc, char **ar
         return 0;
 }
 
+static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backend)
+{
+	if(backend->ddb!=NULL) return 0;
+
+	if(sqlite3_open_v2(backend->dict_db,&(backend->ddb),SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
+        {
+                i_error("FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(backend->ddb));
+		backend->ddb = NULL;
+		return 1;
+        }
+        
+	char *zErrMsg = 0;
+        if(sqlite3_exec(backend->ddb,createDictTable,NULL,0,&zErrMsg) != SQLITE_OK )
+        {
+                i_error("FTS Xapian: Can not execute (%s) : %s",createDictTable,zErrMsg);
+                sqlite3_free(zErrMsg);
+		sqlite3_close(backend->ddb);
+		backend->ddb = NULL;
+		return 1;
+        }
+
+	if(sqlite3_exec(backend->ddb,createTmpTable,NULL,0,&zErrMsg) != SQLITE_OK )
+        {
+                i_error("FTS Xapian: Can not execute (%s) : %s",createTmpTable,zErrMsg);
+                sqlite3_free(zErrMsg);
+                sqlite3_close(backend->ddb);
+                backend->ddb = NULL;
+                return 1;
+        }
+	return 0;
+}
+
+static int fts_backend_xapian_sqlite3_dict_add(sqlite3 * db, icu::UnicodeString *t)
+{
+	std::string sql;
+        sql.clear();
+        t->toUTF8String(sql);
+        sql=replaceTmpWord + sql + "'," + std::to_string(sql.length()) + ")";
+                
+	char * zErrMsg;
+	if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
+        {
+		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
+                sqlite3_free(zErrMsg);
+		return 1;
+	}
+	return 0;
+}
+
+static int fts_backend_xapian_sqlite3_dict_flush(sqlite3 * db, int verbose)
+{
+	char * zErrMsg;
+        if(sqlite3_exec(db,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
+        {
+                syslog(LOG_ERR,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
+                sqlite3_free(zErrMsg);
+                return 1;
+        }
+        return 0;
+}
 
 class XResultSet
 {
@@ -503,7 +563,7 @@ class XDoc
                 std::vector<icu::UnicodeString *> * terms;
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<const char *> * headers;
-		std::vector<icu::UnicodeString *> * dict;
+		sqlite3 * dict;
 
 	public:
 		long uid;
@@ -612,39 +672,17 @@ class XDoc
 			{
 				t->truncate(t->length()-1);
 			}
-			dict_add(t,0,dict->size());
+			fts_backend_xapian_sqlite3_dict_add(dict,t);
 			t->insert(0,h);
 			terms_add(t,0,terms->size());
                 }
                 delete(t);
 	}
 
-	void dict_set(std::vector<icu::UnicodeString *> * d)
+	void dict_set(sqlite3 * d)
 	{
 		dict = d;
 	}
-
-        long dict_add(icu::UnicodeString * w,long pos, long l)
-        {
-                if(l==0)
-                {
-                        dict->insert(dict->begin()+pos,new icu::UnicodeString(*w));
-			ndict++;
-                        return pos;
-                }
-
-                long n = std::floor(l*0.5f);
-                int c = dict->at(pos+n)->compare(*w);
-
-                // If already exist, return
-                if(c==0) return pos;
-
-                // If middle pos is lower than d, search after pos+n
-                if(c>0) return dict_add(w,pos+n+1,l-n-1);
-
-                // All other case, search before
-                return dict_add(w,pos,n);
-        }
 
 	bool terms_create(long verbose, const char * title)
 	{
@@ -852,7 +890,7 @@ class XDocsWriter
 
 			// Repeat test because the close may have happen in another thread
 			m = fts_backend_xapian_get_free_memory(verbose);
-			if((dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) dict_store();
+			if((dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) fts_backend_xapian_sqlite3_dict_flush(backend->ddb);
 			if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024)))))
 			{
 				try
@@ -877,44 +915,6 @@ class XDocsWriter
 		return m;
 	}
 		
-        void dict_store()
-        {
-                long m = dict->size();
-                if(m<1) return;
-
-		long t=fts_backend_xapian_current_time();
-                if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary: %ld items",title,m);
-                sqlite3 * db = NULL;
-                if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE,NULL) != SQLITE_OK )
-                {
-                        syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(db));
-                        return;
-                }
-		char *zErrMsg = 0;
-		icu::UnicodeString * entry;
-		std::string sql;
-		long n=0;
-                while(m>0)
-		{
-			sql.clear();
-			entry=dict->back();
-			entry->toUTF8String(sql);
-			sql=replaceDictWord + sql + "'," + std::to_string(sql.length()) + ")";
-			delete(entry);
-			dict->pop_back();
-			m--;
-
-			if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
-                	{
-                        	syslog(LOG_ERR,"%sFlushing Dictionnary: Can not replace keyword (%s) : %s",title,sql.c_str(),zErrMsg);
-                        	sqlite3_free(zErrMsg);
-                	}
-			else n++;
-                }
-                sqlite3_close(db);
-		if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary: %ld done in %ld msec",title,n, fts_backend_xapian_current_time()-t);
-        }
-
 	void worker()
 	{
 		long start_time = fts_backend_xapian_current_time();
@@ -936,7 +936,7 @@ class XDocsWriter
                         	{
 					doc = backend->docs.back();
 					backend->docs.pop_back();
-					doc->dict_set(dict);
+					doc->dict_set(backend->ddb);
 					dt=fts_backend_xapian_current_time();
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
@@ -1047,13 +1047,6 @@ class XDocsWriter
                 }
 
 		position=16;
-		fts_backend_xapian_get_lock(backend, verbose, title);
-		position=17;
-		dict_store();
-		position=18;
-		fts_backend_xapian_release_lock(backend, verbose, title);
-
-		position=19;
 		terminated=true;
                 if(verbose>0) syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",title,totaldocs,fts_backend_xapian_current_time() - start_time);
 	}
@@ -1201,6 +1194,10 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		}
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);
+
+	fts_backend_xapian_sqlite3_dict_flush(backend->ddb);
+	sqlite3_close(backend->ddb);
+	backend->ddb = NULL;
 
 	if(backend->dbw!=NULL)
 	{
@@ -1356,58 +1353,45 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 	struct stat sb;
 	// Verify existence of Dict db
+	if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
 	{
-		if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
-		{
-			i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
-			sqlite3 * db = NULL;
-                	if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
-                	{
-                        	i_error("FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(db));
-                	}
-                	else
-			{	char *zErrMsg = 0;
-                		if(sqlite3_exec(db,createDictTable,NULL,0,&zErrMsg) != SQLITE_OK )
-                		{
-                        		i_error("FTS Xapian: Can not execute (%s) : %s",createDictTable,zErrMsg);
-                        		sqlite3_free(zErrMsg);
-				}
-                        	sqlite3_close(db);
-			}
-			// Deleting existing indexes
-			try
-			{
-				std::filesystem::remove_all(backend->xap_db);
-				std::filesystem::remove(backend->exp_db);
-			}
-			catch(std::exception e)
-			{
-				i_error("FTS Xapian: Can not delete old files %s",e.what());
-			}
-		}
+		i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
+                // Deleting existing indexes
+                try
+                {
+                        std::filesystem::remove_all(backend->xap_db);
+                        std::filesystem::remove(backend->exp_db);
+                }
+                catch(std::exception e)
+                {
+                        i_error("FTS Xapian: Can not delete old files %s",e.what());
+                }
+		fts_backend_xapian_sqlite3_dict_open(backend);
+		sqlite3_close(backend->ddb);
+		backend->ddb = NULL;
 	}
+	
         // Verify existence of Exp db
-        {
-                if(!( (stat(backend->exp_db, &sb)==0) && S_ISREG(sb.st_mode)))
-		{
-			i_warning("FTS Xapian: '%s' (%s) expunge does not exist. Creating it",backend->boxname,backend->exp_db);
-                        sqlite3 * db = NULL;
-                        if(sqlite3_open_v2(backend->exp_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
+        if(!( (stat(backend->exp_db, &sb)==0) && S_ISREG(sb.st_mode)))
+	{
+		i_warning("FTS Xapian: '%s' (%s) expunge does not exist. Creating it",backend->boxname,backend->exp_db);
+                sqlite3 * db = NULL;
+                if(sqlite3_open_v2(backend->exp_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
+                {
+                        i_error("FTS Xapian: Can not open %s : %s",backend->exp_db,sqlite3_errmsg(db));
+                }
+                else
+                {
+                        char *zErrMsg = 0;
+                        if(sqlite3_exec(db,createExpTable,NULL,0,&zErrMsg) != SQLITE_OK )
                         {
-                                i_error("FTS Xapian: Can not open %s : %s",backend->exp_db,sqlite3_errmsg(db));
+                                i_error("FTS Xapian: Can not execute (%s) : %s",createExpTable,zErrMsg);
+                                sqlite3_free(zErrMsg);
                         }
-                        else
-                        {
-                                char *zErrMsg = 0;
-                                if(sqlite3_exec(db,createExpTable,NULL,0,&zErrMsg) != SQLITE_OK )
-                                {
-                                        i_error("FTS Xapian: Can not execute (%s) : %s",createExpTable,zErrMsg);
-                                        sqlite3_free(zErrMsg);
-                                }
-                                sqlite3_close(db);
-                        }
+                        sqlite3_close(db);
                 }
         }
+
 	// Verify existence of Xapian db
 	{
 		char * t = i_strdup_printf("%s/termlist.glass",backend->xap_db);

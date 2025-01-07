@@ -42,6 +42,7 @@ struct xapian_fts_backend
 	char * exp_db;
 	char * dict_db;
 
+	sqlite3 * ddb;
 	Xapian::WritableDatabase * dbw;
 	long pending;
 
@@ -99,6 +100,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->lastuid = -1;
 
 	backend->dbw = NULL;
+	backend->ddb = NULL;
 	backend->guid = NULL;
 	backend->path = NULL;
 	backend->old_guid = NULL;
@@ -277,8 +279,9 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
-	// Verify content-type
+	if(fts_backend_xapian_sqlite3_dict_open(backend)) return FALSE;
 
+	// Verify content-type
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
 	{
 		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Skipping binary part of type '%s'",type);
