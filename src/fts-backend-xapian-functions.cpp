@@ -234,6 +234,7 @@ static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backe
 		return 1;
         }
 
+	zErrMsg =0;
 	if(sqlite3_exec(backend->ddb,createTmpTable,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 i_error("FTS Xapian: Can not execute (%s) : %s",createTmpTable,zErrMsg);
@@ -252,7 +253,7 @@ static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backen
         t->toUTF8String(sql);
         sql=replaceTmpWord + sql + "'," + std::to_string(sql.length()) + ")";
                 
-	char * zErrMsg;
+	char * zErrMsg =0;
 	if(sqlite3_exec(backend->ddb,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
         {
 		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
@@ -265,9 +266,11 @@ static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backen
 
 static int fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *backend, int verbose)
 {
+	if(backend->dict_nb<1) return 0;
+
 	long dt=fts_backend_xapian_current_time();
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian: Flushing Dictionnary : %ld terms",backend->dict_nb);
-	char * zErrMsg;
+	char * zErrMsg = 0;
         if(sqlite3_exec(backend->ddb,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 syslog(LOG_ERR,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
@@ -1523,6 +1526,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				std::string sql=searchDict1;
 				ki->toUTF8String(sql);
 				sql +=searchDict2;
+				zErrMsg =0;
 				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
                                 {
                                         syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
