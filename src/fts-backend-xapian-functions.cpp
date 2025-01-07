@@ -228,7 +228,7 @@ static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backe
         if(sqlite3_exec(backend->ddb,createDictTable,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 i_error("FTS Xapian: Can not execute (%s) : %s",createDictTable,zErrMsg);
-                sqlite3_free(zErrMsg);
+                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 		sqlite3_close(backend->ddb);
 		backend->ddb = NULL;
 		return 1;
@@ -237,7 +237,7 @@ static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backe
 	if(sqlite3_exec(backend->ddb,createTmpTable,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 i_error("FTS Xapian: Can not execute (%s) : %s",createTmpTable,zErrMsg);
-                sqlite3_free(zErrMsg);
+                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
                 sqlite3_close(backend->ddb);
                 backend->ddb = NULL;
                 return 1;
@@ -256,7 +256,7 @@ static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backen
 	if(sqlite3_exec(backend->ddb,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
         {
 		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
-                sqlite3_free(zErrMsg);
+                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 		return 1;
 	}
 	backend->dict_nb++;
@@ -271,7 +271,7 @@ static int fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *back
         if(sqlite3_exec(backend->ddb,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 syslog(LOG_ERR,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
-                sqlite3_free(zErrMsg);
+                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
                 return 1;
         }
 	if(verbose>0) syslog(LOG_INFO,"FTS Xapian: Flushing Dictionnary : %ld terms done in %ld msec",backend->dict_nb,fts_backend_xapian_current_time()-dt);
@@ -1389,7 +1389,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
                         if(sqlite3_exec(db,createExpTable,NULL,0,&zErrMsg) != SQLITE_OK )
                         {
                                 i_error("FTS Xapian: Can not execute (%s) : %s",createExpTable,zErrMsg);
-                                sqlite3_free(zErrMsg);
+                                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
                         }
                         sqlite3_close(db);
                 }
@@ -1536,7 +1536,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
                                 {
                                         syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
-                                        sqlite3_free(zErrMsg);
+                                        if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
                                 }
 				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
                                 for(auto &term : st)

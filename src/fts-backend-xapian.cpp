@@ -243,7 +243,7 @@ static void fts_backend_xapian_update_expunge(struct fts_backend_update_context 
 	if(sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK)
 	{
 		i_error("FTS Xapian: Expunging (3) UID=%d : Can not add UID : %s",uid,zErrMsg);
-		sqlite3_free(zErrMsg);
+		if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 	}
 	i_free(u);
 	sqlite3_close(expdb);
@@ -492,7 +492,7 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 				if(sqlite3_exec(expdb,selectExpUIDs,fts_backend_xapian_sqlite3_vector_int,&uids,&zErrMsg) != SQLITE_OK)	
 				{
 					i_error("FTS Xapian: Optimize (3) : Can not select IDs (%s) : %s",selectExpUIDs,zErrMsg);
-					sqlite3_free(zErrMsg);
+					if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 					ret =-1;
 				}
 				s = s.substr(0,s.length()-strlen(suffixExp));
@@ -548,8 +548,8 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 						char * u = i_strdup_printf(deleteExpUID,uid);
 						if (sqlite3_exec(expdb,u,NULL,0,&zErrMsg) != SQLITE_OK )
 						{
-							i_error("FTS Xapian : Optimize Sqlite error %s",zErrMsg);
-							sqlite3_free(zErrMsg);
+							i_error("FTS Xapian : Optimize Sqlite error: %s",zErrMsg);
+							if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 						}
 						i_free(u);
 					}
