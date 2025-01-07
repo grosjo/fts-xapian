@@ -851,8 +851,9 @@ class XDocsWriter
 			fts_backend_xapian_get_lock(backend, verbose, title);
 
 			// Repeat test because the close may have happen in another thread
+			m = fts_backend_xapian_get_free_memory(verbose);
 			if(dict->size() > XAPIAN_DICT_MAX) dict_store();
-			if((backend->dbw!=NULL) && (backend->pending > 0))
+			if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024)))))
 			{
 				try
                         	{
@@ -864,19 +865,11 @@ class XDocsWriter
                         	}
                         	catch(Xapian::Error e)
                         	{
-                        		std::string s(title);
-                        	        s.append("Can't commit DB1 : ");
-                        	        s.append(e.get_type());
-                        	        s.append(" - ");
-                        	        s.append(e.get_msg());
-                        	        syslog(LOG_ERR,"%s",s.c_str());
+					syslog(LOG_ERR,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg());
                         	}
                         	catch(std::exception e)
                         	{
-                        		std::string s(title);
-                        	        s.append("Can't commit DB2 : ");
-                        	        s.append(e.what());
-                        	        syslog(LOG_ERR,"%s",s.c_str());
+					syslog(LOG_ERR,"%sCan't commit DB2 : %s",title,e.what());
                         	}
 			}
 			fts_backend_xapian_release_lock(backend, verbose, title);
