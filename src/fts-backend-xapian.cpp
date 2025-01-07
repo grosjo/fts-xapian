@@ -41,6 +41,7 @@ struct xapian_fts_backend
 	char * xap_db;
 	char * exp_db;
 	char * dict_db;
+	long dict_nb;
 
 	sqlite3 * ddb;
 	Xapian::WritableDatabase * dbw;
@@ -384,7 +385,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			backend->docs.front()->status=1;	
 		}
                 backend->lastuid = ctx->tbi_uid;
-		backend->docs.insert(backend->docs.begin(),new XDoc(backend->lastuid));
+		backend->docs.insert(backend->docs.begin(),new XDoc(backend));
 		
 		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
 

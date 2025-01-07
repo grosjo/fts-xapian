@@ -215,6 +215,8 @@ static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backe
 {
 	if(backend->ddb!=NULL) return 0;
 
+	backend->dict_nb=0;
+
 	if(sqlite3_open_v2(backend->dict_db,&(backend->ddb),SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
         {
                 i_error("FTS Xapian: Can not open %s : %s",backend->dict_db,sqlite3_errmsg(backend->ddb));
@@ -243,7 +245,7 @@ static int fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *backe
 	return 0;
 }
 
-static int fts_backend_xapian_sqlite3_dict_add(sqlite3 * db, icu::UnicodeString *t)
+static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backend, icu::UnicodeString *t)
 {
 	std::string sql;
         sql.clear();
@@ -251,24 +253,29 @@ static int fts_backend_xapian_sqlite3_dict_add(sqlite3 * db, icu::UnicodeString 
         sql=replaceTmpWord + sql + "'," + std::to_string(sql.length()) + ")";
                 
 	char * zErrMsg;
-	if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
+	if(sqlite3_exec(backend->ddb,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
         {
 		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
                 sqlite3_free(zErrMsg);
 		return 1;
 	}
+	backend->dict_nb++;
 	return 0;
 }
 
-static int fts_backend_xapian_sqlite3_dict_flush(sqlite3 * db, int verbose)
+static int fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *backend, int verbose)
 {
+	long dt=fts_backend_xapian_current_time();
+	if(verbose>0) syslog(LOG_INFO,"FTS Xapian: Flushing Dictionnary : %ld terms",backend->dict_nb);
 	char * zErrMsg;
-        if(sqlite3_exec(db,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
+        if(sqlite3_exec(backend->ddb,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 syslog(LOG_ERR,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
                 sqlite3_free(zErrMsg);
                 return 1;
         }
+	if(verbose>0) syslog(LOG_INFO,"FTS Xapian: Flushing Dictionnary : %ld terms done in %ld msec",backend->dict_nb,fts_backend_xapian_current_time()-dt);
+	backend->dict_nb=0;	
         return 0;
 }
 
@@ -563,7 +570,7 @@ class XDoc
                 std::vector<icu::UnicodeString *> * terms;
 		std::vector<icu::UnicodeString *> * strings;
 		std::vector<const char *> * headers;
-		sqlite3 * dict;
+		struct xapian_fts_backend *backend;
 
 	public:
 		long uid;
@@ -573,9 +580,10 @@ class XDoc
 		long status_n;
 		long nterms,nlines,ndict;
  
-        XDoc(long luid)
+        XDoc(struct xapian_fts_backend *b)
 	{
-		uid=luid;
+		backend=b;
+		uid=b->lastuid;
                 std::string s;
                 s.append("Q"+std::to_string(uid));
                 uterm = (char*)malloc((s.length()+1)*sizeof(char));
@@ -589,8 +597,9 @@ class XDoc
 		terms->clear();
 		nterms=0; nlines=0; ndict=0;
 
-		xdoc=NULL; dict=NULL;
-		status=0; status_n=0;
+		xdoc=NULL; 
+		status=0; 
+		status_n=0;
 	}
 
 	~XDoc() 
@@ -672,16 +681,11 @@ class XDoc
 			{
 				t->truncate(t->length()-1);
 			}
-			fts_backend_xapian_sqlite3_dict_add(dict,t);
+			fts_backend_xapian_sqlite3_dict_add(backend,t);
 			t->insert(0,h);
 			terms_add(t,0,terms->size());
                 }
                 delete(t);
-	}
-
-	void dict_set(sqlite3 * d)
-	{
-		dict = d;
 	}
 
 	bool terms_create(long verbose, const char * title)
@@ -884,13 +888,13 @@ class XDocsWriter
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory(verbose);
                 if(verbose>0) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,dict->size(),XAPIAN_DICT_MAX);
-                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
+                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
 
 			// Repeat test because the close may have happen in another thread
 			m = fts_backend_xapian_get_free_memory(verbose);
-			if((dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) fts_backend_xapian_sqlite3_dict_flush(backend->ddb);
+			if((backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) fts_backend_xapian_sqlite3_dict_flush(backend,verbose);
 			if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024)))))
 			{
 				try
@@ -936,7 +940,6 @@ class XDocsWriter
                         	{
 					doc = backend->docs.back();
 					backend->docs.pop_back();
-					doc->dict_set(backend->ddb);
 					dt=fts_backend_xapian_current_time();
 				}
 				fts_backend_xapian_release_lock(backend, verbose, title);
@@ -1195,7 +1198,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);
 
-	fts_backend_xapian_sqlite3_dict_flush(backend->ddb);
+	fts_backend_xapian_sqlite3_dict_flush(backend,fts_xapian_settings.verbose);
 	sqlite3_close(backend->ddb);
 	backend->ddb = NULL;
 
