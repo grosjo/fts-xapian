@@ -883,7 +883,7 @@ class XDocsWriter
                 if(m<1) return;
 
 		long t=fts_backend_xapian_current_time();
-                if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary (%ld items)",title,dict->size());
+                if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary: %ld items",title,m);
                 sqlite3 * db = NULL;
                 if(sqlite3_open_v2(backend->dict_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE,NULL) != SQLITE_OK )
                 {
@@ -891,25 +891,28 @@ class XDocsWriter
                         return;
                 }
 		char *zErrMsg = 0;
+		icu::UnicodeString * entry;
 		std::string sql;
 		long n=0;
                 while(m>0)
 		{
 			sql.clear();
-			dict->back()->toUTF8String(sql);
+			entry=dict->back();
+			entry->toUTF8String(sql);
 			sql=replaceDictWord + sql + "'," + std::to_string(sql.length()) + ")";
+			delete(entry);
 			dict->pop_back();
 			m--;
 
 			if(sqlite3_exec(db,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
                 	{
-                        	syslog(LOG_ERR,"FTS Xapian: Can not replace keyword (%s) : %s",sql.c_str(),zErrMsg);
+                        	syslog(LOG_ERR,"%sFlushing Dictionnary: Can not replace keyword (%s) : %s",title,sql.c_str(),zErrMsg);
                         	sqlite3_free(zErrMsg);
                 	}
 			else n++;
                 }
                 sqlite3_close(db);
-		if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary : %ld done in %ld msec",title,n, fts_backend_xapian_current_time()-t);
+		if(verbose>0) syslog(LOG_INFO,"%sFlushing Dictionnary: %ld done in %ld msec",title,n, fts_backend_xapian_current_time()-t);
         }
 
 	void worker()
