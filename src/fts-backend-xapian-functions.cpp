@@ -796,13 +796,12 @@ class XDocsWriter
 	~XDocsWriter()
 	{
 		close();
-		free(title);
                 for(icu::UnicodeString * t : *dict)
                 {
                         delete(t);
                 }
                 dict->clear(); delete(dict);
-
+		free(title);
 	}
 
 	std::string getSummary()
@@ -844,26 +843,24 @@ class XDocsWriter
 
 	long checkMemory()
 	{
-		std::string s;
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory(verbose);
-                if(verbose>0) { s=title; s.append("Memory : Free = "+std::to_string((long)(m / 1024.0f))+" MB vs limit = "+std::to_string(lowmemory)+" MB | Pendings in cache = "+std::to_string(backend->pending)+" / "+std::to_string(XAPIAN_WRITING_CACHE) + " | Dict size = "+std::to_string(dict->size())+" / "+std::to_string(XAPIAN_DICT_MAX)); syslog(LOG_WARNING,"%s",s.c_str()); }
+                if(verbose>0) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,dict->size(),XAPIAN_DICT_MAX);
                 if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
+
 			// Repeat test because the close may have happen in another thread
+			if(dict->size() > XAPIAN_DICT_MAX) dict_store();
 			if((backend->dbw!=NULL) && (backend->pending > 0))
 			{
 				try
                         	{
-                        		s=title;
-                        	        s.append("Committing "+std::to_string(backend->pending)+" docs due to low free memory ("+ std::to_string((long)(m/1024.0f))+" MB vs "+std::to_string(lowmemory)+" MB) or Cached docs ("+std::to_string(backend->pending)+") > "+std::to_string(XAPIAN_WRITING_CACHE));
-                        	        syslog(LOG_WARNING,"%s",s.c_str());
+					syslog(LOG_WARNING,"%sCommitting %ld docs due to low free memory (%ld MB vs %ld MB) or Cached docs exceeded (%ld vs %ld limit)",title,backend->pending,(long)(m/1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE);
                         	        backend->dbw->close();
                         	        delete(backend->dbw);
                         	        backend->dbw=NULL;
                         	        backend->pending = 0;
-					dict_store();
                         	}
                         	catch(Xapian::Error e)
                         	{
