@@ -852,7 +852,7 @@ class XDocsWriter
 
 			// Repeat test because the close may have happen in another thread
 			m = fts_backend_xapian_get_free_memory(verbose);
-			if(dict->size() > XAPIAN_DICT_MAX) dict_store();
+			if((dict->size() > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) dict_store();
 			if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024)))))
 			{
 				try
