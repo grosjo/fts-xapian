@@ -280,7 +280,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
 
-	if(fts_backend_xapian_sqlite3_dict_open(backend)) return FALSE;
+	if(!fts_backend_xapian_sqlite3_dict_open(backend)) return FALSE;
 
 	// Verify content-type
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
@@ -377,11 +377,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 		if(backend->lastuid>0)
 		{
-			std::string s("FTS Xapian: Previous doc ready to index (#"); 
-                        s.append(std::to_string(backend->lastuid)+")");
-
-			if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
-			
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Previous doc ready to index (#%ld)",backend->lastuid);
 			backend->docs.front()->status=1;	
 		}
                 backend->lastuid = ctx->tbi_uid;
