@@ -855,19 +855,19 @@ class XDocsWriter
 	{
 		// Memory check
                 long m = fts_backend_xapian_get_free_memory(verbose);
-                if(verbose>0) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,backend->dict_nb,XAPIAN_DICT_MAX);
-		
-                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || (backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
+                if(verbose>1) syslog(LOG_WARNING,"%sMemory : Free = %ld MB vs %ld limit | Pendings in cache = %ld / %ld | Dict size = %ld / %ld",title,(long)(m / 1024.0f),lowmemory,backend->pending,XAPIAN_WRITING_CACHE,backend->dict_nb,XAPIAN_DICT_MAX);
+		// First clean dictionnary
+		if((backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))
+                {
+                        fts_backend_xapian_sqlite3_dict_flush(backend,verbose);
+			m = fts_backend_xapian_get_free_memory(verbose);
+                }
+	
+                if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024))))) // too little memory or too many pendings
                 {
 			fts_backend_xapian_get_lock(backend, verbose, title);
 
 			// Repeat test because the close may have happen in another thread
-			m = fts_backend_xapian_get_free_memory(verbose);
-			if((backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024)))) 
-			{
-				fts_backend_xapian_sqlite3_dict_flush(backend,verbose);
-			}
-			
 			m = fts_backend_xapian_get_free_memory(verbose);
 			if((backend->dbw!=NULL) && ((backend->pending > XAPIAN_WRITING_CACHE) || ((m>0) && (m<(lowmemory*1024)))))
 			{
