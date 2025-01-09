@@ -1,2 +1,2 @@
 #define FTS_XAPIAN_NAME "Dovecot FTS Xapian"
-#define FTS_XAPIAN_VERSION "1.8.3"
+#define FTS_XAPIAN_VERSION "1.8.4"
