@@ -789,11 +789,11 @@ class XDocsWriter
 		}
                 catch(Xapian::DatabaseLockError e)
                 {
-                        syslog(LOG_WARNING,"%sCan't lock the DB : %s - %s",title,e.get_type(),e.get_msg());
+                        syslog(LOG_WARNING,"%sCan't lock the DB : %s - %s",title,e.get_type(),e.get_msg().c_str());
 		}
                 catch(Xapian::Error e)
                 {
-			syslog(LOG_WARNING,"%sCan't open the DB RW : %s - %s",title,e.get_type(),e.get_msg());
+			syslog(LOG_WARNING,"%sCan't open the DB RW : %s - %s",title,e.get_type(),e.get_msg().c_str());
                 }
 		return false;
 	}
@@ -881,7 +881,7 @@ class XDocsWriter
                         	}
                         	catch(Xapian::Error e)
                         	{
-					syslog(LOG_ERR,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg());
+					syslog(LOG_ERR,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg().c_str());
                         	}
                         	catch(std::exception e)
                         	{
@@ -990,7 +990,7 @@ class XDocsWriter
                         	        	}
 						catch(Xapian::Error e)
                                	                {
-                               	                 	syslog(LOG_ERR,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg());
+                               	                 	syslog(LOG_ERR,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg().c_str());
                                	                }
                                	                catch(std::exception e)
                                	                {
