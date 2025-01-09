@@ -26,7 +26,7 @@
 
 #define XAPIAN_SLEEP std::chrono::milliseconds(200)
 
-#define XAPIAN_DEFAULT_PARTIAL 3L
+#define XAPIAN_PLUGIN_VERSION "1.8.4"
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
@@ -38,6 +38,7 @@
 #define XAPIAN_MAX_ERRORS 1024L 
 
 // Word processing
+#define XAPIAN_DEFAULT_PARTIAL 3L
 #define XAPIAN_WILDCARD "wldcrd"
 #define XAPIAN_EXPUNGE_HEADER 9
 

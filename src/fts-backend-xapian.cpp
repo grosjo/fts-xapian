@@ -123,7 +123,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting with partial=%ld verbose=%ld max_threads=%ld lowmemory=%ld MB", fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%ld verbose=%ld max_threads=%ld lowmemory=%ld MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
 
 	return 0;
 }
