@@ -76,7 +76,7 @@ Configuration - Indexing options
 
 | Option         | Optional | Description                     | Possible values                                     | Default value |
 |----------------|----------|---------------------------------|-----------------------------------------------------|---------------|
-| partial        |   no     | Minimum size of search keyword  | 2 or above                                          | 3             |
+| partial        |   no     | Minimum size of search keyword  | 3 or above                                          | 3             |
 | verbose        |   yes    | Logs verbosity                  | 0 (silent), 1 (verbose) or 2 (debug)                | 0             |
 | lowmemory      |   yes    | Memory limit before disk commit | 0 (default, meaning 250MB), or set value (in MB)    | 0             |
 | maxthreads     |   yes    | Maximum number of threads       | 0 (default, hardware limit), or value above 2       | 0             |
