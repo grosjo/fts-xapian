@@ -40,6 +40,7 @@ struct xapian_fts_backend
 
 	char * xap_db;
 	char * exp_db;
+	char * version_file;
 	char * dict_db;
 	long dict_nb;
 
@@ -260,6 +261,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 	ctx->tbi_isfield=false;
 	ctx->tbi_uid=0;
+	ctx->tbi_field=NULL;
 
 	if(backend->guid == NULL)
 	{
@@ -274,13 +276,10 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		backend->old_boxname = i_strdup(backend->boxname);
 	}
 
-	const char * field=key->hdr_name;
 	const char * type = key->body_content_type;
 	const char * disposition = key->body_content_disposition;
 
-	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",field,type,disposition);
-
-	if(!fts_backend_xapian_sqlite3_dict_open(backend)) return FALSE;
+	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: New part (Header=%s,Type=%s,Disposition=%s)",key->hdr_name,type,disposition);
 
 	// Verify content-type
 	if(key->type == FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY)
@@ -295,6 +294,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		return FALSE;
 	}
 
+	if(!fts_backend_xapian_sqlite3_dict_open(backend)) return FALSE;
+
 	// Verify content-disposition
 	ctx->isattachment=false;
 	if((disposition != NULL) && ((strstr(disposition,"filename=")!=NULL) || (strstr(disposition,"attachment")!=NULL)))
@@ -303,36 +304,13 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		ctx->isattachment=true;
 	}
 
-	// Fill-in field
-	if(field==NULL)
-	{
-		field="body";
-	}
-
-	long i=0,j=strlen(field);
-	std::string f2;
-	while(i<j)
-	{
-		if((field[i]>' ') && (field[i]!='"') && (field[i]!='\'') && (field[i]!='-'))
-		{
-			f2+=tolower(field[i]);
-		}
-		i++;
-	}
-	ctx->tbi_field=i_strdup(f2.c_str());
-
-	i=0;
-	while((i<HDRS_NB) && (strcmp(ctx->tbi_field,hdrs_emails[i])!=0))
-	{
-		i++;
-	}
-	if(i>=HDRS_NB)
+	long field = fts_backend_xapian_clean_header(key->hdr_name);
+	if(field<0)
 	{
 		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
-		i_free(ctx->tbi_field);
-		ctx->tbi_field=NULL;
 		return FALSE;
 	}
+	if(field<1) field=10;
 
 	switch (key->type)
 	{
@@ -348,6 +326,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		default:
 			return FALSE;
 	}
+
+	ctx->tbi_field = i_strdup_printf("%ld",field);
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
         {
@@ -388,7 +368,8 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		fts_backend_xapian_release_lock(backend, fts_xapian_settings.verbose, s.c_str());
 
 		n=0;
-		while(backend->docs.size()>3*backend->max_threads)
+		long m = fts_backend_xapian_get_free_memory(fts_xapian_settings.verbose);
+		while ( (m>0) && (m<2*(fts_xapian_settings.lowmemory * 1024)))
 		{
 			n++;
 			if((n>50) && (fts_xapian_settings.verbose>0))
@@ -397,6 +378,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 				n=0;
 			}
 			std::this_thread::sleep_for(XAPIAN_SLEEP);
+			m = fts_backend_xapian_get_free_memory(fts_xapian_settings.verbose);
 		}
         }
 
@@ -438,13 +420,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	const char * d = (const char *) data;
 	if(strlen(d)<fts_xapian_settings.partial) return 0;
 
-	int i=0;
-        while((i<HDRS_NB-1) && (strcmp(ctx->tbi_field,hdrs_emails[i])!=0))
-        {
-                i++;
-        }
-        if(i>=HDRS_NB) i=HDRS_NB-1;
-        const char * h = hdrs_xapian[i];
+	long h = atol(ctx->tbi_field);
 
 	backend->docs.front()->raw_load(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index");
         	

@@ -144,6 +144,34 @@ static void fts_backend_xapian_clean(icu::UnicodeString *t)
 	fts_backend_xapian_trim(t);
 }
 
+static long fts_backend_xapian_clean_header(const char * hdr)
+{
+	if(hdr == NULL) return -1;
+
+	char h[100];
+
+	long i=0,j=0,l=strlen(hdr);
+        while(j<l)
+        {
+        	if((hdr[j]>' ') && (hdr[j]!='"') && (hdr[j]!='\'') && (hdr[j]!='-'))
+                {
+                        h[i]=std::tolower(hdr[j]);
+                        i++;
+                }
+                j++;
+        }       
+        h[i]=0;
+
+        i=0;
+        while((i<HDRS_NB) && (strcmp(h,hdrs_emails[i])!=0)) i++;
+                        
+	if(i>=HDRS_NB) return -1;
+
+	if(i==HDRS_NB-1) i=8;
+
+	return i;
+}
+
 static void fts_backend_xapian_get_lock(struct xapian_fts_backend *backend, long verbose, const char *s)
 {
 	std::unique_lock<std::timed_mutex> *lck;
@@ -235,6 +263,16 @@ static bool fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *back
         }
 
 	zErrMsg =0;
+	if(sqlite3_exec(backend->ddb,createDictIndexes,NULL,0,&zErrMsg) != SQLITE_OK )
+        {
+                i_error("FTS Xapian: Can not execute (%s) : %s",createDictIndexes,zErrMsg);
+                if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
+                sqlite3_close(backend->ddb);
+                backend->ddb = NULL;
+                return FALSE;
+        }
+
+	zErrMsg =0;
 	if(sqlite3_exec(backend->ddb,createTmpTable,NULL,0,&zErrMsg) != SQLITE_OK )
         {
                 i_error("FTS Xapian: Can not execute (%s) : %s",createTmpTable,zErrMsg);
@@ -246,17 +284,17 @@ static bool fts_backend_xapian_sqlite3_dict_open(struct xapian_fts_backend *back
 	return TRUE;
 }
 
-static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backend, icu::UnicodeString *t)
+static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backend, long h, icu::UnicodeString *t)
 {
 	std::string sql;
         sql.clear();
         t->toUTF8String(sql);
-        sql=replaceTmpWord + sql + "'," + std::to_string(sql.length()) + ")";
-                
-	char * zErrMsg =0;
+        sql=replaceTmpWord + sql + "', " + std::to_string(h) + ", " + std::to_string(sql.length()) + ");";
+
+	char * zErrMsg = 0;
 	if(sqlite3_exec(backend->ddb,sql.c_str(),NULL,0,&zErrMsg) != SQLITE_OK )
         {
-		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword : %s",sql.c_str(),zErrMsg);
+		syslog(LOG_ERR,"FTS Xapian: Can not replace keyword (%s) : %s",sql.c_str(),zErrMsg);
                 if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 		return 1;
 	}
@@ -309,7 +347,7 @@ class XResultSet
 class XQuerySet
 {
 	private:
-		const char * header;
+		long header;
 		icu::UnicodeString * text;
 		XQuerySet ** qs;
 		Xapian::Query::op global_op;
@@ -322,8 +360,8 @@ class XQuerySet
 	XQuerySet()
 	{
 		qsize=0; qs=NULL;
-		limit=2;
-		header=NULL;
+		limit=1;
+		header=-1;
 		text=NULL;
 		global_op = Xapian::Query::op::OP_OR;
 	}
@@ -332,8 +370,8 @@ class XQuerySet
 	{
 		qsize=0; qs=NULL;
 		limit=2;
-		if(l>2) { limit=l; }
-		header=NULL;
+		if(l>limit) { limit=l; }
+		header=-1;
 		text=NULL;
 		global_op=op;
 	}
@@ -358,26 +396,19 @@ class XQuerySet
 	{
 		std::string s = std::to_string(uid);
 		icu::UnicodeString t(s.c_str());
-		add(hdrs_emails[0],&t,false);
+		add(0,&t,false);
 	}
 		
-	void add(const char * h2, icu::UnicodeString *t, bool is_neg)
+	void add(long h, icu::UnicodeString *t, bool is_neg)
 	{
-		if(h2==NULL) return;
 		if(t==NULL) return;
-
-		icu::UnicodeString h(h2);
-		h.trim();
-		h.toLower();
-                if(h.length()<1) return;
+		fts_backend_xapian_clean(t);
+                if(t->length()<limit) return;
 
 		long i,j,k;
 		XQuerySet * q2;
 		icu::UnicodeString *r;
 
-		fts_backend_xapian_clean(t);
-		if(t->length()<limit) return;
-	
 		i = t->lastIndexOf(CHAR_SPACE);
                 if(i>0)
                 {
@@ -393,18 +424,18 @@ class XQuerySet
                         {
                                 j = t->length();
                                 r = new icu::UnicodeString(*t,i+1,j-i-1);
-                                q2->add(h2,r,false);
+                                q2->add(h,r,false);
                                 delete(r);
                                 t->truncate(i);
                                 fts_backend_xapian_trim(t);
                                 i = t->lastIndexOf(CHAR_SPACE);
                         }
-                        q2->add(h2,t,false);
+                        q2->add(h,t,false);
                         if(q2->count()>0) add(q2); else delete(q2);
                         return;
                 }
 
-		if(h.compare(XAPIAN_WILDCARD)==0)
+		if(h<0)
 		{
 			if(is_neg)
 			{
@@ -414,37 +445,24 @@ class XQuerySet
 			{
                         	q2 = new XQuerySet(Xapian::Query::OP_OR,limit);
 			}
-			for(i=1;i<HDRS_NB;i++)
+			for(i=1;i<HDRS_NB-1;i++)
 			{
-				if(i!=XAPIAN_EXPUNGE_HEADER) q2->add(hdrs_emails[i],t,false);
+				q2->add(i,t,false);
 			}
 			add(q2);
 			return;
 		}
-                else
-		{
-                        i=0;
-                        while((i<HDRS_NB) && (h.compare(hdrs_emails[i])!=0))
-                        {
-                                i++;
-                        }
-                        if(i>=HDRS_NB)
-                        {
-                                return;
-                        }
-			h2=hdrs_emails[i];
-                }
-
+		
 		if(text==NULL)
 		{
 			text=new icu::UnicodeString(*t);
-			header=h2;
+			header=h;
 			item_neg=is_neg;
 			return;
 		}
 
                 q2 = new XQuerySet(Xapian::Query::OP_AND,limit);
-		q2->add(h2,t,is_neg);
+		q2->add(h,t,is_neg);
 		add(q2);
 	}
 
@@ -479,9 +497,8 @@ class XQuerySet
 		if(text!=NULL)
 		{
 			if(item_neg) s.append("NOT ( ");
-			s.append(header);
-			s.append(":");
-			s.append("\"");
+			s.append(hdrs_emails[header]);
+			s.append(":\"");
 			text->toUTF8String(s);
 			s.append("\"");
 			if(item_neg) s.append(")");
@@ -521,13 +538,13 @@ class XQuerySet
 
 		if(text!=NULL)
                 {
-			std::string s(header);
+			std::string s(hdrs_query[header]);
                         s.append(":\"");
                         text->toUTF8String(s);
                         s.append("\"");
 
 			Xapian::QueryParser * qp = new Xapian::QueryParser();
-			for(int i=0; i< HDRS_NB; i++) qp->add_prefix(hdrs_emails[i], hdrs_xapian[i]);
+			for(int i=0; i< HDRS_NB-1; i++) qp->add_prefix(hdrs_query[i], hdrs_xapian[i]);
 			qp->set_database(*db);
 			q = new Xapian::Query(qp->parse_query(s.c_str(),Xapian::QueryParser::FLAG_DEFAULT));
 			delete (qp);
@@ -571,7 +588,7 @@ class XDoc
 	private:
                 std::vector<icu::UnicodeString *> * terms;
 		std::vector<icu::UnicodeString *> * strings;
-		std::vector<const char *> * headers;
+		std::vector<long> * headers;
 		struct xapian_fts_backend *backend;
 
 	public:
@@ -593,7 +610,7 @@ class XDoc
 
 		strings = new std::vector<icu::UnicodeString *>;
 		strings->clear();
-		headers = new std::vector<const char *>;
+		headers = new std::vector<long>;
 		headers->clear();
 		terms = new std::vector<icu::UnicodeString *>;
 		terms->clear();
@@ -637,7 +654,7 @@ class XDoc
 		return s;
 	}
 
-	void raw_load(const char *h, const char *d, int32_t size, long verbose, const char * title)
+	void raw_load(long h, const char *d, int32_t size, long verbose, const char * title)
 	{
 		icu::UnicodeString * t;
                 {
@@ -671,20 +688,22 @@ class XDoc
                 return terms_add(w,pos,n);
         }
 
-	void terms_push(const char *h, icu::UnicodeString *t)
+	void terms_push(long h, icu::UnicodeString *t)
 	{
 		fts_backend_xapian_trim(t);
 		long n = t->length();
-		
+		long m = XAPIAN_TERM_SIZELIMIT - strlen(hdrs_xapian[h]) - 1;
+	
 		if(n>=fts_xapian_settings.partial)
 		{
-			t->truncate(XAPIAN_TERM_SIZELIMIT-strlen(h)-1);	
-			while(fts_backend_xapian_icutochar_length(t)>=XAPIAN_TERM_SIZELIMIT-strlen(h)-1)
+			t->truncate(m);	
+			while(fts_backend_xapian_icutochar_length(t)>=m)
 			{
 				t->truncate(t->length()-1);
 			}
-			fts_backend_xapian_sqlite3_dict_add(backend,t);
-			t->insert(0,h);
+			fts_backend_xapian_sqlite3_dict_add(backend,h,t);
+			ndict++;
+			t->insert(0,hdrs_xapian[h]);
 			terms_add(t,0,terms->size());
                 }
                 delete(t);
@@ -693,7 +712,7 @@ class XDoc
 	bool terms_create(long verbose, const char * title)
 	{
 		icu::UnicodeString *t;
-		const char * h;
+		long h;
 		long k;
 		
 		while((terms->size()<XAPIAN_MAXTERMS_PERDOC) && (strings->size()>0))
@@ -1236,7 +1255,10 @@ static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 		backend->exp_db = NULL;
 
 		i_free(backend->dict_db);
-                backend->exp_db = NULL;
+                backend->dict_db = NULL;
+
+		i_free(backend->version_file);
+		backend->version_file = NULL;
 	}
 
 	return 0;
@@ -1310,24 +1332,32 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	backend->xap_db = i_strdup_printf("%s/db_%s",backend->path,mb);
 	backend->exp_db = i_strdup_printf("%s%s",backend->xap_db,suffixExp);
 	backend->dict_db = i_strdup_printf("%s%s",backend->xap_db,suffixDict);
+	backend->version_file = i_strdup_printf("%s_v%s",backend->xap_db,XAPIAN_PLUGIN_VERSION);
 
 	struct stat sb;
-	// Verify existence of Dict db
-	if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
-	{
-		i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
-                // Deleting existing indexes
+	// Existence of current version
+	if(!( (stat(backend->version_file, &sb)==0) && S_ISREG(sb.st_mode)))
+        {
+		i_warning("FTS Xapian: '%s' new Version of the pluging (%s)",backend->boxname,XAPIAN_PLUGIN_VERSION);	
+		// Deleting existing indexes
                 try
                 {
                         std::filesystem::remove_all(backend->xap_db);
                         std::filesystem::remove(backend->exp_db);
+			std::filesystem::remove(backend->dict_db);
                 }
                 catch(std::exception e)
                 {
                         i_error("FTS Xapian: Can not delete old files %s",e.what());
                 }
-
-		// Creating dictionnary
+		FILE * f = fopen(backend->version_file,"w+");
+		fprintf(f,"%s",XAPIAN_PLUGIN_VERSION);
+		fclose(f);
+	}
+	// Verify existence of Dict db
+	if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
+	{
+		i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
 		if(fts_backend_xapian_sqlite3_dict_open(backend)) sqlite3_close(backend->ddb);
 		backend->ddb = NULL;
 	}
@@ -1380,7 +1410,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 
 static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *a, const char * dict=NULL)
 {
-	const char * hdr;
+	long hdr;
 
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_build_qs");
 
@@ -1400,17 +1430,19 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		{
 			if(a->type == SEARCH_BODY)
 			{
-				hdr="body";
+				hdr=10;
 			}
 			else
 			{
-				hdr=XAPIAN_WILDCARD;
+				hdr=-1;
 			}
 		}
 		else
 		{
-			hdr=a->hdr_field_name;
+			hdr=fts_backend_xapian_clean_header(a->hdr_field_name);
+			if(hdr<0) { a = a->next; continue; }
 		}
+
 		if((a->value.str == NULL) || (strlen(a->value.str)<1))
 		{
 			XQuerySet * q2;
@@ -1434,35 +1466,24 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		}
 		else if(dict != NULL)
 		{
-			//Clean header
-			std::string header; header.clear();
-			long i=0,j=strlen(hdr);
-                        while(i<j)
-                        {
-                        	if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
-                                {
-                                        header+=tolower(hdr[i]);
-                                }
-                                i++;
-			}
-
 			// Find key words
+			i_info("JOJO0 %s",a->value.str);
 			icu::StringPiece sp(a->value.str);
                         icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
                         fts_backend_xapian_clean(&t);
-			i = t.lastIndexOf(CHAR_SPACE),j;
+			long j, i = t.lastIndexOf(CHAR_SPACE);
 			icu::UnicodeString *k;
 			std::vector<icu::UnicodeString *> keys; keys.clear();
 			while(i>0)
 			{
 				j = t.length();
                                 k = new icu::UnicodeString(t,i+1,j-i-1);
-				if(k->length()>1) { keys.push_back(k); } else delete(k);
+				if(k->length()>=fts_xapian_settings.partial) { keys.push_back(k); } else delete(k);
 				t.truncate(i);
                                	fts_backend_xapian_trim(&t);
                                	i = t.lastIndexOf(CHAR_SPACE);
                         }
-			if(t.length()>1) 
+			if(t.length()>=fts_xapian_settings.partial) 
 			{
 				keys.push_back(new icu::UnicodeString (t));
 			}
@@ -1475,6 +1496,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
                                 syslog(LOG_ERR,"FTS Xapian: Can not open %s : %s",dict,sqlite3_errmsg(db));
                                 return;
                         }
+
 			// Generate query
 			XQuerySet * q1, *q2;
                         if(a->match_not)
@@ -1490,7 +1512,16 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				std::vector<icu::UnicodeString *> st; st.clear();
 				std::string sql=searchDict1;
 				ki->toUTF8String(sql);
+				if(hdr<0)
+				{
+					sql+="%'";
+				}
+				else
+				{
+					sql+="%' and header=" + std::to_string(hdr);
+				}
 				sql +=searchDict2;
+				i_info("JOJO1 %s",sql.c_str());
 				zErrMsg =0;
 				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
                                 {
@@ -1500,10 +1531,11 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
                                 for(auto &term : st)
                                 {
-                                        q2->add(header.c_str(),term,false);
+					std::string d; d.clear(); term->toUTF8String(d); i_info("JOJO2 %s",d.c_str());
+                                        q2->add(hdr,term,false);
                                         delete(term);
                                 }
-                                q1->add(q2);
+                                if(q2->count()>0) { q1->add(q2); } else { delete(q2); }
 				delete(ki);
 			}
 			qs->add(q1);
@@ -1511,21 +1543,11 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		}
 		else
 		{
-			long i=0,j=strlen(hdr);
-			std::string f2; f2.clear();
-			while(i<j)
-			{
-				if((hdr[i]>' ') && (hdr[i]!='"') && (hdr[i]!='\'') && (hdr[i]!='-'))
-				{
-					f2+=tolower(hdr[i]);
-				}
-				i++;
-			}
 			icu::StringPiece sp(a->value.str);
 			icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
 			fts_backend_xapian_clean(&t);
 	
-			qs->add(f2.c_str(),&t,a->match_not);
+			qs->add(hdr,&t,a->match_not);
 		}
 		a->match_always=true;
 		a = a->next;
