@@ -147,10 +147,12 @@ static void fts_backend_xapian_clean(icu::UnicodeString *t)
 static long fts_backend_xapian_clean_header(const char * hdr)
 {
 	if(hdr == NULL) return -1;
+	long l = strlen(hdr);
+	if(l>=200) return -1;
 
-	char h[100];
+	char h[200];
 
-	long i=0,j=0,l=strlen(hdr);
+	long i=0,j=0;
         while(j<l)
         {
         	if((hdr[j]>' ') && (hdr[j]!='"') && (hdr[j]!='\'') && (hdr[j]!='-'))
@@ -1430,7 +1432,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		{
 			if(a->type == SEARCH_BODY)
 			{
-				hdr=10;
+				hdr=8;
 			}
 			else
 			{
