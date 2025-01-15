@@ -1469,7 +1469,6 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 		else if(dict != NULL)
 		{
 			// Find key words
-			i_info("JOJO0 %s",a->value.str);
 			icu::StringPiece sp(a->value.str);
                         icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
                         fts_backend_xapian_clean(&t);
@@ -1523,7 +1522,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 					sql+="%' and header=" + std::to_string(hdr);
 				}
 				sql +=searchDict2;
-				i_info("JOJO1 %s",sql.c_str());
+				
 				zErrMsg =0;
 				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
                                 {
