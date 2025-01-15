@@ -1526,7 +1526,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				zErrMsg =0;
 				if(sqlite3_exec(db,sql.c_str(),fts_backend_xapian_sqlite3_vector_icu,&st,&zErrMsg) != SQLITE_OK )
                                 {
-                                        syslog(LOG_ERR,"FTS Xapian: Can not search keyword : %s",sql.c_str(),zErrMsg);
+                                        syslog(LOG_ERR,"FTS Xapian: Can not search keyword (%s) : %s",sql.c_str(),zErrMsg);
                                         if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
                                 }
 				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
