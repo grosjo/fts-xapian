@@ -26,7 +26,7 @@
 
 #define XAPIAN_SLEEP std::chrono::milliseconds(200)
 
-#define XAPIAN_PLUGIN_VERSION "1.8.5"
+#define XAPIAN_PLUGIN_VERSION "1.8.6"
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
@@ -73,10 +73,10 @@ static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", 
 
 struct fts_xapian_settings
 {
-	long verbose;
+	int verbose;
 	long lowmemory;
-	long partial;
-	long maxthreads;
+	int32_t partial;
+	size_t maxthreads;
 };
 
 struct fts_xapian_user {

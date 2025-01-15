@@ -55,7 +55,7 @@ struct xapian_fts_backend
 	std::vector<XDocsWriter *> threads;
 	std::timed_mutex mutex;
 	std::unique_lock<std::timed_mutex> * mutex_t;
-	long max_threads;
+	unsigned int max_threads;
 
 	long lastuid;
 	long total_docs;
@@ -124,7 +124,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%ld verbose=%ld max_threads=%ld lowmemory=%ld MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%d verbose=%d max_threads=%u lowmemory=%ld MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
 
 	return 0;
 }
@@ -374,7 +374,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			n++;
 			if((n>50) && (fts_xapian_settings.verbose>0))
 			{
-				i_info("FTS Xapian: Waiting for queue to be absorbed (pending : %ld vs limit :%ld)",backend->docs.size(),3*backend->max_threads);
+				i_info("FTS Xapian: Waiting for queue to be absorbed (pending=%ld)",backend->docs.size());
 				n=0;
 			}
 			std::this_thread::sleep_for(XAPIAN_SLEEP);
@@ -403,8 +403,6 @@ static int fts_backend_xapian_refresh(struct fts_backend * _backend)
 {
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: fts_backend_xapian_refresh");
 
-	struct xapian_fts_backend *backend = (struct xapian_fts_backend *) _backend;
-
 	return 0;
 }
 
@@ -418,7 +416,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	if(data == NULL) return 0;
 
 	const char * d = (const char *) data;
-	if(strlen(d)<fts_xapian_settings.partial) return 0;
+	if(strlen(d)<(unsigned long)fts_xapian_settings.partial) return 0;
 
 	long h = atol(ctx->tbi_field);
 

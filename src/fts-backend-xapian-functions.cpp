@@ -407,7 +407,7 @@ class XQuerySet
 		fts_backend_xapian_clean(t);
                 if(t->length()<limit) return;
 
-		long i,j,k;
+		long i,j;
 		XQuerySet * q2;
 		icu::UnicodeString *r;
 
@@ -693,7 +693,7 @@ class XDoc
 	void terms_push(long h, icu::UnicodeString *t)
 	{
 		fts_backend_xapian_trim(t);
-		long n = t->length();
+		int32_t n = t->length();
 		long m = XAPIAN_TERM_SIZELIMIT - strlen(hdrs_xapian[h]) - 1;
 	
 		if(n>=fts_xapian_settings.partial)
@@ -859,7 +859,7 @@ class XDocsWriter
 		{
 			t = new std::thread(fts_backend_xapian_worker,this);
 		}
-		catch(std::exception e)
+		catch(std::exception const& e)
 		{
 			std::string s(title);
 			s.append("Thread error ");
@@ -904,7 +904,7 @@ class XDocsWriter
                         	{
 					syslog(LOG_ERR,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg().c_str());
                         	}
-                        	catch(std::exception e)
+                        	catch(std::exception const& e)
                         	{
 					syslog(LOG_ERR,"%sCan't commit DB2 : %s",title,e.what());
                         	}
@@ -995,7 +995,7 @@ class XDocsWriter
 				if(verbose>0) syslog(LOG_INFO,"%sPushing : %s",title,doc->getDocSummary().c_str());
                         	if(doc->nterms > 0)
                         	{
-					long m = checkMemory();
+					checkMemory();
 					fts_backend_xapian_get_lock(backend, verbose, title);
 					if(checkDB())
 					{
@@ -1013,7 +1013,7 @@ class XDocsWriter
                                	                {
                                	                 	syslog(LOG_ERR,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg().c_str());
                                	                }
-                               	                catch(std::exception e)
+                               	                catch(std::exception const & e)
                                	                {
                                	                        syslog(LOG_ERR,"%sCan't write doc2 %s : %s",title,doc->getDocSummary().c_str(),e.what());
                                	                }
@@ -1105,7 +1105,7 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,const cha
         {
                 syslog(LOG_ERR, "FTS Xapian: Can't close Xapian DB (%s) %s : %s - %s %s",boxname,dbpath,e.get_type(),e.get_msg().c_str(),e.get_error_string());
         }
-	catch(std::exception e)
+	catch(std::exception const& e)
         {
                 syslog(LOG_ERR, "FTS Xapian : Closing db (%s) error %s",dbpath,e.what());
         }
@@ -1187,15 +1187,6 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	}
 }
 
-static bool fts_backend_xapian_isnormalprocess()
-{
-    	char buff[PATH_MAX];
-    	buff[0]=0;
-    	ssize_t len = ::readlink("/proc/self/exe", buff, sizeof(buff)-1);
-    	if (len>0)  buff[len] = 0;
-    	return (strstr(buff,"doveadm")==NULL);
-}
-
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
@@ -1236,8 +1227,6 @@ XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query,
 static int fts_backend_xapian_unset_box(struct xapian_fts_backend *backend)
 {
 	if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unset box '%s' (%s)",backend->boxname,backend->guid);
-
-	long commit_time = fts_backend_xapian_current_time();
 
 	fts_backend_xapian_close(backend,"unset box");
 	fts_backend_xapian_oldbox(backend);
@@ -1348,7 +1337,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
                         std::filesystem::remove(backend->exp_db);
 			std::filesystem::remove(backend->dict_db);
                 }
-                catch(std::exception e)
+                catch(std::exception const& e)
                 {
                         i_error("FTS Xapian: Can not delete old files %s",e.what());
                 }
@@ -1479,7 +1468,7 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 			{
 				j = t.length();
                                 k = new icu::UnicodeString(t,i+1,j-i-1);
-				if(k->length()>=fts_xapian_settings.partial) { keys.push_back(k); } else delete(k);
+				if(k->length() >= fts_xapian_settings.partial) { keys.push_back(k); } else delete(k);
 				t.truncate(i);
                                	fts_backend_xapian_trim(&t);
                                	i = t.lastIndexOf(CHAR_SPACE);
