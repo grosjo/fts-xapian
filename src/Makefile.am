@@ -9,12 +9,7 @@ AM_CPPFLAGS = -O2 \
 	$(ICU_CFLAGS) \
 	$(SQLITE_CFLAGS)
 
-AM_CXXFLAGS = -std=gnu++20 \
-	$(AM_CPPFLAGS) \
-	$(SQLITE_LIBS) \
-	$(XAPIAN_LIBS) \
-	$(ICU_LIBS) \
-	-Wall -Wl,-rpath=$(ICU_LDFLAGS)
+AM_CXXFLAGS = -std=gnu++20 -Wall
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
 
