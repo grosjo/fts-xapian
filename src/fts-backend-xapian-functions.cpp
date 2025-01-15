@@ -1532,7 +1532,6 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				q2 = new XQuerySet(Xapian::Query::OP_OR,qs->limit);
                                 for(auto &term : st)
                                 {
-					std::string d; d.clear(); term->toUTF8String(d); i_info("JOJO2 %s",d.c_str());
                                         q2->add(hdr,term,false);
                                         delete(term);
                                 }
