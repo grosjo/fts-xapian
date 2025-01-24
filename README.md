@@ -89,7 +89,8 @@ You need to setup LMTP properly with your SMTP server. Kindly refer to:
 - For Exim : https://doc.dovecot.org/2.3/configuration_manual/howto/dovecot_lmtp_exim/
 
 
-Configuration - Indexing options
+
+Configuration options
 --------------------------------
 
 | Option         | Optional | Description                     | Possible values                                     | Default value |
@@ -100,10 +101,9 @@ Configuration - Indexing options
 | maxthreads     |   yes    | Maximum number of threads       | 0 (default, hardware limit), or value above 2       | 0             |
 
 
-Configuration - Index updating
-------------------------------
 
-Please make sure that "ulimit" is high enough. Typically, set "DefaultLimitNOFILE=16384:524288"  in /etc/systemd/system.conf
+Index updating
+------------------------------
 
 Just restart Dovecot:
 
