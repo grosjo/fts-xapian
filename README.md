@@ -66,9 +66,27 @@ service decode2text {
         mode = 0666
     }
 }
+
+(...)
+
+protocols = imap pop3 sieve lmtp
+
+(...)
+
+service lmtp {
+        inet_listener lmtp {
+                address = 127.0.0.1
+                port = 24
+        }
+        unix_listener lmtp {
+                mode = 0666
+        }
+}
 ```
 
-Make sure also that dovecot is started with enough files opening capacity (ideally set 'LimitNOFILE=65535' in the systemd start file).
+You need to setup LMTP properly with your SMTP server. Kindly refer to:
+- For Postfix : https://doc.dovecot.org/2.3/configuration_manual/howto/postfix_dovecot_lmtp/
+- For Exim : https://doc.dovecot.org/2.3/configuration_manual/howto/dovecot_lmtp_exim/
 
 
 Configuration - Indexing options
