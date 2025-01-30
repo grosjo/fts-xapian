@@ -26,7 +26,7 @@
 
 #define XAPIAN_SLEEP std::chrono::milliseconds(200)
 
-#define XAPIAN_PLUGIN_VERSION "1.8.6"
+#define XAPIAN_PLUGIN_VERSION "1.8.7"
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
@@ -64,8 +64,8 @@ static const char * suffixDict = "_dict.db";
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
 
-#define CHARS_PB 16
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "^", "\\", "'", "/", "~" };
+#define CHARS_PB 20 
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "^", "\\", "'", "/", "~", "[", "]", "{", "}" };
 
 #define CHARS_SEP 16
 static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!", "¿", "¡", "\u00A0", "‘", "“" };

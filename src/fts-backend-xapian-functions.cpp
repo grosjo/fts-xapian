@@ -1351,6 +1351,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		i_warning("FTS Xapian: '%s' (%s) dictionnary does not exist. Creating it",backend->boxname,backend->dict_db);
 		if(fts_backend_xapian_sqlite3_dict_open(backend)) sqlite3_close(backend->ddb);
 		backend->ddb = NULL;
+		std::filesystem::remove_all(backend->xap_db);
 	}
 	
         // Verify existence of Exp db
