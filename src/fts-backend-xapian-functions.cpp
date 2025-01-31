@@ -1330,27 +1330,24 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	if(!( (stat(backend->version_file, &sb)==0) && S_ISREG(sb.st_mode)))
         {
 		i_warning("FTS Xapian: '%s' new Version of the pluging (%s)",backend->boxname,XAPIAN_PLUGIN_VERSION);	
+
 		// Deleting existing indexes
-                try
-                {
-                        std::filesystem::remove_all(backend->xap_db);
-		        for(auto& f : std::filesystem::directory_iterator(backend->path)) 
+                std::filesystem::remove_all(backend->xap_db);
+		for(auto& f : std::filesystem::directory_iterator(backend->path)) 
+		{
+			if((f.is_regular_file()) && (f.path().string().find(backend->xap_db) == 0))
 			{
-				if((f.is_regular_file()) && (f.path().string().find(backend->xap_db) == 0))
-				{
-					if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Deleting %s",f.path().c_str());
-					std::filesystem::remove(f.path());
-				}
+				if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Deleting %s",f.path().c_str());
+				std::filesystem::remove(f.path());
 			}
-                }
-                catch(std::exception const& e)
-                {
-                        i_error("FTS Xapian: Can not delete old files %s",e.what());
-                }
+		}
+
+		// Write new version file                
 		FILE * f = fopen(backend->version_file,"w+");
 		fprintf(f,"%s",XAPIAN_PLUGIN_VERSION);
 		fclose(f);
 	}
+
 	// Verify existence of Dict db
 	if(!( (stat(backend->dict_db, &sb)==0) && S_ISREG(sb.st_mode)))
 	{
@@ -1360,10 +1357,31 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 		std::filesystem::remove_all(backend->xap_db);
 	}
 	
+	// Verify existence of Xapian db
+	{
+		char * t = i_strdup_printf("%s/termlist.glass",backend->xap_db);
+        	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
+        	{
+			std::filesystem::remove(backend->exp_db);
+                	i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->xap_db);
+                	try
+                	{
+                	        Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->xap_db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_BACKEND_GLASS);
+                	        db->close();
+                	        delete(db);
+                	}
+                	catch(Xapian::Error e)
+                	{
+                	        i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s %s",backend->boxname,backend->xap_db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
+                	}
+        	}
+        	i_free(t);
+	}
+
         // Verify existence of Exp db
         if(!( (stat(backend->exp_db, &sb)==0) && S_ISREG(sb.st_mode)))
-	{
-		i_warning("FTS Xapian: '%s' (%s) expunge does not exist. Creating it",backend->boxname,backend->exp_db);
+        {
+                i_warning("FTS Xapian: '%s' (%s) expunge does not exist. Creating it",backend->boxname,backend->exp_db);
                 sqlite3 * db = NULL;
                 if(sqlite3_open_v2(backend->exp_db,&db,SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,NULL) != SQLITE_OK )
                 {
@@ -1381,25 +1399,6 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
                 }
         }
 
-	// Verify existence of Xapian db
-	{
-		char * t = i_strdup_printf("%s/termlist.glass",backend->xap_db);
-        	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
-        	{
-                	i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->xap_db);
-                	try
-                	{
-                	        Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->xap_db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_BACKEND_GLASS);
-                	        db->close();
-                	        delete(db);
-                	}
-                	catch(Xapian::Error e)
-                	{
-                	        i_error("FTS Xapian: Can't create Xapian DB (%s) %s : %s - %s %s",backend->boxname,backend->xap_db,e.get_type(),e.get_msg().c_str(),e.get_error_string());
-                	}
-        	}
-        	i_free(t);
-	}
         backend->threads.clear();
 	backend->total_docs =0;
 
