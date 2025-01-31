@@ -167,9 +167,9 @@ static long fts_backend_xapian_clean_header(const char * hdr)
         i=0;
         while((i<HDRS_NB) && (strcmp(h,hdrs_emails[i])!=0)) i++;
                         
-	if(i>=HDRS_NB) return -1;
+	if(i>=HDRS_NB) i=-1;
 
-	if(i==HDRS_NB-1) i=8;
+	if(i==HDRS_NB-1) i=HDR_BODY;
 
 	return i;
 }
@@ -1189,7 +1189,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
+	if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
 
 	XResultSet * set= new XResultSet();
 	Xapian::Query * q = query->get_query(dbx);
@@ -1415,30 +1415,22 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 	{
 		switch (a->type)
 		{
-			case SEARCH_TEXT:
-			case SEARCH_BODY:
+			case SEARCH_TEXT: hdr = -1; break;
+			case SEARCH_BODY: hdr = 8; break;
 			case SEARCH_HEADER:
 			case SEARCH_HEADER_ADDRESS:
-			case SEARCH_HEADER_COMPRESS_LWSP: break;
+			case SEARCH_HEADER_COMPRESS_LWSP: 
+				if((a->hdr_field_name == NULL)||(strlen(a->hdr_field_name)<1))
+				{
+					hdr = -1;
+					break;
+				}
+				hdr=fts_backend_xapian_clean_header(a->hdr_field_name); 
+				if(hdr >= 0) break;
 			default: a = a->next; continue;
 		}
 
-		if((a->hdr_field_name == NULL)||(strlen(a->hdr_field_name)<1))
-		{
-			if(a->type == SEARCH_BODY)
-			{
-				hdr=8;
-			}
-			else
-			{
-				hdr=-1;
-			}
-		}
-		else
-		{
-			hdr=fts_backend_xapian_clean_header(a->hdr_field_name);
-			if(hdr<0) { a = a->next; continue; }
-		}
+		syslog(LOG_INFO,"CheckingQS %s -> %ld",a->hdr_field_name,hdr);
 
 		if((a->value.str == NULL) || (strlen(a->value.str)<1))
 		{

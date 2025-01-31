@@ -26,7 +26,7 @@
 
 #define XAPIAN_SLEEP std::chrono::milliseconds(200)
 
-#define XAPIAN_PLUGIN_VERSION "1.8.7"
+#define XAPIAN_PLUGIN_VERSION "1.8.7d"
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
@@ -45,6 +45,7 @@
 static const char * hdrs_emails[HDRS_NB] =  { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "contenttype", ""  };
 static const char * hdrs_xapian[HDRS_NB] =  { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XCT", "XBDY" };
 static const char * hdrs_query[HDRS_NB]  =  { "a",   "b",       "c",    "d",   "d",   "e",    "f",         "g",      "h",    "i",   "h"    };
+#define HDR_BODY 8L
 
 static const char * createExpTable = "CREATE TABLE IF NOT EXISTS expunges(ID INTEGER PRIMARY KEY NOT NULL);";
 static const char * selectExpUIDs = "select ID from expunges;";

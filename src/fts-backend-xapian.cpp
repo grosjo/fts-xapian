@@ -304,13 +304,17 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		ctx->isattachment=true;
 	}
 
-	long field = fts_backend_xapian_clean_header(key->hdr_name);
-	if(field<0)
+	long field = HDR_BODY;
+	if(key->hdr_name!=NULL)
 	{
-		if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
-		return FALSE;
+		field = fts_backend_xapian_clean_header(key->hdr_name);
+		if(field<0)
+		{
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+			return FALSE;
+		}
+		if(field<1) field=HDR_BODY;
 	}
-	if(field<1) field=10;
 
 	switch (key->type)
 	{
@@ -320,6 +324,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			ctx->tbi_uid=key->uid;
 			break;
 		case FTS_BACKEND_BUILD_KEY_BODY_PART:
+			ctx->tbi_isfield=false;
 			ctx->tbi_uid=key->uid;
 			break;
 		case FTS_BACKEND_BUILD_KEY_BODY_PART_BINARY:
