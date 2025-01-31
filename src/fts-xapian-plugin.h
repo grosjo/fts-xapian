@@ -64,8 +64,8 @@ static const char * suffixDict = "_dict.db";
 #define CHAR_KEY "_"
 #define CHAR_SPACE " "
 
-#define CHARS_PB 20 
-static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "^", "\\", "'", "/", "~", "[", "]", "{", "}" };
+#define CHARS_PB 21
+static const char * chars_pb[] = { "<", ">", ".", "-", "@", "&", "%", "*", "|", "`", "#", "^", "\\", "'", "/", "~", "[", "]", "{", "}", "-" };
 
 #define CHARS_SEP 16
 static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", ")", "?", "!", "¿", "¡", "\u00A0", "‘", "“" };
