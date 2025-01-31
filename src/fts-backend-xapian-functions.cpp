@@ -1329,7 +1329,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	// Existence of current version
 	if(!( (stat(backend->version_file, &sb)==0) && S_ISREG(sb.st_mode)))
         {
-		i_warning("FTS Xapian: '%s' new Version of the pluging (%s)",backend->boxname,XAPIAN_PLUGIN_VERSION);	
+		i_warning("FTS Xapian: '%s' new Version of the plugin (%s)",backend->boxname,XAPIAN_PLUGIN_VERSION);	
 
 		// Deleting existing indexes
                 std::filesystem::remove_all(backend->xap_db);
