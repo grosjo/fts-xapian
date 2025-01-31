@@ -1334,8 +1334,14 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
                 try
                 {
                         std::filesystem::remove_all(backend->xap_db);
-                        std::filesystem::remove(backend->exp_db);
-			std::filesystem::remove(backend->dict_db);
+		        for(auto& f : std::filesystem::directory_iterator(backend->path)) 
+			{
+				if((f.is_regular_file()) && (f.path().string().find(backend->xap_db) == 0))
+				{
+					if(fts_xapian_settings.verbose>0) i_warning("FTS Xapian: Deleting %s",f.path().c_str());
+					std::filesystem::remove(f.path());
+				}
+			}
                 }
                 catch(std::exception const& e)
                 {
