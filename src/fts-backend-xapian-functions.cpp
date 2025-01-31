@@ -1189,7 +1189,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 
 XResultSet * fts_backend_xapian_query(Xapian::Database * dbx, XQuerySet * query, long limit=0)
 {
-	if(fts_xapian_settings.verbose>=0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: fts_backend_xapian_query (%s)",query->get_string().c_str());
 
 	XResultSet * set= new XResultSet();
 	Xapian::Query * q = query->get_query(dbx);
@@ -1429,8 +1429,6 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
 				if(hdr >= 0) break;
 			default: a = a->next; continue;
 		}
-
-		syslog(LOG_INFO,"CheckingQS %s -> %ld",a->hdr_field_name,hdr);
 
 		if((a->value.str == NULL) || (strlen(a->value.str)<1))
 		{
