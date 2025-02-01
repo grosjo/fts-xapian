@@ -111,16 +111,6 @@ Just restart Dovecot:
 sudo service restart dovecot
 ```
 
-If this is not a fresh install of dovecot, you need to re-index your mailboxes:
-
-```sh
-doveadm index -A -q \*
-```
-
-- With argument `-A`, it will re-index all mailboxes, therefore may take a while.
-- With argument `-q`, doveadm queues the indexing to be run by indexer process.
-  Remove `-q` if you want to index immediately.
-
 You shall put in a cron the following command (daily for instance) to cleanup indexes :
 
 ```sh
