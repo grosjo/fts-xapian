@@ -310,7 +310,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		field = fts_backend_xapian_clean_header(key->hdr_name);
 		if(field<0)
 		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Unknown header '%s' of part",ctx->tbi_field);
+			if(fts_xapian_settings.verbose>1) i_info("FTS Xapian: Unknown header '%s' of part",key->hdr_name);
 			return FALSE;
 		}
 		if(field<1) field=HDR_BODY;
@@ -341,49 +341,50 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 
 		if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
 
-		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
-
 		if(backend->threads.size() < backend->max_threads )
                 {
-                        XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
-                        x->launch(s.c_str());
+                       	XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
+                       	x->launch(s.c_str());
 			backend->threads.push_back(x);
                 }
                        
                 long n = backend->threads.size();
-                while(n>0)
-                {
-                        n--;
-                        if(!(backend->threads.at(n)->started))
-                        {
-                                backend->threads[n]->launch("Relaunch post error");
-                        }
-                }
-
-		if(backend->lastuid>0)
-		{
-			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Previous doc ready to index (#%ld)",backend->lastuid);
-			backend->docs.front()->status=1;	
-		}
-                backend->lastuid = ctx->tbi_uid;
-		backend->docs.insert(backend->docs.begin(),new XDoc(backend));
+               	while(n>0)
+               	{
+                       	n--;
+                       	if(!(backend->threads.at(n)->started))
+                       	{
+                       	        backend->threads[n]->launch("Relaunch post error");
+                       	}
+               	}
 		
-		if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
-
+		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
+		{
+			if(backend->lastuid>0)
+			{
+				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Previous doc ready to index (#%ld)",backend->lastuid);
+				backend->docs.front()->status=1;	
+			}
+                	backend->lastuid = ctx->tbi_uid;
+			backend->docs.insert(backend->docs.begin(),new XDoc(backend));
+		
+			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
+		}
 		fts_backend_xapian_release_lock(backend, fts_xapian_settings.verbose, s.c_str());
 
-		n=0;
-		long m = fts_backend_xapian_get_free_memory(fts_xapian_settings.verbose);
-		while ( (m>0) && (m<2*(fts_xapian_settings.lowmemory * 1024)))
+		if(backend->docs.size() > (XAPIAN_WRITING_CACHE * 2) )
 		{
-			n++;
-			if((n>50) && (fts_xapian_settings.verbose>0))
+			n=0;
+			while (backend->docs.size() > XAPIAN_WRITING_CACHE )
 			{
-				i_info("FTS Xapian: Waiting for queue to be absorbed (pending=%ld)",backend->docs.size());
-				n=0;
+				n++;
+				if(n>50)
+				{
+					if (fts_xapian_settings.verbose>0) i_info("FTS Xapian: Waiting for queue to be absorbed (pending=%ld)",backend->docs.size());
+					n=0;
+				}
+				std::this_thread::sleep_for(XAPIAN_SLEEP);
 			}
-			std::this_thread::sleep_for(XAPIAN_SLEEP);
-			m = fts_backend_xapian_get_free_memory(fts_xapian_settings.verbose);
 		}
         }
 

@@ -26,7 +26,7 @@
 
 #define XAPIAN_SLEEP std::chrono::milliseconds(200)
 
-#define XAPIAN_PLUGIN_VERSION "1.8.7d"
+#define XAPIAN_PLUGIN_VERSION "1.9"
 
 // Ressources limits
 #define XAPIAN_FILE_PREFIX "xapian-indexes" // Locations of indexes
