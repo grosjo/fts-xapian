@@ -1337,7 +1337,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
 	// Existence of current version
 	if(!( (stat(backend->version_file, &sb)==0) && S_ISREG(sb.st_mode)))
         {
-		i_warning("FTS Xapian: New version of the plugin : %s for %s",XAPIAN_PLUGIN_VERSION,backend->boxname);	
+		i_info("FTS Xapian: New version of the plugin : %s for %s",XAPIAN_PLUGIN_VERSION,backend->boxname);	
 
 		// Deleting existing indexes
                 std::filesystem::remove_all(backend->xap_db);
@@ -1371,7 +1371,7 @@ static int fts_backend_xapian_set_box(struct xapian_fts_backend *backend, struct
         	if(!( (stat(t, &sb)==0) && S_ISREG(sb.st_mode)))
         	{
 			std::filesystem::remove(backend->exp_db);
-                	i_warning("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->xap_db);
+                	i_info("FTS Xapian: '%s' (%s) indexes do not exist. Initializing DB",backend->boxname,backend->xap_db);
                 	try
                 	{
                 	        Xapian::WritableDatabase * db = new Xapian::WritableDatabase(backend->xap_db,Xapian::DB_CREATE_OR_OVERWRITE | Xapian::DB_BACKEND_GLASS);
