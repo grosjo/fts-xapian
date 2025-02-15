@@ -1,6 +1,5 @@
 /* Copyright (c) 2019 Joan Moreau <jom@grosjo.net>, see the included COPYING file */
 
-
 #include "fts-xapian-plugin.h"
 
 const char *fts_xapian_plugin_version = DOVECOT_ABI_VERSION;
@@ -9,15 +8,95 @@ struct fts_xapian_user_module fts_xapian_user_module = MODULE_CONTEXT_INIT(&mail
 
 static void fts_xapian_mail_user_deinit(struct mail_user *user)
 {
-#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2))
+#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2) || (FTS_MAIL_USER_INIT_FOUR_ARGS > 0))
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
 #else
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(user);
 #endif
 
+#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+	settings_free(fuser->set);
+#else
         fts_mail_user_deinit(user);
+#endif
 	fuser->module_ctx.super.deinit(user);
 }
+
+#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+
+#define FTS_XAPIAN_FILTER "fts_xapian"
+
+#undef DEF
+#define DEF(type, name) \
+        SETTING_DEFINE_STRUCT_##type("fts_xapian_"#name, name, struct fts_xapian_settings)
+
+static const struct setting_define fts_xapian_setting_defines[] = {
+        /* For now this filter just allows grouping the settings
+           like it is possible in the other fts_backends. */
+        { .type = SET_FILTER_NAME, .key = FTS_XAPIAN_FILTER },
+        DEF(UINT, verbose),
+        DEF(UINT, lowmemory),
+        DEF(UINT, partial),
+        DEF(UINT, maxthreads),
+        SETTING_DEFINE_LIST_END
+};
+
+static const struct fts_xapian_settings fts_xapian_default_settings = {
+        .verbose = 0,
+	.lowmemory = XAPIAN_MIN_RAM,
+	.partial = XAPIAN_DEFAULT_PARTIAL,
+	.maxthreads = 0,
+};
+
+const struct setting_parser_info fts_xapian_setting_parser_info = {
+        .name = "fts_xapian",
+
+        .defines = fts_xapian_setting_defines,
+        .defaults = &fts_xapian_default_settings,
+
+        .struct_size = sizeof(struct fts_xapian_settings),
+        .pool_offset1 = 1 + offsetof(struct fts_xapian_settings, pool),
+};
+
+int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
+                                struct fts_xapian_user **fuser_r,
+                                const char **error_r)
+{
+        struct fts_xapian_user *fuser =
+                FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
+        struct fts_xapian_settings *set;
+
+        if (settings_get(event, &fts_xapian_setting_parser_info, 0,
+                         &set, error_r) < 0)
+                return -1;
+
+        /* Reference the user even when fuser is already initialized */
+        if (fts_mail_user_init(user, event, TRUE, error_r) < 0) {
+                settings_free(set);
+                return -1;
+        }
+        if (fuser->set == NULL)
+                fuser->set = set;
+        else
+                settings_free(set);
+
+        *fuser_r = fuser;
+        return 0;
+}
+
+static void fts_xapian_mail_user_created(struct mail_user *user)
+{
+        struct fts_xapian_user *fuser;
+        struct mail_user_vfuncs *v = user->vlast;
+
+        fuser = p_new(user->pool, struct fts_xapian_user, 1);
+        fuser->module_ctx.super = *v;
+        user->vlast = &fuser->module_ctx.super;
+        v->deinit = fts_xapian_mail_user_deinit;
+        MODULE_CONTEXT_SET(user, fts_xapian_user_module, fuser);
+}
+
+#else
 
 static void fts_xapian_mail_user_created(struct mail_user *user)
 {
@@ -94,8 +173,9 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
 #else
 	if (fts_mail_user_init(user, &error) < 0)
 #endif
+
 	{
-		if ( fuser->set.verbose > 1 ) i_warning("FTS Xapian: %s", error);
+		if ( fuser->set.verbose > 0 ) i_warning("FTS Xapian: %s", error);
 	}
 
 	fuser->module_ctx.super = *v;
@@ -104,6 +184,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
 
 	MODULE_CONTEXT_SET(user, fts_xapian_user_module, fuser);
 }
+#endif
 
 static struct mail_storage_hooks fts_xapian_mail_storage_hooks = 
 {

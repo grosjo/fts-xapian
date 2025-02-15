@@ -57,6 +57,10 @@ struct xapian_fts_backend
 	std::unique_lock<std::timed_mutex> * mutex_t;
 	unsigned int max_threads;
 
+#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+	struct event *event;
+#endif
+
 	long lastuid;
 	long total_docs;
 	long start_time;
@@ -117,6 +121,14 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	}
 	if(backend->max_threads<2) backend->max_threads = 2;
 
+#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+	backend->event = event_create(_backend->event);
+	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event,
+                                        &fuser, error_r) < 0) {
+                event_unref(&backend->event);
+                return -1;
+        }
+#endif
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	fts_xapian_settings = fuser->set;
 
@@ -145,6 +157,10 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
+
+#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+	event_unref(&backend->event);
+#endif
 
 	i_free(backend);
 

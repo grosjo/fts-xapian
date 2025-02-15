@@ -64,73 +64,46 @@ AC_COMPILE_IFELSE(
 			are not installed correctly])
 	])
 
-AC_MSG_CHECKING([whether fts_mail_user_init has 3 args])
+AC_MSG_CHECKING([whether fts_mail_user_init has 2, 3 or 4 args])
 
 AC_COMPILE_IFELSE(
 	[AC_LANG_PROGRAM([[
-		#include "$dovecot_pkgincludedir/config.h"
-		#include "$dovecot_pkgincludedir/lib.h"
-		#include "$dovecot_pkgincludedir/mail-user.h"
-		#include "$dovecot_pkgincludedir/fts-user.h"
+                #include "$dovecot_pkgincludedir/config.h"
+                #include "$dovecot_pkgincludedir/lib.h"
+                #include "$dovecot_pkgincludedir/mail-user.h"
+                #include "$dovecot_pkgincludedir/fts-user.h"
                 void f(struct mail_user *s, const char **error) {
-                      fts_mail_user_init(s, 0, error);
+                      fts_mail_user_init(s, NULL, 0, error);
                     }
-                ]])], 
-	[
-		AC_MSG_RESULT([yes])
-		THREE_ARGS="-DFTS_MAIL_USER_INIT_THREE_ARGS=1"
-	],[
-		AC_MSG_RESULT([no])
-	])
-
-AC_MSG_CHECKING([for fts_mail_user_init])
- 
-AC_COMPILE_IFELSE(
- 	[AC_LANG_PROGRAM([[
-		#include "$dovecot_pkgincludedir/config.h"
-		#include "$dovecot_pkgincludedir/lib.h"
-		#include "$dovecot_pkgincludedir/mail-user.h"
-		#include "$dovecot_pkgincludedir/fts-user.h"
-		int f() 
-		{
-			void *ptr = &fts_mail_user_init;
-			(void)ptr;
-			return 0;
-		}
-	]])], 
-	[
-		AC_MSG_RESULT([yes])
-	],[
-		AC_MSG_RESULT([no])
-		AC_MSG_ERROR([fts_mail_user_init not found 
-			dovecot headers 
-			are not installed correctly])
-	])
-
-AC_MSG_CHECKING([whether fts_mail_user_init has 3 args])
-
-AC_COMPILE_IFELSE(
-	[AC_LANG_PROGRAM([[
-		#include "$dovecot_pkgincludedir/config.h"
-		#include "$dovecot_pkgincludedir/lib.h"
-		#include "$dovecot_pkgincludedir/mail-user.h"
-		#include "$dovecot_pkgincludedir/fts-user.h"
-                void f(struct mail_user *s, const char **error) {
-                      fts_mail_user_init(s, 0, error);
-                    }
-                ]])], 
-	[
-		AC_MSG_RESULT([yes])
-		THREE_ARGS="-DFTS_MAIL_USER_INIT_THREE_ARGS=1"
-	],[
-		AC_MSG_RESULT([no])
+                ]])],
+        [       
+                AC_MSG_RESULT([4])
+		USERINIT_ARGS="-DFTS_MAIL_USER_INIT_FOUR_ARGS=1"
+        ],[
+		AC_COMPILE_IFELSE(
+			[AC_LANG_PROGRAM([[
+				#include "$dovecot_pkgincludedir/config.h"
+			#include "$dovecot_pkgincludedir/lib.h"
+			#include "$dovecot_pkgincludedir/mail-user.h"
+			#include "$dovecot_pkgincludedir/fts-user.h"
+                	void f(struct mail_user *s, const char **error) {
+                	      fts_mail_user_init(s, 0, error);
+                	    }
+                	]])], 
+		[
+			AC_MSG_RESULT([3])
+			USERINIT_ARGS="-DFTS_MAIL_USER_INIT_THREE_ARGS=1"
+		],[
+			AC_MSG_RESULT([no])
+			USERINIT_ARGS=""
+		])
 	])
 
 AC_SUBST(ICU_CFLAGS)
 AC_SUBST(ICU_LIBS)
 AC_SUBST(ICU_INCLUDE)
 AC_SUBST(ICU_LDFLAGS)
-AC_SUBST(THREE_ARGS)
+AC_SUBST(USERINIT_ARGS)
 
 PKG_CHECK_MODULES([SQLITE], [sqlite3], [have_sqlite=true], [have_sqlite=false]);
 if !($have_sqlite); then
