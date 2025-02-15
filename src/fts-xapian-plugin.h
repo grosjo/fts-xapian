@@ -4,8 +4,8 @@
 #ifndef FTS_XAPIAN_PLUGIN_H
 #define FTS_XAPIAN_PLUGIN_H
 
-#include "lib.h"
 #include "config.h"
+#include "lib.h"
 #include "mail-user.h"
 #include "fts-api.h"
 #include "fts-user.h"
@@ -17,9 +17,9 @@
 #include "fts-api-private.h"
 #include "master-service.h"
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
-#include "settings.h"
-#include "fts-settings.h"
+//#include "fts-settings.h"
 #include "settings-parser.h"
+#include "settings.h"
 #endif
 
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)

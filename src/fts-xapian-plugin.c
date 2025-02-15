@@ -34,10 +34,10 @@ static const struct setting_define fts_xapian_setting_defines[] = {
         /* For now this filter just allows grouping the settings
            like it is possible in the other fts_backends. */
         { .type = SET_FILTER_NAME, .key = FTS_XAPIAN_FILTER },
-        DEF(UINT, verbose),
-        DEF(UINT, lowmemory),
-        DEF(UINT, partial),
-        DEF(UINT, maxthreads),
+        DEF(INT, verbose),
+        DEF(LONG, lowmemory),
+        DEF(INT, partial),
+        DEF(INT, maxthreads),
         SETTING_DEFINE_LIST_END
 };
 
