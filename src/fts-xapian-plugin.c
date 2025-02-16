@@ -26,7 +26,7 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
 
 #undef DEF
 #define DEF(type, name) \
-        SETTING_DEFINE_STRUCT_##type("fts_xapian_"#name, name, struct fts_xapian_settings)
+        SETTING_DEFINE_STRUCT_##type(XAPIAN_LABEL"_"#name, name, struct fts_xapian_settings)
 
 static const struct setting_define fts_xapian_setting_defines[] = {
         /* For now this filter just allows grouping the settings
@@ -69,7 +69,7 @@ int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
 	}
 
         /* Reference the user even when fuser is already initialized */
-        if (fts_mail_user_init(user, event, TRUE, error_r) < 0) {
+        if (fts_mail_user_init(user, event, FALSE, error_r) < 0) {
                 settings_free(set);
                 return -1;
         }
