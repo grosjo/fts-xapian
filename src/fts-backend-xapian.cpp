@@ -111,32 +111,37 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	if(fts_xapian_settings.maxthreads>0) 
-	{
-		backend->max_threads=fts_xapian_settings.maxthreads;
-	}
-	else
-	{
-		backend->max_threads = std::thread::hardware_concurrency()-1;
-	}
-	if(backend->max_threads<2) backend->max_threads = 2;
+	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
+	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
+	
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
 	backend->event = event_create(_backend->event);
-	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event,
-                                        &fuser, error_r) < 0) {
+	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event, &fuser, error_r) < 0) {
                 event_unref(&backend->event);
                 return -1;
         }
-#endif
-	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
+	fts_xapian_settings.verbose = fuser->set->verbose;
+	fts_xapian_settings.maxthreads = fuser->set->maxthreads;
+	fts_xapian_settings.partial = fuser->set->partial;
+	fts_xapian_settings.lowmemory = fuser->set->lowmemory;
+#else	
 	fts_xapian_settings = fuser->set;
+#endif
 
-	if(fts_backend_xapian_set_path(backend)<0) return -1;
+	if(fts_xapian_settings.maxthreads>0)
+        {
+                backend->max_threads=fts_xapian_settings.maxthreads;
+        }
+        else
+        {
+                backend->max_threads = std::thread::hardware_concurrency()-1;
+        }
+        if(backend->max_threads<2) backend->max_threads = 2;
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%d verbose=%d max_threads=%u lowmemory=%ld MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
+        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%d verbose=%d max_threads=%u lowmemory=%d MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
 
 	return 0;
 }

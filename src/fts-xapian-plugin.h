@@ -17,7 +17,7 @@
 #include "fts-api-private.h"
 #include "master-service.h"
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
-//#include "fts-settings.h"
+#include "fts-settings.h"
 #include "settings-parser.h"
 #include "settings.h"
 #endif
@@ -82,10 +82,10 @@ struct fts_xapian_settings
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
 	pool_t pool;
 #endif
-	int verbose;
-	long lowmemory;
-	int32_t partial;
-	size_t maxthreads;
+	unsigned int verbose;
+	unsigned int lowmemory;
+	unsigned int partial;
+	unsigned int maxthreads;
 };
 
 struct fts_xapian_user {

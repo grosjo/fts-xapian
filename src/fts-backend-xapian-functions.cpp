@@ -693,7 +693,7 @@ class XDoc
 	void terms_push(long h, icu::UnicodeString *t)
 	{
 		fts_backend_xapian_trim(t);
-		int32_t n = t->length();
+		unsigned long n = t->length();
 		long m = XAPIAN_TERM_SIZELIMIT - strlen(hdrs_xapian[h]) - 1;
 	
 		if(n>=fts_xapian_settings.partial)
@@ -1466,18 +1466,21 @@ static void fts_backend_xapian_build_qs(XQuerySet * qs, struct mail_search_arg *
                         icu::UnicodeString t = icu::UnicodeString::fromUTF8(sp);
                         fts_backend_xapian_clean(&t);
 			long j, i = t.lastIndexOf(CHAR_SPACE);
+			unsigned long l;
 			icu::UnicodeString *k;
 			std::vector<icu::UnicodeString *> keys; keys.clear();
 			while(i>0)
 			{
 				j = t.length();
                                 k = new icu::UnicodeString(t,i+1,j-i-1);
-				if(k->length() >= fts_xapian_settings.partial) { keys.push_back(k); } else delete(k);
+				l = k->length();
+				if(l >= fts_xapian_settings.partial) { keys.push_back(k); } else delete(k);
 				t.truncate(i);
                                	fts_backend_xapian_trim(&t);
                                	i = t.lastIndexOf(CHAR_SPACE);
                         }
-			if(t.length()>=fts_xapian_settings.partial) 
+			l = t.length();
+			if(l>=fts_xapian_settings.partial) 
 			{
 				keys.push_back(new icu::UnicodeString (t));
 			}
