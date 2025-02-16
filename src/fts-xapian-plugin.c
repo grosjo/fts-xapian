@@ -47,7 +47,7 @@ static const struct fts_xapian_settings fts_xapian_default_settings = {
 };
 
 const struct setting_parser_info fts_xapian_setting_parser_info = {
-        .name = "fts_xapian",
+        .name = XAPIAN_LABEL,
 
         .defines = fts_xapian_setting_defines,
         .defaults = &fts_xapian_default_settings,
