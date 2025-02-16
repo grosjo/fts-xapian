@@ -77,6 +77,11 @@ struct xapian_fts_backend_update_context
 
 static struct fts_xapian_settings fts_xapian_settings;
 
+struct event_category event_category_fts_xapian = {
+        .parent = &event_category_fts,
+        .name = XAPIAN_LABEL
+};
+
 #include "fts-backend-xapian-functions.cpp"
 
 

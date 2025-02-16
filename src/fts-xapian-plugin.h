@@ -116,11 +116,6 @@ int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
 
 extern const struct setting_parser_info fts_xapian_setting_parser_info;
 
-struct event_category event_category_fts_xapian = {
-        .name = XAPIAN_LABEL,
-        .parent = &event_category_fts
-};
-
 #endif
 
 void fts_xapian_plugin_init(struct module *module);
