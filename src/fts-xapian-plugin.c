@@ -24,8 +24,6 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
 
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
 
-#define FTS_XAPIAN_FILTER "fts_xapian"
-
 #undef DEF
 #define DEF(type, name) \
         SETTING_DEFINE_STRUCT_##type("fts_xapian_"#name, name, struct fts_xapian_settings)
@@ -33,7 +31,7 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
 static const struct setting_define fts_xapian_setting_defines[] = {
         /* For now this filter just allows grouping the settings
            like it is possible in the other fts_backends. */
-        { .type = SET_FILTER_NAME, .key = FTS_XAPIAN_FILTER },
+        { .type = SET_FILTER_NAME, .key = XAPIAN_LABEL },
         DEF(UINT, verbose),
         DEF(UINT, lowmemory),
         DEF(UINT, partial),
@@ -42,7 +40,7 @@ static const struct setting_define fts_xapian_setting_defines[] = {
 };
 
 static const struct fts_xapian_settings fts_xapian_default_settings = {
-        .verbose = 0,
+        .verbose = 1,
 	.lowmemory = XAPIAN_MIN_RAM,
 	.partial = XAPIAN_DEFAULT_PARTIAL,
 	.maxthreads = 0,
@@ -62,13 +60,10 @@ int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
                                 const char **error_r)
 {
-        struct fts_xapian_user *fuser =
-                FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
+        struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
         struct fts_xapian_settings *set;
 
-        if (settings_get(event, &fts_xapian_setting_parser_info, 0,
-                         &set, error_r) < 0)
-                return -1;
+        if (settings_get(event, &fts_xapian_setting_parser_info, 0, &set, error_r) < 0) return -1;
 
         /* Reference the user even when fuser is already initialized */
         if (fts_mail_user_init(user, event, TRUE, error_r) < 0) {

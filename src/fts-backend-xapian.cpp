@@ -84,6 +84,7 @@ static struct fts_backend *fts_backend_xapian_alloc(void)
 {
 	struct xapian_fts_backend *backend;
 
+	i_error("JOJO0");
 	backend = i_new(struct xapian_fts_backend, 1);
 	backend->backend = fts_backend_xapian;
 	return &backend->backend;
@@ -111,12 +112,15 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	backend->path = NULL;
 	backend->old_guid = NULL;
 	backend->old_boxname = NULL;
-	if(fts_backend_xapian_set_path(backend)<0) return -1;
+	i_error("JOJO");
+	syslog(LOG_INFO,"JOJO");
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
 	backend->event = event_create(_backend->event);
+//        event_add_category(backend->event, &event_category_fts_xapian);
+
 	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event, &fuser, error_r) < 0) {
                 event_unref(&backend->event);
                 return -1;
@@ -138,6 +142,8 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
                 backend->max_threads = std::thread::hardware_concurrency()-1;
         }
         if(backend->max_threads<2) backend->max_threads = 2;
+
+	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
