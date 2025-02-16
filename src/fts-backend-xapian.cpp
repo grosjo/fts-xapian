@@ -116,7 +116,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	
 #ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
 	backend->event = event_create(_backend->event);
-//        event_add_category(backend->event, &event_category_fts_xapian);
+        event_add_category(backend->event, &event_category_fts_xapian);
 
 	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event, &fuser, error_r) < 0) {
                 event_unref(&backend->event);

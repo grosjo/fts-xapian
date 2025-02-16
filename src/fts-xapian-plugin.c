@@ -63,7 +63,10 @@ int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
         struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
         struct fts_xapian_settings *set;
 
-        if (settings_get(event, &fts_xapian_setting_parser_info, 0, &set, error_r) < 0) return -1;
+        if (settings_get(event, &fts_xapian_setting_parser_info, 0, &set, error_r) < 0) 
+	{
+		return -1;
+	}
 
         /* Reference the user even when fuser is already initialized */
         if (fts_mail_user_init(user, event, TRUE, error_r) < 0) {

@@ -113,14 +113,17 @@ extern struct fts_backend fts_backend_xapian;
 int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
                                 const char **error_r);
+
+extern const struct setting_parser_info fts_xapian_setting_parser_info;
+
+struct event_category event_category_fts_solr = {
+        .name = XAPIAN_LABEL,
+        .parent = &event_category_fts
+};
+
 #endif
 
 void fts_xapian_plugin_init(struct module *module);
 void fts_xapian_plugin_deinit(void);
-
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
-extern const struct setting_parser_info fts_xapian_setting_parser_info;
-
-#endif
 
 #endif
