@@ -16,7 +16,7 @@
 #include "module-context.h"
 #include "fts-api-private.h"
 #include "master-service.h"
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 #include "fts-settings.h"
 #include "settings-parser.h"
 #include "settings.h"
@@ -80,7 +80,7 @@ static const char * chars_sep[] = { "\"", "\r", "\n", "\t", ",", ":", ";", "(", 
 
 struct fts_xapian_settings
 {
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	pool_t pool;
 #endif
 	unsigned int verbose;
@@ -91,16 +91,15 @@ struct fts_xapian_settings
 
 struct fts_xapian_user {
         union mail_user_module_context module_ctx;
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	struct fts_xapian_settings *set;
-#endif
-#ifndef FTS_MAIL_USER_INIT_FOUR_ARGS
+#else
         struct fts_xapian_settings set;
 #endif
 };
 
 #define FTS_XAPIAN_USER_CONTEXT(obj) (struct fts_xapian_user *)MODULE_CONTEXT(obj, fts_xapian_user_module)
-#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2) || (FTS_MAIL_USER_INIT_FOUR_ARGS > 0))
+#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2) || (FTS_DOVECOT24 > 0))
 #define FTS_XAPIAN_USER_CONTEXT_REQUIRE(obj) MODULE_CONTEXT_REQUIRE(obj, fts_xapian_user_module)
 #endif
 
@@ -108,13 +107,11 @@ extern const char *fts_xapian_plugin_dependencies[];
 extern MODULE_CONTEXT_DEFINE(fts_xapian_user_module, &mail_user_module_register);
 extern struct fts_backend fts_backend_xapian;
 
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 
 int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
                                 const char **error_r);
-
-extern const struct setting_parser_info fts_xapian_setting_parser_info;
 
 #endif
 

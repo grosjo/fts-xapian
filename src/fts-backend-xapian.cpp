@@ -57,7 +57,7 @@ struct xapian_fts_backend
 	std::unique_lock<std::timed_mutex> * mutex_t;
 	unsigned int max_threads;
 
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	struct event *event;
 #endif
 
@@ -119,7 +119,7 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(_backend->ns->user);
 	
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	backend->event = event_create(_backend->event);
         event_add_category(backend->event, &event_category_fts_xapian);
 
@@ -172,7 +172,7 @@ static void fts_backend_xapian_deinit(struct fts_backend *_backend)
 	if(backend->path != NULL) i_free(backend->path);
 	backend->path = NULL;
 
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	event_unref(&backend->event);
 #endif
 

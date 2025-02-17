@@ -19,7 +19,6 @@ lib21_fts_xapian_plugin_la_LIBADD = $(XAPIAN_LIBS) $(ICU_LIBS) $(SQLITE_LIBS)
 
 lib21_fts_xapian_plugin_la_SOURCES = \
 	fts-xapian-plugin.c \
-	fts-xapian-settins.c \
 	fts-backend-xapian.cpp
 EXTRA_DIST = \
 	fts-backend-xapian-functions.cpp

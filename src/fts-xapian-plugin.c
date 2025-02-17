@@ -8,13 +8,13 @@ struct fts_xapian_user_module fts_xapian_user_module = MODULE_CONTEXT_INIT(&mail
 
 static void fts_xapian_mail_user_deinit(struct mail_user *user)
 {
-#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2) || (FTS_MAIL_USER_INIT_FOUR_ARGS > 0))
+#if ((DOVECOT_VERSION_MINOR > 2) || (DOVECOT_VERSION_MAJOR > 2) || (FTS_DOVECOT24 > 0))
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT_REQUIRE(user);
 #else
 	struct fts_xapian_user *fuser = FTS_XAPIAN_USER_CONTEXT(user);
 #endif
 
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
 	settings_free(fuser->set);
 #else
         fts_mail_user_deinit(user);
@@ -22,7 +22,39 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
 	fuser->module_ctx.super.deinit(user);
 }
 
-#ifdef FTS_MAIL_USER_INIT_FOUR_ARGS
+#ifdef FTS_DOVECOT24
+
+#undef DEF
+#define DEF(type, name) \
+        SETTING_DEFINE_STRUCT_##type(XAPIAN_LABEL"_"#name, name, struct fts_xapian_settings)
+
+static const struct setting_define fts_xapian_setting_defines[] = {
+        /* For now this filter just allows grouping the settings
+           like it is possible in the other fts_backends. */
+        { .type = SET_FILTER_NAME, .key = XAPIAN_LABEL },
+        DEF(UINT, verbose),
+        DEF(UINT, lowmemory),
+        DEF(UINT, partial),
+        DEF(UINT, maxthreads),
+        SETTING_DEFINE_LIST_END
+};
+
+static const struct fts_xapian_settings fts_xapian_default_settings = {
+        .verbose = 1,
+        .lowmemory = XAPIAN_MIN_RAM,
+        .partial = XAPIAN_DEFAULT_PARTIAL,
+        .maxthreads = 0,
+};
+
+static const struct setting_parser_info fts_xapian_setting_parser_info = {
+        .name = XAPIAN_LABEL,
+
+        .defines = fts_xapian_setting_defines,
+        .defaults = &fts_xapian_default_settings,
+
+        .struct_size = sizeof(struct fts_xapian_settings),
+        .pool_offset1 = 1 + offsetof(struct fts_xapian_settings, pool),
+};
 
 int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
@@ -78,7 +110,7 @@ static void fts_xapian_mail_user_created(struct mail_user *user)
         fuser->set.partial 	= XAPIAN_DEFAULT_PARTIAL;
 	fuser->set.maxthreads   = 0;
 
-	const char * env = mail_user_plugin_getenv(user, "fts_xapian");
+	const char * env = mail_user_plugin_getenv(user, XAPIAN_LABEL);
         if (env == NULL)
         {
                 i_warning("FTS Xapian: missing configuration - Using default values");

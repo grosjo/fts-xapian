@@ -78,7 +78,7 @@ AC_COMPILE_IFELSE(
                 ]])],
         [       
                 AC_MSG_RESULT([4])
-		USERINIT_ARGS="-DFTS_MAIL_USER_INIT_FOUR_ARGS=1"
+		USERINIT_ARGS="-DFTS_DOVECOT24=1"
         ],[
 		AC_COMPILE_IFELSE(
 			[AC_LANG_PROGRAM([[
