@@ -20,7 +20,7 @@ static const struct setting_define fts_xapian_setting_defines[] = {
 };
 
 static const struct fts_xapian_settings fts_xapian_default_settings = {
-        .verbose = 1,
+        .verbose = 0,
         .lowmemory = XAPIAN_MIN_RAM,
         .partial = XAPIAN_DEFAULT_PARTIAL,
         .maxthreads = 0,
