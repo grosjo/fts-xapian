@@ -83,10 +83,10 @@ language "en" {
 
 fts xapian {
 // Note : All variables are optional
-        verbose = 1
-        maxthreads=4
+        verbose = 0
+        maxthreads = 4
         lowmemory = 500
-        partial = 4
+        partial = 3
 }
 (...)
 
