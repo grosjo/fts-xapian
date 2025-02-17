@@ -25,7 +25,9 @@ lib21_fts_xapian_settings_la_SOURCES = \
 
 lib21_fts_xapian_plugin_la_SOURCES = \
 	fts-xapian-plugin.c \
-	fts-backend-xapian.cpp
+	fts-backend-xapian.cpp \
+	fts-xapian-settings.c
+
 EXTRA_DIST = \
 	fts-backend-xapian-functions.cpp
 

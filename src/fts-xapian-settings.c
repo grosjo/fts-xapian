@@ -12,7 +12,6 @@
         SETTING_DEFINE_STRUCT_##type(XAPIAN_LABEL"_"#name, name, struct fts_xapian_settings)
 
 static const struct setting_define fts_xapian_setting_defines[] = {
-        { .type = SET_FILTER_NAME, .key = XAPIAN_LABEL },
         DEF(UINT, verbose),
         DEF(UINT, lowmemory),
         DEF(UINT, partial),
@@ -35,6 +34,13 @@ const struct setting_parser_info fts_xapian_setting_parser_info = {
 
         .struct_size = sizeof(struct fts_xapian_settings),
         .pool_offset1 = 1 + offsetof(struct fts_xapian_settings, pool),
+};
+
+const char *fts_xapian_settings_version = DOVECOT_ABI_VERSION;
+
+const struct setting_parser_info *fts_xapian_settings_set_infos[] = {
+       &fts_xapian_setting_parser_info,
+       NULL,
 };
 
 #endif
