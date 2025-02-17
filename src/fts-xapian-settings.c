@@ -27,7 +27,7 @@ static const struct fts_xapian_settings fts_xapian_default_settings = {
         .maxthreads = 0,
 };
 
-static const struct setting_parser_info fts_xapian_setting_parser_info = {
+const struct setting_parser_info fts_xapian_setting_parser_info = {
         .name = XAPIAN_LABEL,
 
         .defines = fts_xapian_setting_defines,
