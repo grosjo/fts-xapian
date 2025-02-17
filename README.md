@@ -40,7 +40,6 @@ Update your dovecot.conf file with something similar to:
 
 ```
 (...)
-
 protocols = imap pop3 sieve lmtp
 
 mail_plugins = (...) fts fts_xapian
@@ -62,14 +61,7 @@ service indexer-worker {
     # This one must be 0
     process_limit = 0
 }
-
-service decode2text {
-    executable = script /usr/libexec/dovecot/decode2text.sh
-    user = dovecot
-    unix_listener decode2text {
-        mode = 0666
-    }
-}
+(...)
 
 ```
 
@@ -77,7 +69,6 @@ service decode2text {
 
 ```
 (...)
-
 protocols = imap pop3 sieve lmtp
 
 mail_plugins = (...) fts fts_xapian
@@ -87,15 +78,16 @@ fts_autoindex = yes
 language "en" {
         default = yes
 }
-// Note : the 'language' settings is set mandatory by dovecot but has totally NO impact on FTS Xapian module
+*// Note : the 'language' settings is set mandatory by dovecot but has totally NO impact on FTS Xapian module*
 
 fts xapian {
-// Note : All variables are optional
+*// Note : All variables are optional*
         verbose = 1
         maxthreads=4
         lowmemory = 500
         partial = 4
 }
+(...)
 
 ```
 
