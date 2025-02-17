@@ -29,8 +29,6 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
         SETTING_DEFINE_STRUCT_##type(XAPIAN_LABEL"_"#name, name, struct fts_xapian_settings)
 
 static const struct setting_define fts_xapian_setting_defines[] = {
-        /* For now this filter just allows grouping the settings
-           like it is possible in the other fts_backends. */
         { .type = SET_FILTER_NAME, .key = XAPIAN_LABEL },
         DEF(UINT, verbose),
         DEF(UINT, lowmemory),

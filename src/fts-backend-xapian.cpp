@@ -11,6 +11,7 @@
 extern "C" {
 #include "fts-xapian-plugin.h"
 }
+#include "fts-backend-xapian.h"
 #include <dirent.h>
 #include <filesystem>
 #include <unicode/utypes.h>
