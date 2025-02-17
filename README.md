@@ -78,7 +78,8 @@ fts_autoindex = yes
 language "en" {
         default = yes
 }
-// Note : the 'language' settings is set mandatory by dovecot but has totally NO impact on FTS Xapian module
+// Note : the 'language' settings is set mandatory by dovecot 
+//        but has totally NO impact on FTS Xapian module
 
 fts xapian {
 // Note : All variables are optional
