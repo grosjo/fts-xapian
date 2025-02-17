@@ -29,26 +29,30 @@ THis plugin is readly available in major distributions under the name "dovecot-f
 Configuration - dovecot.conf file
 ---------------------------------
 
+You need to setup LMTP properly with your SMTP server. Kindly refer to:
+- For Postfix : https://doc.dovecot.org/2.3/configuration_manual/howto/postfix_dovecot_lmtp/
+- For Exim : https://doc.dovecot.org/2.3/configuration_manual/howto/dovecot_lmtp_exim/
+
+
 Update your dovecot.conf file with something similar to:
 
-(Example in [conf.d/90-fts.conf](https://github.com/grosjo/fts-xapian/blob/master/contrib/conf.d/90-fts.conf) )
+*VERSION 2.3.x*
 
 ```
-mail_plugins = (...) fts fts_xapian
-
 (...)
+
+protocols = imap pop3 sieve lmtp
+
+mail_plugins = (...) fts fts_xapian
 
 plugin {
     fts = xapian
-    fts_xapian = partial=3 
+    fts_xapian = verbose=0
 
     fts_autoindex = yes
     fts_enforced = yes
 
-    fts_autoindex_exclude = \Trash
-
-    # Index attachements
-    fts_decoder = decode2text
+    (...)
 }
 
 service indexer-worker {
@@ -67,28 +71,33 @@ service decode2text {
     }
 }
 
+```
+
+*VERSION 2.4.x*
+
+```
 (...)
 
 protocols = imap pop3 sieve lmtp
 
-(...)
+mail_plugins = (...) fts fts_xapian
 
-service lmtp {
-        inet_listener lmtp {
-                address = 127.0.0.1
-                port = 24
-        }
-        unix_listener lmtp {
-                mode = 0666
-        }
+fts_autoindex = yes
+
+language "en" {
+        default = yes
 }
+// Note : the 'language' settings is set mandatory by dovecot but has totally NO impact on FTS Xapian module
+
+fts xapian {
+// Note : All variables are optional
+        verbose = 1
+        maxthreads=4
+        lowmemory = 500
+        partial = 4
+}
+
 ```
-
-You need to setup LMTP properly with your SMTP server. Kindly refer to:
-- For Postfix : https://doc.dovecot.org/2.3/configuration_manual/howto/postfix_dovecot_lmtp/
-- For Exim : https://doc.dovecot.org/2.3/configuration_manual/howto/dovecot_lmtp_exim/
-
-
 
 Configuration options
 --------------------------------
