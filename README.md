@@ -119,6 +119,13 @@ You shall put in a cron the following command (daily for instance) to cleanup in
 doveadm fts optimize -A
 ```
 
+If this is not a fresh install of dovecot, you need to re-index your mailboxes:
+
+```sh
+doveadm index -A -q \*
+```
+With argument -A, it will re-index all mailboxes, therefore may take a while.
+With argument -q, doveadm queues the indexing to be run by indexer process. Remove -q if you want to index immediately.
 
 
 Building yourself - Prerequisites
