@@ -24,36 +24,6 @@ static void fts_xapian_mail_user_deinit(struct mail_user *user)
 
 #ifdef FTS_DOVECOT24
 
-#undef DEF
-#define DEF(type, name) \
-        SETTING_DEFINE_STRUCT_##type(XAPIAN_LABEL"_"#name, name, struct fts_xapian_settings)
-
-static const struct setting_define fts_xapian_setting_defines[] = {
-        { .type = SET_FILTER_NAME, .key = XAPIAN_LABEL },
-        DEF(UINT, verbose),
-        DEF(UINT, lowmemory),
-        DEF(UINT, partial),
-        DEF(UINT, maxthreads),
-        SETTING_DEFINE_LIST_END
-};
-
-static const struct fts_xapian_settings fts_xapian_default_settings = {
-        .verbose = 1,
-        .lowmemory = XAPIAN_MIN_RAM,
-        .partial = XAPIAN_DEFAULT_PARTIAL,
-        .maxthreads = 0,
-};
-
-static const struct setting_parser_info fts_xapian_setting_parser_info = {
-        .name = XAPIAN_LABEL,
-
-        .defines = fts_xapian_setting_defines,
-        .defaults = &fts_xapian_default_settings,
-
-        .struct_size = sizeof(struct fts_xapian_settings),
-        .pool_offset1 = 1 + offsetof(struct fts_xapian_settings, pool),
-};
-
 int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
                                 const char **error_r)

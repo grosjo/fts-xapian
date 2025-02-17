@@ -72,6 +72,8 @@ int fts_xapian_mail_user_get(struct mail_user *user, struct event *event,
                                 struct fts_xapian_user **fuser_r,
                                 const char **error_r);
 
+extern const struct setting_parser_info fts_solr_setting_parser_info;
+
 #endif
 
 void fts_xapian_plugin_init(struct module *module);

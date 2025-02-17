@@ -11,11 +11,17 @@ AM_CPPFLAGS = -O2 \
 
 AM_CXXFLAGS = -std=gnu++20 -Wall
 
+settingsdir = $(dovecot_moduledir)/settings
+settings_LTLIBRARIES = lib21_fts_xapian_settings.la
+
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
 
 module_LTLIBRARIES = lib21_fts_xapian_plugin.la
 
 lib21_fts_xapian_plugin_la_LIBADD = $(XAPIAN_LIBS) $(ICU_LIBS) $(SQLITE_LIBS)
+
+lib21_fts_xapian_settings_la_SOURCES = \
+	fts-xapian-settings.c
 
 lib21_fts_xapian_plugin_la_SOURCES = \
 	fts-xapian-plugin.c \
