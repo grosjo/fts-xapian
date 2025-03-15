@@ -11,7 +11,12 @@ AM_CPPFLAGS = -O2 \
 
 AM_CXXFLAGS = -std=gnu++20 -Wall
 
-settingsdir = $(dovecot_moduledir)/settings
+ifeq($(moduledir),)
+  settingsdir = $(dovecot_moduledir)/settings
+else
+  settingsdir = $(moduledir)/settings
+endif
+
 settings_LTLIBRARIES = lib21_fts_xapian_settings.la
 
 lib21_fts_xapian_plugin_la_LDFLAGS = -module -avoid-version
