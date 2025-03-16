@@ -140,4 +140,4 @@ stamp.h])
 
 AC_OUTPUT
 
-AM_CONDITIONAL(MODULEDIR_IS_SET, ![test -z ${moduledir+x}])
+AM_CONDITIONAL(MODULEDIR_IS_SET, test "x$moduledir" != "x")
