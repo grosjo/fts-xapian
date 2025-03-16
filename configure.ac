@@ -139,5 +139,3 @@ src/Makefile
 stamp.h])
 
 AC_OUTPUT
-
-AM_CONDITIONAL(MODULEDIR_IS_SET, test "x$moduledir" != "x")
