@@ -140,3 +140,4 @@ stamp.h])
 
 AC_OUTPUT
 
+AM_CONDITIONAL(MODULEDIR_IS_UNSET, [test -z ${moduledir+x}])

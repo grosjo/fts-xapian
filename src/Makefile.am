@@ -11,7 +11,7 @@ AM_CPPFLAGS = -O2 \
 
 AM_CXXFLAGS = -std=gnu++20 -Wall
 
-ifeq($(moduledir),)
+if MODULEDIR_IS_UNSET
   settingsdir = $(dovecot_moduledir)/settings
 else
   settingsdir = $(moduledir)/settings
