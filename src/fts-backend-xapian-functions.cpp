@@ -305,7 +305,7 @@ static int fts_backend_xapian_sqlite3_dict_add(struct xapian_fts_backend *backen
 	return 0;
 }
 
-static bool fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *backend, int verbose)
+static bool fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *backend, int verbose,char *err_s=NULL)
 {
 	if(backend->dict_nb<1) return TRUE;
 
@@ -315,6 +315,10 @@ static bool fts_backend_xapian_sqlite3_dict_flush(struct xapian_fts_backend *bac
 	if(sqlite3_exec(backend->ddb,flushTmpWords,NULL,0,&zErrMsg) != SQLITE_OK )
 	{
 		syslog(LOG_ERR,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
+		if(err_s!=NULL) 
+		{
+			sprintf(err_s,"FTS Xapian: Can not execute (%s) : %s",flushTmpWords,zErrMsg);
+		}
 		if(zErrMsg!=NULL) sqlite3_free(zErrMsg);
 		return FALSE;
 	}
@@ -884,7 +888,7 @@ class XDocsWriter
 		// First clean dictionnary
 		if((backend->dict_nb > XAPIAN_DICT_MAX) || ((m>0) && (m<(lowmemory*1024))))
 		{
-			fts_backend_xapian_sqlite3_dict_flush(backend,verbose);
+			if(!fts_backend_xapian_sqlite3_dict_flush(backend,verbose,err_s)) err=true;
 			m = fts_backend_xapian_get_free_memory(verbose);
 		}
 
@@ -1245,9 +1249,10 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	}
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : All DWs (%s) closed",reason);
 
-	fts_backend_xapian_sqlite3_dict_flush(backend,fts_xapian_settings.verbose);
+	if(!err) fts_backend_xapian_sqlite3_dict_flush(backend,fts_xapian_settings.verbose);
+
 	sqlite3_close(backend->ddb);
-		  backend->ddb = NULL;
+	backend->ddb = NULL;
 
 	if(backend->dbw!=NULL)
 	{
