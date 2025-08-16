@@ -9,14 +9,14 @@
 #define XAPIAN_TERM_SIZELIMIT 245L // Hard limit of Xapian library
 #define XAPIAN_MAXTERMS_PERDOC 50000L // Nb of keywords max per email
 #define XAPIAN_WRITING_CACHE 5000L // Max nb of emails processed in cache 
-#define XAPIAN_DICT_MAX 60000L // Max nb of terms  in the dict
+#define XAPIAN_DICT_MAX 60000L // Max nb of terms	in the dict
 #define XAPIAN_MAX_ERRORS 1024L 
 #define XAPIAN_MAX_SEC_WAIT 15L
 
 #define HDRS_NB 11
-static const char * hdrs_emails[HDRS_NB] =  { "uid", "subject", "from", "to",  "cc",  "bcc",  "messageid", "listid", "body", "contenttype", ""  };
-static const char * hdrs_xapian[HDRS_NB] =  { "Q",   "S",       "A",    "XTO", "XCC", "XBCC", "XMID",      "XLIST",  "XBDY", "XCT", "XBDY" };
-static const char * hdrs_query[HDRS_NB]  =  { "a",   "b",       "c",    "d",   "d",   "e",    "f",         "g",      "h",    "i",   "h"    };
+static const char * hdrs_emails[HDRS_NB] =  { "uid", "subject", "from", "to",	 "cc",  "bcc",	 "messageid", "listid", "body", "contenttype", ""	};
+static const char * hdrs_xapian[HDRS_NB] =  { "Q", "S", "A", "XTO", "XCC", "XBCC", "XMID", "XLIST", "XBDY", "XCT", "XBDY" };
+static const char * hdrs_query[HDRS_NB]  =  { "a", "b", "c", "d",   "d",   "e",    "f",	   "g",     "h",    "i",   "h" };
 #define HDR_BODY 8L
 
 static const char * createExpTable = "CREATE TABLE IF NOT EXISTS expunges(ID INTEGER PRIMARY KEY NOT NULL);";
