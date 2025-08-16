@@ -779,6 +779,8 @@ class XDocsWriter
 		struct xapian_fts_backend *backend;
 	public:
 		bool started,toclose,terminated;
+		bool err;
+		char err_s[10000];
 		
 	XDocsWriter(struct xapian_fts_backend *b, long n)
 	{
@@ -793,7 +795,8 @@ class XDocsWriter
 		started=false;
 		verbose=fts_xapian_settings.verbose;
 		lowmemory = fts_xapian_settings.lowmemory;
-
+		err=false;
+		err_s[0]=0;
 	}
 
 	bool checkDB()
@@ -910,11 +913,15 @@ class XDocsWriter
                         	}
                         	catch(Xapian::Error e)
                         	{
-					syslog(LOG_ERR,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg().c_str());
+					sprintf(err_s,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg().c_str());
+					syslog(LOG_ERR,err_s);
+					err=true;
                         	}
                         	catch(std::exception const& e)
                         	{
-					syslog(LOG_ERR,"%sCan't commit DB2 : %s",title,e.what());
+					sprintf(err_s,"%sCan't commit DB2 : %s",title,e.what());
+					syslog(LOG_ERR,err_s);
+					err=true;
                         	}
 			}
 			fts_backend_xapian_release_lock(backend, verbose, title);
@@ -929,7 +936,7 @@ class XDocsWriter
 		long totaldocs=0;
 		long sl=0, dt=0;
 
-		while((!toclose) || (doc!=NULL))
+		while((!err) && ((!toclose) || (doc!=NULL)))
 		{
 			if(doc==NULL)
 			{
@@ -1005,7 +1012,7 @@ class XDocsWriter
                         	{
 					checkMemory();
 					fts_backend_xapian_get_lock(backend, verbose, title);
-					if(checkDB())
+					if(checkDB() && (!err))
 					{
 						try
                                	        	{
@@ -1019,11 +1026,15 @@ class XDocsWriter
                         	        	}
 						catch(Xapian::Error e)
                                	                {
-                               	                 	syslog(LOG_ERR,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg().c_str());
+							sprintf(err_s,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg().c_str());
+                               	                 	syslog(LOG_ERR,err_s);
+							err=true;
                                	                }
                                	                catch(std::exception const & e)
                                	                {
-                               	                        syslog(LOG_ERR,"%sCan't write doc2 %s : %s",title,doc->getDocSummary().c_str(),e.what());
+							sprintf(err_s,"%sCan't write doc2 %s : %s",title,doc->getDocSummary().c_str(),e.what());
+                               	                        syslog(LOG_ERR,err_s);
+							err=true;
                                	                }
 					}
 					fts_backend_xapian_release_lock(backend, verbose, title);	
@@ -1036,8 +1047,16 @@ class XDocsWriter
                         }
                 }
 
+		if(doc!=NULL) 
+		{
+			delete(doc);
+			doc=NULL;
+		}
 		terminated=true;
-                if(verbose>0) syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",title,totaldocs,fts_backend_xapian_current_time() - start_time);
+                if((verbose>0) && (!err))
+		{
+			syslog(LOG_INFO,"%sIndexed %ld docs within %ld msec",title,totaldocs,fts_backend_xapian_current_time() - start_time);
+		}
 	}
 };
 
@@ -1125,29 +1144,70 @@ static void fts_backend_xapian_close_db(Xapian::WritableDatabase * dbw,const cha
 	}
 }
 
-static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * reason)
+static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const char * purpose)
 {
-	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing all DWs (%s)",reason);
-	
-	fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,reason);
-	if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
-        fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
+	char reason[10000];
 
-	long n=0;
-	while(backend->docs.size()>0)
+	long n=backend->threads.size();
+	bool err=false;
+	while((!err) && (n>0))
 	{
-		n++;
-                if((n>50) and (fts_xapian_settings.verbose>0))
+		n--;
+		if(backend->threads.at(n)->err)
 		{
-			i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
-			n=0;
+			err=true;
+			strcpy(reason,backend->threads.at(n)->err_s);
 		}
-                std::this_thread::sleep_for(XAPIAN_SLEEP);
-        }
+	}
+	if(!err) strcpy(reason,purpose);
 
-	for(auto & xwr : backend->threads)
-        {
-		xwr->toclose=true;
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing all DWs (%s)",reason);
+
+	if(err)
+	{
+		for(auto & xwr : backend->threads)
+	        {
+        	        xwr->err=true;
+			xwr->toclose=true;
+        	}
+		
+		fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,reason);
+		while(backend->docs.size()>0)
+		{
+			XDoc * doc = backend->docs.back();
+                        backend->docs.pop_back();
+			delete(doc);
+		}
+		fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
+
+		struct stat sb; 
+        	if((stat(backend->version_file, &sb)==0) && S_ISREG(sb.st_mode))
+		{
+			std::filesystem::remove(backend->version_file);
+		}	
+	}
+	else
+	{	
+		fts_backend_xapian_get_lock(backend,fts_xapian_settings.verbose,reason);
+		if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
+        	fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
+
+		long n=0;
+		while(backend->docs.size()>0)
+		{
+			n++;
+                	if((n>50) and (fts_xapian_settings.verbose>0))
+			{
+				i_info("FTS Xapian: Waiting for all pending documents (%ld) to be processed (Sleep5) with %ld threads",backend->docs.size(),backend->threads.size());
+				n=0;
+			}
+                	std::this_thread::sleep_for(XAPIAN_SLEEP);
+        	}
+
+		for(auto & xwr : backend->threads)
+        	{
+			xwr->toclose=true;
+		}
 	}
 
 	XDocsWriter * xw;
@@ -1285,7 +1345,7 @@ static int fts_backend_xapian_set_path(struct xapian_fts_backend *backend)
 		if (mailbox_list_mkdir_root(backend->backend.ns->list, backend->path, MAILBOX_LIST_PATH_TYPE_INDEX) < 0)
 		{
 			i_error("FTS Xapian: can not create '%s'",backend->path);
-			i_error("FTS Xapian: You need to set mail_uid and mail_gid in your dovecot.conf according to the user of mail_location (%s)", path);
+			i_error("FTS Xapian: Hint => You need to set mail_uid and mail_gid in your dovecot.conf according to the user of mail_location (%s)", path);
 			return -1;
 		}
 	}

@@ -363,6 +363,17 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			return FALSE;
 	}
 
+	long n = backend->threads.size();
+        while(n>0)
+        {
+        	n--;
+                if(backend->threads.at(n)->err) return FALSE;
+		if(!(backend->threads.at(n)->started))
+		{
+			backend->threads[n]->launch("Relaunch post error");
+		}
+	}
+
 	ctx->tbi_field = i_strdup_printf("%ld",field);
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
@@ -379,16 +390,6 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 			backend->threads.push_back(x);
                 }
                        
-                long n = backend->threads.size();
-               	while(n>0)
-               	{
-                       	n--;
-                       	if(!(backend->threads.at(n)->started))
-                       	{
-                       	        backend->threads[n]->launch("Relaunch post error");
-                       	}
-               	}
-		
 		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
 		{
 			if(backend->lastuid>0)
