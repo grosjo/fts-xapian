@@ -52,7 +52,7 @@ struct xapian_fts_backend
 	char * old_guid;
 	char * old_boxname;
 
-        std::vector<XDoc *> docs;
+		  std::vector<XDoc *> docs;
 	std::vector<XDocsWriter *> threads;
 	std::timed_mutex mutex;
 	std::unique_lock<std::timed_mutex> * mutex_t;
@@ -79,8 +79,8 @@ struct xapian_fts_backend_update_context
 static struct fts_xapian_settings fts_xapian_settings;
 
 struct event_category event_category_fts_xapian = {
-        .parent = &event_category_fts,
-        .name = XAPIAN_LABEL
+		  .parent = &event_category_fts,
+		  .name = XAPIAN_LABEL
 };
 
 #include "fts-backend-xapian-functions.cpp"
@@ -122,13 +122,13 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 	
 #ifdef FTS_DOVECOT24
 	backend->event = event_create(_backend->event);
-        event_add_category(backend->event, &event_category_fts_xapian);
+	event_add_category(backend->event, &event_category_fts_xapian);
 
 	if (fts_xapian_mail_user_get(_backend->ns->user, backend->event, &fuser, error_r) < 0) 
 	{
-                event_unref(&backend->event);
-                return -1;
-        }
+		event_unref(&backend->event);
+		return -1;
+	}
 	fts_xapian_settings.verbose = fuser->set->verbose;
 	fts_xapian_settings.maxthreads = fuser->set->maxthreads;
 	fts_xapian_settings.partial = fuser->set->partial;
@@ -138,20 +138,20 @@ static int fts_backend_xapian_init(struct fts_backend *_backend, const char **er
 #endif
 
 	if(fts_xapian_settings.maxthreads>0)
-        {
-                backend->max_threads=fts_xapian_settings.maxthreads;
-        }
-        else
-        {
-                backend->max_threads = std::thread::hardware_concurrency()-1;
-        }
-        if(backend->max_threads<2) backend->max_threads = 2;
+	{
+		backend->max_threads=fts_xapian_settings.maxthreads;
+	}
+	else
+	{
+		backend->max_threads = std::thread::hardware_concurrency()-1;
+	}
+	if(backend->max_threads<2) backend->max_threads = 2;
 
 	if(fts_backend_xapian_set_path(backend)<0) return -1;
 
 	openlog("xapian-docswriter",0,LOG_MAIL);
 
-        if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%d verbose=%d max_threads=%u lowmemory=%d MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
+	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Starting version %s with partial=%d verbose=%d max_threads=%u lowmemory=%d MB", XAPIAN_PLUGIN_VERSION, fts_xapian_settings.partial,fts_xapian_settings.verbose,backend->max_threads,fts_xapian_settings.lowmemory);
 
 	return 0;
 }
@@ -364,10 +364,10 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	}
 
 	long n = backend->threads.size();
-        while(n>0)
-        {
-        	n--;
-                if(backend->threads.at(n)->err) return FALSE;
+	while(n>0)
+	{
+		n--;
+		if(backend->threads.at(n)->err) return FALSE;
 		if(!(backend->threads.at(n)->started))
 		{
 			backend->threads[n]->launch("Relaunch post error");
@@ -377,19 +377,19 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 	ctx->tbi_field = i_strdup_printf("%ld",field);
 
 	if((ctx->tbi_uid>0) && (ctx->tbi_uid != backend->lastuid))
-        {
+	{
 		std::string s("FTS Xapian: New doc incoming (#");
-                s.append(std::to_string(ctx->tbi_uid)+")");
+		s.append(std::to_string(ctx->tbi_uid)+")");
 
 		if(fts_xapian_settings.verbose>0) i_info("%s",s.c_str());
 
 		if(backend->threads.size() < backend->max_threads )
-                {
-                       	XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
-                       	x->launch(s.c_str());
+		{
+			XDocsWriter * x = new XDocsWriter(backend,backend->threads.size()+1);
+			x->launch(s.c_str());
 			backend->threads.push_back(x);
-                }
-                       
+		}
+							  
 		fts_backend_xapian_get_lock(backend, fts_xapian_settings.verbose, s.c_str());
 		{
 			if(backend->lastuid>0)
@@ -397,7 +397,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 				if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Previous doc ready to index (#%ld)",backend->lastuid);
 				backend->docs.front()->status=1;	
 			}
-                	backend->lastuid = ctx->tbi_uid;
+			backend->lastuid = ctx->tbi_uid;
 			backend->docs.insert(backend->docs.begin(),new XDoc(backend));
 		
 			if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Start indexing #%ld (%s) : Queue size = %ld",backend->lastuid, backend->boxname,backend->docs.size());
@@ -418,7 +418,7 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 				std::this_thread::sleep_for(XAPIAN_SLEEP);
 			}
 		}
-        }
+	}
 
 	return TRUE;
 }
@@ -459,7 +459,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 	long h = atol(ctx->tbi_field);
 
 	backend->docs.front()->raw_load(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index");
-        	
+			
 	return 0;
 }
 
@@ -511,16 +511,16 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 					while(!ok)
 					{
 						try
-                                		{
+						{
 							db = new Xapian::WritableDatabase(s.c_str(),Xapian::DB_CREATE_OR_OPEN | Xapian::DB_BACKEND_GLASS);
-                                        		ok=true;
-                                		}
-                                		catch(Xapian::Error e)
-                                		{
-                                		        i_warning("FTS Xapian: Retrying opening DB : %s - %s %s",e.get_type(),e.get_msg().c_str(),e.get_error_string());
-                                        		std::this_thread::sleep_for(XAPIAN_SLEEP);
+							ok=true;
 						}
-                                	}
+						catch(Xapian::Error e)
+						{
+							i_warning("FTS Xapian: Retrying opening DB : %s - %s %s",e.get_type(),e.get_msg().c_str(),e.get_error_string());
+							std::this_thread::sleep_for(XAPIAN_SLEEP);
+						}
+					}
 					long c=0;
 					for(uint32_t n=0;n<uids.size();n++)
 					{
@@ -550,7 +550,10 @@ static int fts_backend_xapian_optimize(struct fts_backend *_backend)
 								i_error("FTS Xapian: Optimize (6) %s",e.get_msg().c_str());
 							}
 						}
-						else if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d (DOCID=%d) inexistent",uid,docid);
+						else 
+						{
+							if(fts_xapian_settings.verbose>0) i_info("FTS Xapian: Optimize UID=%d (DOCID=%d) inexistent",uid,docid);
+						}
 						if(result!=NULL) { delete(result); result=NULL; }
 						delete(xq);
 						char * u = i_strdup_printf(deleteExpUID,uid);
