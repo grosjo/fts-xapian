@@ -458,7 +458,7 @@ static int fts_backend_xapian_update_build_more(struct fts_backend_update_contex
 
 	long h = atol(ctx->tbi_field);
 
-	backend->docs.front()->raw_load(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index");
+	if(backend->docs.size()>0) backend->docs.front()->raw_load(h,d,size,fts_xapian_settings.verbose,"fts_backend_xapian_index");
 			
 	return 0;
 }

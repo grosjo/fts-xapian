@@ -1197,7 +1197,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
 		fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
 
-		long n=0;
+		n=0;
 		while(backend->docs.size()>0)
 		{
 			n++;
