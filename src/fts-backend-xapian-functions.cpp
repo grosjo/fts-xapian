@@ -1161,7 +1161,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 			err=true;
 			strcpy(reason,xwr->err_s);
 			break;
-                }
+		}
 	}
 	
 	if(!err) strcpy(reason,purpose);
