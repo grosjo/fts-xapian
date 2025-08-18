@@ -407,8 +407,12 @@ static bool fts_backend_xapian_update_set_build_key(struct fts_backend_update_co
 		if(backend->docs.size() > (XAPIAN_WRITING_CACHE * 2) )
 		{
 			n=0;
-			while (backend->docs.size() > XAPIAN_WRITING_CACHE )
+			while (backend->docs.size() > XAPIAN_WRITING_CACHE)
 			{
+				for(auto & xwr : backend->threads)
+				{
+					if(xwr->err) return FALSE;
+				}
 				n++;
 				if(n>50)
 				{

@@ -1153,17 +1153,17 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 {
 	char reason[10000];
 
-	long n=backend->threads.size();
 	bool err=false;
-	while((!err) && (n>0))
+	for(auto & xwr : backend->threads)
 	{
-		n--;
-		if(backend->threads.at(n)->err)
+		if(xwr->err)
 		{
 			err=true;
-			strcpy(reason,backend->threads.at(n)->err_s);
-		}
+			strcpy(reason,xwr->err_s);
+			break;
+                }
 	}
+	
 	if(!err) strcpy(reason,purpose);
 
 	if(fts_xapian_settings.verbose>0) i_info("FTS Xapian : Closing all DWs (%s)",reason);
@@ -1197,7 +1197,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 		if((backend->docs.size()>0) && (backend->docs.front()->status<1)) backend->docs.front()->status=1;
 		fts_backend_xapian_release_lock(backend,fts_xapian_settings.verbose,reason);
 
-		n=0;
+		long n=0;
 		while(backend->docs.size()>0)
 		{
 			n++;
@@ -1216,7 +1216,7 @@ static void fts_backend_xapian_close(struct xapian_fts_backend *backend, const c
 	}
 
 	XDocsWriter * xw;
-	n=0;
+	long n=0;
 	while(backend->threads.size()>0)
 	{
 		xw = backend->threads.back();
