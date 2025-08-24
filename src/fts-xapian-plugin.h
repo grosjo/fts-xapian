@@ -29,7 +29,7 @@
 
 #include <sqlite3.h>
 
-#define XAPIAN_PLUGIN_VERSION "1.9.1"
+#define XAPIAN_PLUGIN_VERSION "1.9.2"
 #define XAPIAN_LABEL "fts_xapian"
 
 // Main parameters
