@@ -919,13 +919,13 @@ class XDocsWriter
 				catch(Xapian::Error e)
 				{
 					sprintf(err_s,"%sCan't commit DB1 : %s - %s",title,e.get_type(),e.get_msg().c_str());
-					syslog(LOG_ERR,err_s);
+					syslog(LOG_ERR,"%s",err_s);
 					err=true;
 				}
 				catch(std::exception const& e)
 				{
 					sprintf(err_s,"%sCan't commit DB2 : %s",title,e.what());
-					syslog(LOG_ERR,err_s);
+					syslog(LOG_ERR,"%s",err_s);
 					err=true;
 				}
 			}
@@ -1032,13 +1032,13 @@ class XDocsWriter
 						catch(Xapian::Error e)
 						{
 							sprintf(err_s,"%sCan't write doc1 %s : %s - %s",title,doc->getDocSummary().c_str(),e.get_type(),e.get_msg().c_str());
-							syslog(LOG_ERR,err_s);
+							syslog(LOG_ERR,"%s",err_s);
 							err=true;
 						}
 						catch(std::exception const & e)
 						{
 							sprintf(err_s,"%sCan't write doc2 %s : %s",title,doc->getDocSummary().c_str(),e.what());
-							syslog(LOG_ERR,err_s);
+							syslog(LOG_ERR,"%s",err_s);
 							err=true;
 						}
 					}
