@@ -97,7 +97,7 @@ static long fts_backend_xapian_icutochar_length(icu::UnicodeString *t)
 static bool fts_backend_xapian_clean_accents(icu::UnicodeString *t)
 {
 	UErrorCode status = U_ZERO_ERROR;
-	icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [:M:] Remove; NFC", UTRANS_FORWARD, status);
+	icu::Transliterator * accentsConverter = icu::Transliterator::createInstance("NFD; [[:M:]-[\u3099\u309A]] Remove; NFC", UTRANS_FORWARD, status);
 	if(U_FAILURE(status))
 	{
 		std::string s("FTS Xapian: Can not allocate ICU translator + FreeMem="+std::to_string(long(fts_backend_xapian_get_free_memory(0)/1024.0f))+"MB");
