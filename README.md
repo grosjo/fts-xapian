@@ -74,6 +74,7 @@ protocols = imap pop3 sieve lmtp
 mail_plugins = (...) fts fts_xapian
 
 fts_autoindex = yes
+fts_driver = fts_xapian
 
 language "en" {
         default = yes
